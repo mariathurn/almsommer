@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" shape-rendering="geometricPrecision">
+  <rect x="8" y="8" width="184" height="284" rx="22" fill="#f5f6f8" stroke="#1a1a1a" stroke-width="4"/>
+  <rect x="18" y="18" width="164" height="264" rx="16" fill="#e7f4ea" stroke="#1a1a1a" stroke-width="2"/>
+
+  <g font-family="Georgia, 'Times New Roman', serif" font-weight="700">
+    <text x="34" y="58" font-size="26" fill="#206240">K</text>
+    <text x="34" y="86" font-size="18" fill="#206240">L</text>
+
+    <text x="168" y="242" font-size="26" fill="#206240" text-anchor="end" transform="rotate(180 168 242)">K</text>
+    <text x="168" y="270" font-size="18" fill="#206240" text-anchor="end" transform="rotate(180 168 270)">L</text>
+  </g>
+
+  <g transform="translate(100 150)">
+    <text x="0" y="0" text-anchor="middle" font-size="78" font-family="Georgia, 'Times New Roman', serif" fill="#206240">L</text>
+    <text x="0" y="34" text-anchor="middle" font-size="24" font-family="Georgia, 'Times New Roman', serif" fill="#206240">K</text>
+  </g>
+</svg>
