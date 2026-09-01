@@ -15,7 +15,7 @@ function App() {
       <div className="table-shell">
         <GameHeader currentTurn={currentTurn} trickWinner={trickWinner} onDeal={dealHands} />
 
-        <TableCenter playedCards={playedCards} />
+        <TableCenter playedCards={playedCards} trickWinner={trickWinner} />
 
         <div className="player-slot north">
           <PlayerPanel

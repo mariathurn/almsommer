@@ -138,6 +138,11 @@ const getAIMove = (hand, playedCards) => {
     return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
 };
 
+// Timing constants - adjust these to change all delays at once
+const AI_PLAY_DELAY = 1000;  // milliseconds between AI card plays
+const TRICK_DISPLAY_DELAY = 1200;  // milliseconds to show completed trick
+const WINNER_DISPLAY_DELAY = TRICK_DISPLAY_DELAY + 1500;  // milliseconds before hiding winner
+
 function useSchafkopfGame() {
     const [players, setPlayers] = useState(initialPlayers);
     const [currentTurn, setCurrentTurn] = useState("south");
@@ -145,7 +150,9 @@ function useSchafkopfGame() {
     const [trickWinner, setTrickWinner] = useState(null);
     const [humanPlayer] = useState("south");
     const aiTimeoutRef = useRef(null);
-    const clearDisplayTimeoutRef = useRef(null);
+    const clearPlayedCardsTimeoutRef = useRef(null);
+    const clearWinnerTimeoutRef = useRef(null);
+    const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
 
     // Keep gameStateRef in sync with current state
@@ -156,9 +163,11 @@ function useSchafkopfGame() {
     const dealHands = () => {
         // Clean up any pending timeouts
         if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
-        if (clearDisplayTimeoutRef.current) clearTimeout(clearDisplayTimeoutRef.current);
+        if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
+        if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
         aiTimeoutRef.current = null;
-        clearDisplayTimeoutRef.current = null;
+        clearPlayedCardsTimeoutRef.current = null;
+        clearWinnerTimeoutRef.current = null;
 
         const shuffledDeck = shuffleDeck(combinations);
         const nextPlayers = {
@@ -217,17 +226,22 @@ function useSchafkopfGame() {
             setPlayers(result.updatedPlayers);
 
             if (result.isComplete) {
-                // Immediately clear the pile when trick completes
-                setPlayedCards([]);
-                setTrickWinner(result.winner);
-                setCurrentTurn(result.winner);
+                if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
+                if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
 
-                // Only update display state after 600ms
-                if (clearDisplayTimeoutRef.current) clearTimeout(clearDisplayTimeoutRef.current);
-                clearDisplayTimeoutRef.current = setTimeout(() => {
+                // Show all 4 cards first
+                setPlayedCards(result.nextPlayedCards);
+
+                clearPlayedCardsTimeoutRef.current = setTimeout(() => {
+                    setPlayedCards([]);
+                    setTrickWinner(result.winner);
+                    setCurrentTurn(result.winner);
+                }, TRICK_DISPLAY_DELAY);
+
+                clearWinnerTimeoutRef.current = setTimeout(() => {
                     setTrickWinner(null);
-                    clearDisplayTimeoutRef.current = null;
-                }, 600);
+                    clearWinnerTimeoutRef.current = null;
+                }, WINNER_DISPLAY_DELAY);
 
                 return true;
             }
@@ -242,17 +256,23 @@ function useSchafkopfGame() {
 
     useEffect(() => {
         if (currentTurn !== humanPlayer && players[currentTurn].length > 0) {
-            if (aiTimeoutRef.current) return; // Already pending
+            if (aiTimeoutRef.current || isProcessingRef.current) return; // Already pending or processing
 
             aiTimeoutRef.current = setTimeout(() => {
+                isProcessingRef.current = true;  // Mark as processing
                 const { players: currentPlayers, currentTurn: aiTurn, playedCards: currentPlayedCards } = gameStateRef.current;
                 const hand = currentPlayers[aiTurn];
-                if (!hand || hand.length === 0) return;
+                if (!hand || hand.length === 0) {
+                    isProcessingRef.current = false;
+                    aiTimeoutRef.current = null;
+                    return;
+                }
 
                 const cardIndex = getAIMove(hand, currentPlayedCards);
                 const result = processCardPlay(aiTurn, cardIndex, currentPlayers, currentPlayedCards, aiTurn);
 
                 if (!result) {
+                    isProcessingRef.current = false;
                     aiTimeoutRef.current = null;
                     return;
                 }
@@ -260,29 +280,37 @@ function useSchafkopfGame() {
                 setPlayers(result.updatedPlayers);
 
                 if (result.isComplete) {
-                    // Immediately clear the pile when trick completes
-                    setPlayedCards([]);
-                    setTrickWinner(result.winner);
-                    setCurrentTurn(result.winner);
+                    if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
+                    if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
 
-                    // Only update display state after 600ms
-                    if (clearDisplayTimeoutRef.current) clearTimeout(clearDisplayTimeoutRef.current);
-                    clearDisplayTimeoutRef.current = setTimeout(() => {
+                    // Show all 4 cards first
+                    setPlayedCards(result.nextPlayedCards);
+
+                    clearPlayedCardsTimeoutRef.current = setTimeout(() => {
+                        setPlayedCards([]);
+                        setTrickWinner(result.winner);
+                        setCurrentTurn(result.winner);
+                        isProcessingRef.current = false;  // Mark as done processing
+                    }, TRICK_DISPLAY_DELAY);
+
+                    clearWinnerTimeoutRef.current = setTimeout(() => {
                         setTrickWinner(null);
-                        clearDisplayTimeoutRef.current = null;
-                    }, 600);
+                        clearWinnerTimeoutRef.current = null;
+                    }, WINNER_DISPLAY_DELAY);
                 } else {
                     // Normal card play - add to pile
                     setPlayedCards(result.nextPlayedCards);
                     setCurrentTurn(result.nextTurn);
+                    isProcessingRef.current = false;  // Mark as done processing
                 }
                 aiTimeoutRef.current = null;
-            }, 600);
+            }, AI_PLAY_DELAY);
 
             return () => {
                 if (aiTimeoutRef.current) {
                     clearTimeout(aiTimeoutRef.current);
                     aiTimeoutRef.current = null;
+                    isProcessingRef.current = false;
                 }
             };
         }

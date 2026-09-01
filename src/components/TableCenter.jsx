@@ -5,7 +5,7 @@ import "../styles/cards.css";
 
 import Card from "./Card";
 
-function TableCenter({ playedCards }) {
+function TableCenter({ playedCards, trickWinner }) {
     return (
         <div className="table-center">
             <div className="board">
@@ -23,7 +23,9 @@ function TableCenter({ playedCards }) {
                             </div>
                         ))
                     ) : (
-                        <span className="announcements">Game announcement</span>
+                        <span className="announcements">
+                            {trickWinner ? `${trickWinner} wins the trick!` : "Play!"}
+                        </span>
                     )}
                 </div>
             </div>

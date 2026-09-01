@@ -5,7 +5,7 @@ function GameHeader({ currentTurn, trickWinner, onDeal }) {
         <header className="game-header">
             <div className="game-header-title-section">
                 <p className="game-header-subtitle">
-                    Card table
+                    Bavarian Card Game
                 </p>
                 <h1 className="game-header-title">Schafkopf</h1>
             </div>
