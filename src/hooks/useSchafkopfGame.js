@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
-import { canPlayCard } from "../ai/schafkopfAI";
+import { canPlayCard, getSauSpielTeams, isTrumpForGame } from "../ai/schafkopfAI";
+
+// Timing constants - adjust these to change all delays at once
+const TESTING = 0.2;
+const AI_PLAY_DELAY = 1000 * TESTING;  // milliseconds between AI card plays
+const TRICK_DISPLAY_DELAY = 1200 * TESTING;  // milliseconds to show completed trick
+const WINNER_DISPLAY_DELAY = (TRICK_DISPLAY_DELAY + 1500) * TESTING;  // milliseconds before hiding winner
 
 const initialPlayers = {
     south: [],
@@ -19,9 +25,8 @@ const rankValue = {
     O: 6,
 };
 
-// Trump cards: all O (Ober), all U (Unter), all hearts
-function isTrump(card) {
-    return card.rank === "O" || card.rank === "U" || card.suit === "heart";
+function isTrump(card, gameName = "Pass") {
+    return isTrumpForGame(card, gameName);
 }
 
 const shuffleDeck = (deck) => {
@@ -35,7 +40,7 @@ const shuffleDeck = (deck) => {
     return nextDeck;
 };
 
-const getTrickWinner = (cards) => {
+const getTrickWinner = (cards, gameName = "Pass") => {
     const ledCard = cards[0].card;
     const ledSuit = ledCard.suit;
 
@@ -43,8 +48,8 @@ const getTrickWinner = (cards) => {
         const bestCard = best.card;
         const currentCard = current.card;
 
-        const bestIsTrump = isTrump(bestCard);
-        const currentIsTrump = isTrump(currentCard);
+        const bestIsTrump = isTrump(bestCard, gameName);
+        const currentIsTrump = isTrump(currentCard, gameName);
 
         // Trump beats non-trump
         if (currentIsTrump && !bestIsTrump) {
@@ -80,16 +85,16 @@ const getTrickWinner = (cards) => {
     }, cards[0]);
 };
 
-const getAIMove = (hand, playedCards) => {
+const getAIMove = (hand, playedCards, gameName = "Pass") => {
     if (!hand || hand.length === 0) return 0;
 
     // If this is the first card (leading), play lowest non-trump to preserve trump
     if (playedCards.length === 0) {
-        const nonTrumpCards = hand.filter((c) => !isTrump(c));
+        const nonTrumpCards = hand.filter((c) => !isTrump(c, gameName));
         if (nonTrumpCards.length > 0) {
             const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
             return hand.findIndex(
-                (c) => !isTrump(c) && rankValue[c.rank] === lowestRank
+                (c) => !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
             );
         }
         // All cards are trump, play lowest trump
@@ -98,14 +103,14 @@ const getAIMove = (hand, playedCards) => {
     }
 
     const ledCard = playedCards[0].card;
-    const ledIsTrump = isTrump(ledCard);
+    const ledIsTrump = isTrump(ledCard, gameName);
 
     // If trump was led, must follow with trump
     if (ledIsTrump) {
-        const trumpCards = hand.filter((c) => isTrump(c));
+        const trumpCards = hand.filter((c) => isTrump(c, gameName));
         if (trumpCards.length > 0) {
             const lowestRank = Math.min(...trumpCards.map((c) => rankValue[c.rank]));
-            return hand.findIndex((c) => isTrump(c) && rankValue[c.rank] === lowestRank);
+            return hand.findIndex((c) => isTrump(c, gameName) && rankValue[c.rank] === lowestRank);
         }
         // No trump, play lowest card
         const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
@@ -114,22 +119,22 @@ const getAIMove = (hand, playedCards) => {
 
     // Regular suit was led
     const ledSuit = ledCard.suit;
-    const sameSuitCards = hand.filter((c) => c.suit === ledSuit && !isTrump(c));
+    const sameSuitCards = hand.filter((c) => c.suit === ledSuit && !isTrump(c, gameName));
 
     // If we have cards of the led suit (non-trump), play lowest
     if (sameSuitCards.length > 0) {
         const lowestRank = Math.min(...sameSuitCards.map((c) => rankValue[c.rank]));
         return hand.findIndex(
-            (c) => c.suit === ledSuit && !isTrump(c) && rankValue[c.rank] === lowestRank
+            (c) => c.suit === ledSuit && !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
         );
     }
 
     // Can't follow suit, play lowest non-trump card if possible
-    const nonTrumpCards = hand.filter((c) => !isTrump(c));
+    const nonTrumpCards = hand.filter((c) => !isTrump(c, gameName));
     if (nonTrumpCards.length > 0) {
         const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
         return hand.findIndex(
-            (c) => !isTrump(c) && rankValue[c.rank] === lowestRank
+            (c) => !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
         );
     }
 
@@ -138,16 +143,16 @@ const getAIMove = (hand, playedCards) => {
     return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
 };
 
-// Timing constants - adjust these to change all delays at once
-const AI_PLAY_DELAY = 1000;  // milliseconds between AI card plays
-const TRICK_DISPLAY_DELAY = 1200;  // milliseconds to show completed trick
-const WINNER_DISPLAY_DELAY = TRICK_DISPLAY_DELAY + 1500;  // milliseconds before hiding winner
 
 function useSchafkopfGame() {
     const [players, setPlayers] = useState(initialPlayers);
     const [currentTurn, setCurrentTurn] = useState("south");
     const [playedCards, setPlayedCards] = useState([]);
     const [trickWinner, setTrickWinner] = useState(null);
+    const [selectedGame, setSelectedGame] = useState("Pass");
+    const [calledAce, setCalledAce] = useState(null);
+    const [teams, setTeams] = useState({ callerTeam: [], opposingTeam: [] });
+    const [revealedAceOwner, setRevealedAceOwner] = useState(null);
     const [humanPlayer] = useState("south");
     const aiTimeoutRef = useRef(null);
     const clearPlayedCardsTimeoutRef = useRef(null);
@@ -159,6 +164,20 @@ function useSchafkopfGame() {
     useEffect(() => {
         gameStateRef.current = { players, currentTurn, playedCards };
     }, [players, currentTurn, playedCards]);
+
+    useEffect(() => {
+        if (selectedGame !== "Sau Spiel") {
+            setCalledAce(null);
+            setTeams({ callerTeam: [], opposingTeam: [] });
+            setRevealedAceOwner(null);
+            return;
+        }
+
+        if (calledAce) {
+            const nextTeams = getSauSpielTeams(players, humanPlayer, calledAce);
+            setTeams(nextTeams);
+        }
+    }, [selectedGame, calledAce, players, humanPlayer]);
 
     const dealHands = () => {
         // Clean up any pending timeouts
@@ -186,9 +205,16 @@ function useSchafkopfGame() {
         setCurrentTurn("south");
         setPlayedCards([]);
         setTrickWinner(null);
+        setRevealedAceOwner(null);
+
+        if (selectedGame === "Sau Spiel" && calledAce) {
+            setTeams(getSauSpielTeams(nextPlayers, humanPlayer, calledAce));
+        } else {
+            setTeams({ callerTeam: [], opposingTeam: [] });
+        }
     };
 
-    const processCardPlay = (playerName, cardIndex, currentPlayersState, currentPlayedCardsState, currentTurnState) => {
+    const processCardPlay = (playerName, cardIndex, currentPlayersState, currentPlayedCardsState, currentTurnState, gameName = "Pass") => {
         const card = currentPlayersState[playerName][cardIndex];
 
         if (!card || playerName !== currentTurnState) {
@@ -196,7 +222,7 @@ function useSchafkopfGame() {
         }
 
         // Validate suit following rule
-        if (!canPlayCard(card, currentPlayersState[playerName], currentPlayedCardsState)) {
+        if (!canPlayCard(card, currentPlayersState[playerName], currentPlayedCardsState, gameName)) {
             return null;
         }
 
@@ -211,19 +237,34 @@ function useSchafkopfGame() {
             updatedPlayers,
             nextPlayedCards,
             isComplete: nextPlayedCards.length === playerOrder.length,
-            winner: nextPlayedCards.length === playerOrder.length ? getTrickWinner(nextPlayedCards).player : null,
+            winner: nextPlayedCards.length === playerOrder.length ? getTrickWinner(nextPlayedCards, gameName).player : null,
             nextTurn: nextPlayedCards.length === playerOrder.length
-                ? getTrickWinner(nextPlayedCards).player
+                ? getTrickWinner(nextPlayedCards, gameName).player
                 : playerOrder[(playerOrder.indexOf(playerName) + 1) % playerOrder.length],
         };
     };
 
+    const revealCalledAceIfNeeded = useCallback((playerName, card) => {
+        if (
+            selectedGame === "Sau Spiel" &&
+            calledAce &&
+            !revealedAceOwner &&
+            card &&
+            card.suit === calledAce &&
+            card.rank === "A"
+        ) {
+            setRevealedAceOwner(playerName);
+        }
+    }, [calledAce, revealedAceOwner, selectedGame]);
+
     const playCard = useCallback(
         (playerName, cardIndex) => {
-            const result = processCardPlay(playerName, cardIndex, players, playedCards, currentTurn);
+            const result = processCardPlay(playerName, cardIndex, players, playedCards, currentTurn, selectedGame);
             if (!result) return false;
 
+            const playedCard = players[playerName][cardIndex];
             setPlayers(result.updatedPlayers);
+            revealCalledAceIfNeeded(playerName, playedCard);
 
             if (result.isComplete) {
                 if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
@@ -251,7 +292,7 @@ function useSchafkopfGame() {
             setCurrentTurn(result.nextTurn);
             return true;
         },
-        [players, currentTurn, playedCards]
+        [players, currentTurn, playedCards, selectedGame]
     );
 
     useEffect(() => {
@@ -268,8 +309,8 @@ function useSchafkopfGame() {
                     return;
                 }
 
-                const cardIndex = getAIMove(hand, currentPlayedCards);
-                const result = processCardPlay(aiTurn, cardIndex, currentPlayers, currentPlayedCards, aiTurn);
+                const cardIndex = getAIMove(hand, currentPlayedCards, selectedGame);
+                const result = processCardPlay(aiTurn, cardIndex, currentPlayers, currentPlayedCards, aiTurn, selectedGame);
 
                 if (!result) {
                     isProcessingRef.current = false;
@@ -278,6 +319,7 @@ function useSchafkopfGame() {
                 }
 
                 setPlayers(result.updatedPlayers);
+                revealCalledAceIfNeeded(aiTurn, currentPlayers[aiTurn][cardIndex]);
 
                 if (result.isComplete) {
                     if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
@@ -314,13 +356,19 @@ function useSchafkopfGame() {
                 }
             };
         }
-    }, [currentTurn, humanPlayer, players, playedCards]);
+    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, revealCalledAceIfNeeded]);
 
     return {
         players,
         currentTurn,
         playedCards,
         trickWinner,
+        selectedGame,
+        setSelectedGame,
+        calledAce,
+        setCalledAce,
+        teams,
+        revealedAceOwner,
         dealHands,
         playCard,
     };

@@ -7,25 +7,83 @@ const rankValue = {
     O: 6,
 };
 
-// Trump cards: all O (Ober), all U (Unter), all hearts
-function isTrump(card) {
+const validAceCalls = ["heart", "bell", "acorn", "leaf"];
+
+export function isTrumpForGame(card, gameName = "Pass") {
+    if (!card) return false;
+
+    if (gameName === "Sau Spiel") {
+        return card.rank === "O" || card.rank === "U" || card.suit === "heart";
+    }
+
+    // Fallback for the game variants we have so far.
     return card.rank === "O" || card.rank === "U" || card.suit === "heart";
 }
 
-export function canPlayCard(card, hand, playedCards) {
+export function canCallAce(aceSuit, hand = []) {
+    if (!aceSuit || !validAceCalls.includes(aceSuit)) {
+        return false;
+    }
+
+    return !hand.some((card) => card.suit === aceSuit && card.rank === "A");
+}
+
+export function getPartnerForCalledAce(calledAceSuit, players, callerName) {
+    if (!calledAceSuit || !players || !callerName) {
+        return null;
+    }
+
+    const partner = Object.entries(players).find(
+        ([playerName, hand]) =>
+            playerName !== callerName &&
+            hand.some((card) => card.suit === calledAceSuit && card.rank === "A")
+    );
+
+    return partner ? partner[0] : null;
+}
+
+export function getSauSpielTeams(players, callerName, calledAceSuit) {
+    if (!players || !callerName) {
+        return { callerTeam: [], opposingTeam: [] };
+    }
+
+    const partnerName = getPartnerForCalledAce(calledAceSuit, players, callerName);
+    const callerTeam = partnerName ? [callerName, partnerName] : [callerName];
+    const opposingTeam = Object.keys(players).filter(
+        (playerName) => !callerTeam.includes(playerName)
+    );
+
+    return { callerTeam, opposingTeam };
+}
+
+export function getTeamForPlayer(playerName, players, callerName, calledAceSuit) {
+    const { callerTeam, opposingTeam } = getSauSpielTeams(players, callerName, calledAceSuit);
+
+    if (callerTeam.includes(playerName)) {
+        return "callerTeam";
+    }
+
+    if (opposingTeam.includes(playerName)) {
+        return "opposingTeam";
+    }
+
+    return null;
+}
+
+export function canPlayCard(card, hand, playedCards, gameName = "Pass") {
     // If this is the first card of the trick, any card is legal
     if (playedCards.length === 0) {
         return true;
     }
 
     const ledCard = playedCards[0].card;
-    const ledIsTrump = isTrump(ledCard);
+    const ledIsTrump = isTrumpForGame(ledCard, gameName);
 
     // If trump was led, you must follow with trump if you have it
     if (ledIsTrump) {
-        const hasTrump = hand.some((c) => isTrump(c));
+        const hasTrump = hand.some((c) => isTrumpForGame(c, gameName));
         if (hasTrump) {
-            return isTrump(card);
+            return isTrumpForGame(card, gameName);
         }
         // No trump available, any card is legal
         return true;
@@ -38,7 +96,7 @@ export function canPlayCard(card, hand, playedCards) {
     }
 
     // Check if player has cards of the led suit
-    const hasLedSuit = hand.some((c) => c.suit === ledSuit && !isTrump(c));
+    const hasLedSuit = hand.some((c) => c.suit === ledSuit && !isTrumpForGame(c, gameName));
 
     // Only allowed to play a different non-trump suit if you don't have the led suit
     if (!hasLedSuit) {
@@ -48,16 +106,16 @@ export function canPlayCard(card, hand, playedCards) {
     return false;
 }
 
-export function getAIMove(hand, playedCards) {
+export function getAIMove(hand, playedCards, gameName = "Pass") {
     if (!hand || hand.length === 0) return 0;
 
     // If this is the first card (leading), play lowest non-trump to preserve trump
     if (playedCards.length === 0) {
-        const nonTrumpCards = hand.filter((c) => !isTrump(c));
+        const nonTrumpCards = hand.filter((c) => !isTrumpForGame(c, gameName));
         if (nonTrumpCards.length > 0) {
             const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
             return hand.findIndex(
-                (c) => !isTrump(c) && rankValue[c.rank] === lowestRank
+                (c) => !isTrumpForGame(c, gameName) && rankValue[c.rank] === lowestRank
             );
         }
         // All cards are trump, play lowest trump
@@ -66,14 +124,14 @@ export function getAIMove(hand, playedCards) {
     }
 
     const ledCard = playedCards[0].card;
-    const ledIsTrump = isTrump(ledCard);
+    const ledIsTrump = isTrumpForGame(ledCard, gameName);
 
     // If trump was led, must follow with trump
     if (ledIsTrump) {
-        const trumpCards = hand.filter((c) => isTrump(c));
+        const trumpCards = hand.filter((c) => isTrumpForGame(c, gameName));
         if (trumpCards.length > 0) {
             const lowestRank = Math.min(...trumpCards.map((c) => rankValue[c.rank]));
-            return hand.findIndex((c) => isTrump(c) && rankValue[c.rank] === lowestRank);
+            return hand.findIndex((c) => isTrumpForGame(c, gameName) && rankValue[c.rank] === lowestRank);
         }
         // No trump, play lowest card
         const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
@@ -82,22 +140,22 @@ export function getAIMove(hand, playedCards) {
 
     // Regular suit was led
     const ledSuit = ledCard.suit;
-    const sameSuitCards = hand.filter((c) => c.suit === ledSuit && !isTrump(c));
+    const sameSuitCards = hand.filter((c) => c.suit === ledSuit && !isTrumpForGame(c, gameName));
 
     // If we have cards of the led suit (non-trump), play lowest
     if (sameSuitCards.length > 0) {
         const lowestRank = Math.min(...sameSuitCards.map((c) => rankValue[c.rank]));
         return hand.findIndex(
-            (c) => c.suit === ledSuit && !isTrump(c) && rankValue[c.rank] === lowestRank
+            (c) => c.suit === ledSuit && !isTrumpForGame(c, gameName) && rankValue[c.rank] === lowestRank
         );
     }
 
     // Can't follow suit, play lowest non-trump card if possible
-    const nonTrumpCards = hand.filter((c) => !isTrump(c));
+    const nonTrumpCards = hand.filter((c) => !isTrumpForGame(c, gameName));
     if (nonTrumpCards.length > 0) {
         const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
         return hand.findIndex(
-            (c) => !isTrump(c) && rankValue[c.rank] === lowestRank
+            (c) => !isTrumpForGame(c, gameName) && rankValue[c.rank] === lowestRank
         );
     }
 
