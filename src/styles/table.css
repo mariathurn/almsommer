@@ -1,29 +1,30 @@
+html,
+body {
+    height: 100%;
+    background: #10244d;
+    overflow: hidden;
+}
+
 /* Main game table container - creates the outer boundary and teal background for the entire game board */
 .table-shell {
     position: relative;
-    width: min(96vw, 1600px);
-    /* Responsive width: 96% of viewport or 1600px max */
-    height: min(99vh, 980px);
-    /* Responsive height: 92% of viewport or 980px max */
-    min-height: 620px;
-    /* Minimum height for small screens */
+    width: 100%;
+    height: 100%;
     border: solid rgba(251, 191, 36, 0.8);
     background: #699b9b;
     overflow: hidden;
-    /* Hide any content that overflows the container */
 }
 
-/* Outer container - centers the game table on screen with pink background */
 .table-wrapper {
     display: flex;
-    min-height: 100vh;
+    height: 98vh;
     align-items: center;
     justify-content: center;
-    background: #1c376f;
-    padding: 1rem;
+    padding: .5rem;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
-/* Creates a darker overlay/pattern behind table-shell children using pseudo-element */
 .table-shell::before {
     content: "";
     position: absolute;
@@ -31,13 +32,11 @@
     background: #252d45;
 }
 
-/* Ensures all direct children of table-shell appear above the pseudo-element overlay */
 .table-shell>* {
     position: relative;
     z-index: 1;
 }
 
-/* Centers content in the middle of the table - contains the circular board and played cards */
 .table-center {
     position: absolute;
     inset: 0;
@@ -48,40 +47,38 @@
     pointer-events: none;
 }
 
-/* Base styling for player positions - positioned absolutely for layout flexibility */
 .player-slot {
     position: absolute;
     z-index: 3;
     width: min(36vw, 320px);
     max-width: 320px;
+    overflow: visible;
 }
 
 .player-slot.north {
-    left: 50%;
+    left: 53%;
     top: 1 rem;
     transform: translateX(-50%) rotate(0.5turn);
 }
 
 .player-slot.south {
-    left: 50%;
-    bottom: 3rem;
+    left: 40%;
+    bottom: 1rem;
     transform: translateX(-50%);
 }
 
 .player-slot.east {
     right: -1rem;
-    top: 35%;
+    top: 45%;
     transform: translateY(0%) rotate(-0.25turn);
 }
 
-/* West player position - left side of table, cards rotated 90 degrees */
 .player-slot.west {
     left: -1rem;
-    top: 50%;
+    top: 45%;
     transform: translateY(-30%) rotate(0.25turn);
 }
 
-/* Circular board in the center of the table - displays played cards and game info */
 .board {
     position: relative;
     display: flex;
@@ -101,6 +98,7 @@
     position: relative;
     z-index: 2;
     width: 100%;
+    overflow: visible;
 }
 
 .player-name {
@@ -121,7 +119,20 @@
     min-height: clamp(90px, 14vw, 140px);
     width: 100%;
     z-index: 2;
+    overflow: visible;
 }
+
+.announcements {
+    text-align: center;
+    font-size: clamp(0.55rem, 1.5vw, 0.85rem);
+    font-weight: 900;
+    line-height: 2rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+
 
 
 @media (max-width: 820px) {
@@ -155,14 +166,28 @@
         width: min(48vw, 180px);
     }
 
-    .player-slot.north,
-    .player-slot.south {
-        width: min(58vw, 220px);
+    .player-slot.north {
+        left: 53%;
+        top: 1 rem;
+        transform: translateX(0%) rotate(0.5turn);
     }
 
-    .player-slot.east,
+    .player-slot.south {
+        left: 40%;
+        bottom: 1rem;
+        transform: translateX(-110%);
+    }
+
+    .player-slot.east {
+        right: -1rem;
+        top: 45%;
+        transform: translateY(40%) rotate(-0.25turn);
+    }
+
     .player-slot.west {
-        top: 52%;
+        left: -1rem;
+        top: 45%;
+        transform: translateY(-100%) rotate(0.25turn);
     }
 
     .board {

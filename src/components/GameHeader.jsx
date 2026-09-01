@@ -1,6 +1,4 @@
 import "../styles/gameheader.css";
-/* The title, “Deal” button, and current turn indicator
-Keeps the board logic separate from the UI chrome */
 
 function GameHeader({ currentTurn, trickWinner, onDeal }) {
     return (

@@ -1,5 +1,7 @@
 /* The middle area that shows the current trick / played cards
 Easy to style and isolate from the rest of the table */
+import "../styles/table.css";
+import "../styles/cards.css";
 
 import Card from "./Card";
 
@@ -21,7 +23,7 @@ function TableCenter({ playedCards }) {
                             </div>
                         ))
                     ) : (
-                        <span>Table</span>
+                        <span className="announcements">Game announcement</span>
                     )}
                 </div>
             </div>

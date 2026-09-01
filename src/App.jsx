@@ -2,6 +2,7 @@ import "./styles/table.css";
 import "./styles/cards.css"
 import GameHeader from "./components/GameHeader";
 import PlayerPanel from "./components/PlayerPanel";
+import SouthPlayerPanel from "./components/SouthPlayerPanel";
 import TableCenter from "./components/TableCenter";
 import useSchafkopfGame from "./hooks/useSchafkopfGame";
 
@@ -39,12 +40,11 @@ function App() {
         </div>
 
         <div className="player-slot south">
-          <PlayerPanel
+          <SouthPlayerPanel
             name="south"
             cards={players.south}
             isCurrentTurn={currentTurn === "south"}
             onPlayCard={(index) => playCard("south", index)}
-            orientation="horizontal"
             playedCards={playedCards}
           />
         </div>
