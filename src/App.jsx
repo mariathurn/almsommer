@@ -1,4 +1,5 @@
 import "./styles/table.css";
+import "./styles/cards.css"
 import GameHeader from "./components/GameHeader";
 import PlayerPanel from "./components/PlayerPanel";
 import TableCenter from "./components/TableCenter";
@@ -9,7 +10,7 @@ function App() {
     useSchafkopfGame();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0d7a8b] p-4">
+    <div className="table-wrapper">
       <div className="table-shell">
         <GameHeader currentTurn={currentTurn} trickWinner={trickWinner} onDeal={dealHands} />
 

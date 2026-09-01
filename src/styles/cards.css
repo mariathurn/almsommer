@@ -1,0 +1,66 @@
+.played-cards {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    position: relative;
+}
+
+.played-card {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center;
+
+}
+
+/* Card-size in the middle of table */
+.trick-card {
+    width: 135px;
+    height: 715px;
+
+}
+
+.hand-card {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    z-index: 3;
+    pointer-events: auto;
+    width: 160px;
+    height: 275px;
+}
+
+.hand-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.hand-card:disabled {
+    cursor: default;
+}
+
+.hand-card:hover:not(:disabled) {
+    transform: translateY(-50px);
+
+}
+
+.hand-card.horizontal {
+    left: 5%;
+    margin-left: 200;
+    background-color: rgba(0, 255, 255, 0);
+}
+
+.hand-card.vertical {
+    left: 0;
+    top: 0;
+    background-color: rgba(0, 255, 255, 0);
+}

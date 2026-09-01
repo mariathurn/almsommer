@@ -1,31 +1,32 @@
+import "../styles/gameheader.css";
 /* The title, “Deal” button, and current turn indicator
 Keeps the board logic separate from the UI chrome */
 
 function GameHeader({ currentTurn, trickWinner, onDeal }) {
     return (
-        <header className="absolute left-5 right-5 top-5 z-10 flex items-center justify-between">
-            <div>
-                <p className="text-sm uppercase tracking-[0.25em] text-amber-400">
+        <header className="game-header">
+            <div className="game-header-title-section">
+                <p className="game-header-subtitle">
                     Card table
                 </p>
-                <h1 className="text-3xl font-bold text-white">Schafkopf</h1>
+                <h1 className="game-header-title">Schafkopf</h1>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="game-header-controls">
                 {trickWinner ? (
-                    <span className="turn-pill rounded-full px-3 py-1 text-sm font-semibold">
+                    <span className="turn-pill">
                         Trick: {trickWinner}
                     </span>
                 ) : null}
 
-                <span className="turn-pill rounded-full px-3 py-1 text-sm font-semibold">
+                <span className="turn-pill">
                     Turn: {currentTurn}
                 </span>
 
                 <button
                     type="button"
                     onClick={onDeal}
-                    className="table-button rounded-xl px-4 py-2 text-sm font-bold uppercase tracking-wide"
+                    className="table-button"
                 >
                     Deal
                 </button>

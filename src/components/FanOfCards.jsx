@@ -22,7 +22,7 @@ function FanOfCards({ cards, onPlayCard, isCurrentTurn = false, orientation = "h
                         disabled={isDisabled}
                         className={`hand-card ${orientation}`}
                         style={{
-                            transform: `translateX(${index * 28}px) rotate(${rotation}deg)`,
+                            transform: `translateX(${index * 50}px) rotate(${rotation}deg)`,
                             top: orientation === "vertical" ? `${index * 18}px` : "0",
                         }}
                         title={!isLegal ? "Must follow suit" : ""}
