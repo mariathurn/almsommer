@@ -60,8 +60,6 @@ function PlayerPanel({
     playedCards = [],
     gameType = null,
     status = "Non-Player",
-    hiddenName = null,
-    revealHiddenName = false,
     showFriendBadge = false,
 }) {
     const isSouth = seat === "south";
@@ -93,8 +91,6 @@ function PlayerPanel({
                 name={name}
                 gameType={gameType}
                 status={status}
-                hiddenName={hiddenName}
-                revealHiddenName={revealHiddenName}
                 showFriendBadge={showFriendBadge}
                 isCurrentTurn={isCurrentTurn}
             />

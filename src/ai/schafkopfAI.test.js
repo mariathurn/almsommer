@@ -7,6 +7,7 @@ import {
     canCallAce,
     getSauSpielTeams,
     getTeamForPlayer,
+    getSauSpielStatus,
 } from "./schafkopfAI.js";
 
 test("Sau Spiel treats hearts, obers, and unters as trumps", () => {
@@ -54,4 +55,15 @@ test("The called Ace defines the hidden Sau Spiel partner team", () => {
     assert.deepEqual(teams.opposingTeam, ["north", "east"]);
     assert.equal(getTeamForPlayer("west", players, "south", "bell"), "callerTeam");
     assert.equal(getTeamForPlayer("north", players, "south", "bell"), "opposingTeam");
+});
+
+test("Sau Spiel labels keep the partner hidden until the called ace is played", () => {
+    const teams = { callerTeam: ["south", "west"], opposingTeam: ["north", "east"] };
+
+    assert.equal(getSauSpielStatus("south", "south", teams, null), "Caller");
+    assert.equal(getSauSpielStatus("west", "south", teams, null), "Unknown");
+    assert.equal(getSauSpielStatus("north", "south", teams, null), "Unknown");
+
+    assert.equal(getSauSpielStatus("west", "south", teams, "west"), "Partner");
+    assert.equal(getSauSpielStatus("north", "south", teams, "west"), "Opponent");
 });

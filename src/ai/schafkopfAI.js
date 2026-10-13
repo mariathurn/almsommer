@@ -70,6 +70,14 @@ export function getTeamForPlayer(playerName, players, callerName, calledAceSuit)
     return null;
 }
 
+// Seat label for a Sau Spiel. The partner stays hidden until the called ace
+// is played, so before that every non-caller is "Unknown".
+export function getSauSpielStatus(playerName, callerName, teams, revealedAceOwner) {
+    if (playerName === callerName) return "Caller";
+    if (!revealedAceOwner) return "Unknown";
+    return teams.callerTeam.includes(playerName) ? "Partner" : "Opponent";
+}
+
 export function canPlayCard(card, hand, playedCards, gameName = "Pass") {
     // If this is the first card of the trick, any card is legal
     if (playedCards.length === 0) {

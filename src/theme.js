@@ -16,8 +16,9 @@ export const colors = {
     menu: "rgba(15, 23, 42, 0.96)",
 };
 
-// Width / height of the card artwork (349 x 610 SVG viewBox).
-export const CARD_RATIO = 349 / 610;
+// Width / height of a card, from the illustrated design (500 x 784).
+// The classic SVG art (349 x 610) is letterboxed into the same box.
+export const CARD_RATIO = 500 / 784;
 
 const EDGE = 8;
 const LABEL_HEIGHT = 24;

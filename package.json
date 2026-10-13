@@ -8,16 +8,23 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/**/*.test.js\""
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/**/*.test.js\"",
+    "card-art": "node scripts/prepare-card-art.js"
   },
   "dependencies": {
+    "@expo-google-fonts/rubik": "^0.4.2",
     "expo": "~57.0.28",
+    "expo-font": "~57.0.4",
     "expo-image": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0"
   }
 }

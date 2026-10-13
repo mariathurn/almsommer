@@ -5,20 +5,17 @@ function PlayerName({
     name,
     gameType = null,
     status = "Non-Player",
-    hiddenName = null,
-    revealHiddenName = false,
     showFriendBadge = false,
     isCurrentTurn = false,
     style,
 }) {
-    const displayName = hiddenName && !revealHiddenName ? hiddenName : name;
     const showGameTypeOrFriend = gameType || showFriendBadge;
     const badgeLabel = showFriendBadge ? "Friend" : gameType;
 
     return (
         <View style={[styles.row, style]}>
             <Text style={[styles.name, isCurrentTurn && styles.nameActive]} numberOfLines={1}>
-                {displayName}
+                {name}
             </Text>
             <Text style={styles.divider}>|</Text>
             <Text style={styles.pill}>{status}</Text>

@@ -65,6 +65,7 @@ function GameHeader({
     calledAce,
     onSelectCalledAce,
     playerHand = [],
+    onOpenMenu,
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isCalledAceOpen, setIsCalledAceOpen] = useState(false);
@@ -83,7 +84,9 @@ function GameHeader({
     );
 
     useEffect(() => {
-        if (selectedGame === "Sau Spiel" && !calledAce && availableAceOptions.length > 0) {
+        // Also re-pick after a deal hands the caller the ace they had called.
+        const isCalledAceAvailable = availableAceOptions.some(({ value }) => value === calledAce);
+        if (selectedGame === "Sau Spiel" && !isCalledAceAvailable && availableAceOptions.length > 0) {
             onSelectCalledAce?.(availableAceOptions[0].value);
         }
 
@@ -134,6 +137,8 @@ function GameHeader({
                 ) : null}
 
                 <HeaderButton compact={compact} label="Deal" onPress={onDeal} />
+
+                {onOpenMenu ? <HeaderButton compact={compact} label="Menu" onPress={onOpenMenu} /> : null}
             </View>
 
             <OptionPicker

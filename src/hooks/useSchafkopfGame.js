@@ -146,6 +146,9 @@ const getAIMove = (hand, playedCards, gameName = "Pass") => {
 
 function useSchafkopfGame() {
     const [players, setPlayers] = useState(initialPlayers);
+    // Hands as dealt. Teams are derived from these, because the called ace
+    // leaves its owner's hand once it is played.
+    const [dealtHands, setDealtHands] = useState(initialPlayers);
     const [currentTurn, setCurrentTurn] = useState("south");
     const [playedCards, setPlayedCards] = useState([]);
     const [trickWinner, setTrickWinner] = useState(null);
@@ -159,6 +162,13 @@ function useSchafkopfGame() {
     const clearWinnerTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
+
+    // Stop pending AI moves and trick timers when the game screen is left.
+    useEffect(() => () => {
+        clearTimeout(aiTimeoutRef.current);
+        clearTimeout(clearPlayedCardsTimeoutRef.current);
+        clearTimeout(clearWinnerTimeoutRef.current);
+    }, []);
 
     // Keep gameStateRef in sync with current state
     useEffect(() => {
@@ -174,10 +184,10 @@ function useSchafkopfGame() {
         }
 
         if (calledAce) {
-            const nextTeams = getSauSpielTeams(players, humanPlayer, calledAce);
+            const nextTeams = getSauSpielTeams(dealtHands, humanPlayer, calledAce);
             setTeams(nextTeams);
         }
-    }, [selectedGame, calledAce, players, humanPlayer]);
+    }, [selectedGame, calledAce, dealtHands, humanPlayer]);
 
     const dealHands = () => {
         // Clean up any pending timeouts
@@ -202,6 +212,7 @@ function useSchafkopfGame() {
         });
 
         setPlayers(nextPlayers);
+        setDealtHands(nextPlayers);
         setCurrentTurn("south");
         setPlayedCards([]);
         setTrickWinner(null);
@@ -292,7 +303,7 @@ function useSchafkopfGame() {
             setCurrentTurn(result.nextTurn);
             return true;
         },
-        [players, currentTurn, playedCards, selectedGame]
+        [players, currentTurn, playedCards, selectedGame, revealCalledAceIfNeeded]
     );
 
     useEffect(() => {
