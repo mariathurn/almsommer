@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useFonts, Rubik_900Black } from "@expo-google-fonts/rubik";
+import { useFonts } from "expo-font";
+import { AlfaSlabOne_400Regular } from "@expo-google-fonts/alfa-slab-one";
+import { BarlowCondensed_700Bold } from "@expo-google-fonts/barlow-condensed";
+import { Fraunces_600SemiBold, Fraunces_700Bold, Fraunces_900Black } from "@expo-google-fonts/fraunces";
+import {
+  AlegreyaSans_400Regular,
+  AlegreyaSans_500Medium,
+  AlegreyaSans_700Bold,
+} from "@expo-google-fonts/alegreya-sans";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
@@ -12,7 +20,18 @@ import { colors } from "./theme";
 // Leaving the game unmounts it, so Play always starts a fresh table.
 function App() {
   const [screen, setScreen] = useState("menu");
-  const [fontsLoaded] = useFonts({ Rubik_900Black });
+  const [fontsLoaded] = useFonts({
+    // Card faces
+    AlfaSlabOne_400Regular,
+    BarlowCondensed_700Bold,
+    // Interface: Fraunces for titles and numbers, Alegreya Sans for text
+    Fraunces_600SemiBold,
+    Fraunces_700Bold,
+    Fraunces_900Black,
+    AlegreyaSans_400Regular,
+    AlegreyaSans_500Medium,
+    AlegreyaSans_700Bold,
+  });
   const openMenu = () => setScreen("menu");
 
   return (
@@ -34,8 +53,7 @@ function App() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: colors.page,
-    padding: 4,
+    backgroundColor: colors.paperDeep,
   },
 });
 

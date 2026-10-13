@@ -1,8 +1,11 @@
-/* Start screen: title, a fan of showcase cards, and the Play / Card Deck buttons. */
+/* Start screen: the meadow, a paper panel with the title and the Play /
+Card Deck buttons, and a fan of showcase cards. */
 
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Card from "../components/Card";
-import { colors } from "../theme";
+import MeadowBackground from "../components/MeadowBackground";
+import PaperButton from "../components/PaperButton";
+import { colors, fonts, paper, softShadow } from "../theme";
 
 const showcase = [
     { id: "acorn-O", suit: "acorn", rank: "O" },
@@ -11,36 +14,26 @@ const showcase = [
     { id: "heart-A", suit: "heart", rank: "A" },
 ];
 
-function MenuButton({ label, onPress, primary = false }) {
-    return (
-        <Pressable
-            onPress={onPress}
-            accessibilityRole="button"
-            style={({ pressed, hovered }) => [
-                styles.button,
-                primary && styles.buttonPrimary,
-                (pressed || hovered) && styles.buttonActive,
-            ]}
-        >
-            <Text style={[styles.buttonText, primary && styles.buttonTextPrimary]}>{label}</Text>
-        </Pressable>
-    );
-}
-
 function MenuScreen({ onPlay, onOpenDeck }) {
-    const { height } = useWindowDimensions();
+    const { width, height } = useWindowDimensions();
+    const compact = width < 900;
     const cardHeight = Math.min(height * 0.55, 340);
     const middle = (showcase.length - 1) / 2;
 
     return (
         <View style={styles.shell}>
-            <View style={styles.intro}>
-                <Text style={styles.subtitle}>Bavarian Card Game</Text>
-                <Text style={styles.title}>Schafkopf</Text>
+            <MeadowBackground />
+
+            <View style={[styles.panel, compact && styles.panelCompact]}>
+                <Text style={styles.kicker}>A trick-taking card game</Text>
+                <Text style={[styles.title, compact && styles.titleCompact]}>Almsommer</Text>
+                <Text style={styles.tagline}>
+                    The annual Shepard's games are taking place. A mix of collaborative and solo challenges await!
+                </Text>
 
                 <View style={styles.buttons}>
-                    <MenuButton label="Play" onPress={onPlay} primary />
-                    <MenuButton label="Card Deck" onPress={onOpenDeck} />
+                    <PaperButton label="Play" primary onPress={onPlay} />
+                    <PaperButton label="Card Deck" onPress={onOpenDeck} />
                 </View>
             </View>
 
@@ -79,59 +72,46 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-evenly",
-        borderWidth: 3,
-        borderColor: colors.goldSoft,
-        backgroundColor: colors.table,
         overflow: "hidden",
         padding: 16,
     },
-    intro: {
+    panel: {
+        ...paper,
+        borderRadius: 20,
+        paddingVertical: 26,
+        paddingHorizontal: 30,
+        maxWidth: 400,
         gap: 4,
     },
-    subtitle: {
+    panelCompact: {
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        maxWidth: 330,
+    },
+    kicker: {
+        fontFamily: fonts.bodyBold,
         fontSize: 13,
+        letterSpacing: 1.6,
         textTransform: "uppercase",
-        letterSpacing: 3,
-        color: colors.gold,
+        color: colors.inkSoft,
     },
     title: {
-        fontSize: 44,
-        letterSpacing: 2,
-        textTransform: "uppercase",
-        fontWeight: "bold",
-        color: "white",
+        fontFamily: fonts.titleBlack,
+        fontSize: 42,
+        color: colors.ink,
+    },
+    titleCompact: {
+        fontSize: 30,
+    },
+    tagline: {
+        fontFamily: fonts.body,
+        fontSize: 16,
+        lineHeight: 21,
+        color: colors.inkSoft,
     },
     buttons: {
-        marginTop: 24,
-        gap: 12,
-        alignItems: "stretch",
-    },
-    button: {
-        minWidth: 200,
-        alignItems: "center",
-        borderRadius: 14,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderWidth: 2,
-        borderColor: colors.goldSoft,
-        backgroundColor: "rgba(255, 255, 255, 0.06)",
-    },
-    buttonPrimary: {
-        backgroundColor: colors.gold,
-        borderColor: colors.gold,
-    },
-    buttonActive: {
-        opacity: 0.85,
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: "bold",
-        textTransform: "uppercase",
-        letterSpacing: 1.5,
-        color: colors.goldText,
-    },
-    buttonTextPrimary: {
-        color: colors.page,
+        marginTop: 18,
+        gap: 10,
     },
     fan: {
         alignItems: "center",
@@ -140,6 +120,7 @@ const styles = StyleSheet.create({
     fanCard: {
         position: "absolute",
         transformOrigin: "50% 100%",
+        ...softShadow,
     },
 });
 

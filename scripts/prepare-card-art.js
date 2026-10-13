@@ -5,7 +5,8 @@
 //    mid-tones transparent. Laid over a coloured panel it shifts only
 //    brightness, so the suit colour keeps its saturation instead of going grey.
 // 2. Every <motif>-<colour>.png -> src/assets/card-art/, downscaled so a full
-//    deck stays light on phone memory. The originals are left untouched.
+//    deck stays light on phone memory, plus card-art/sizes.json with their
+//    dimensions. The originals are left untouched.
 //
 // Usage: npm run card-art
 
@@ -49,14 +50,18 @@ function downscale(src, width, height) {
 }
 
 fs.mkdirSync(artDir, { recursive: true });
+const sizes = {};
 for (const file of fs.readdirSync(dir)) {
     if (!/^[a-z]+-[a-z]+\.png$/.test(file) || file === "bg-card.png") continue;
     const art = PNG.sync.read(fs.readFileSync(path.join(dir, file)));
     const factor = Math.min(1, ART_MAX_SIZE / Math.max(art.width, art.height));
     const resized = downscale(art, Math.round(art.width * factor), Math.round(art.height * factor));
     fs.writeFileSync(path.join(artDir, file), PNG.sync.write(resized));
+    sizes[file] = { width: resized.width, height: resized.height };
     console.log(`card-art/${file}: ${resized.width} x ${resized.height}`);
 }
+// Image sizes for layouts that need the exact aspect ratio (the shepherd figures).
+fs.writeFileSync(path.join(artDir, "sizes.json"), JSON.stringify(sizes, null, 2) + "\n");
 
 const src = PNG.sync.read(fs.readFileSync(path.join(dir, "bg.png")));
 const scale = src.height / TARGET_HEIGHT;

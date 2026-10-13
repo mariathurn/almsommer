@@ -1,85 +1,228 @@
-/* The middle area that shows the current trick / played cards
-Easy to style and isolate from the rest of the table */
+/* The picnic blanket in the middle of the meadow, where the current trick is
+played. Each card lands on the side of the player who played it, and a full
+trick stays until it is collected. Between rounds the blanket holds the round
+Deal button (and the result), and after the deal a round "Choose game" button. */
 
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
-import { colors } from "../theme";
+import { cardTexture } from "../data/cardDesign";
+import { colors, fonts, paper, softShadow } from "../theme";
 
-function TableCenter({ board, playedCards, trickWinner, gameResult }) {
-    const cardHeight = board.size * 0.6;
-    const step = cardHeight * 0.06;
+// Where a played card sits relative to the blanket centre, as a share of the
+// card size, and its slight tilt.
+const seatOffsets = {
+    south: { x: 0, y: 0.28, rotate: -4 },
+    west: { x: -0.62, y: 0, rotate: -12 },
+    north: { x: 0, y: -0.28, rotate: 6 },
+    east: { x: 0.62, y: 0, rotate: 11 },
+};
+
+function Gingham({ width, height }) {
+    return (
+        <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+            <Defs>
+                <Pattern id="picnic-gingham" width={36} height={36} patternUnits="userSpaceOnUse">
+                    <Rect width={36} height={36} fill={colors.paper} />
+                    <Rect width={18} height={36} fill={colors.blanket} opacity={0.42} />
+                    <Rect width={36} height={18} fill={colors.blanket} opacity={0.42} />
+                </Pattern>
+            </Defs>
+            <Rect width={width} height={height} rx={10} fill="url(#picnic-gingham)" />
+            <Image
+                href={cardTexture}
+                width={width}
+                height={height}
+                preserveAspectRatio="xMidYMid slice"
+                opacity={0.3}
+            />
+            <Rect
+                x={7}
+                y={7}
+                width={width - 14}
+                height={height - 14}
+                rx={6}
+                fill="none"
+                stroke={colors.paper}
+                strokeWidth={2}
+                strokeDasharray="6 5"
+                opacity={0.9}
+            />
+        </Svg>
+    );
+}
+
+function RoundButton({ label, size, onPress }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            style={({ pressed, hovered }) => [
+                styles.roundButton,
+                { width: size, height: size, borderRadius: size / 2 },
+                hovered && styles.roundButtonHovered,
+                pressed && styles.roundButtonPressed,
+            ]}
+        >
+            <Text style={[styles.roundButtonText, { fontSize: Math.max(size * 0.2, 15) }]}>{label}</Text>
+        </Pressable>
+    );
+}
+
+function TableCenter({
+    blanket,
+    playedCards,
+    trickWinnerName,
+    isTrickComplete,
+    gameResult,
+    canDeal,
+    needsGame,
+    onDeal,
+    onChooseGame,
+}) {
+    const cardHeight = Math.min(blanket.height * 0.56, blanket.width * 0.4);
+    const buttonSize = Math.min(blanket.height * 0.42, 112);
+    // On a small (phone) blanket the result sits beside the Deal button.
+    const isSmall = blanket.height < 200;
 
     return (
         <View
-            pointerEvents="none"
+            pointerEvents="box-none"
             style={[
-                styles.board,
+                styles.blanket,
                 {
-                    width: board.size,
-                    height: board.size,
-                    left: board.centerX - board.size / 2,
-                    top: board.centerY - board.size / 2,
+                    width: blanket.width,
+                    height: blanket.height,
+                    left: blanket.centerX - blanket.width / 2,
+                    top: blanket.centerY - blanket.height / 2,
                 },
             ]}
         >
-            {playedCards.length > 0 ? (
-                playedCards.map(({ player, card }, index) => (
+            <Gingham width={blanket.width} height={blanket.height} />
+
+            {playedCards.map(({ player, card }) => {
+                const offset = seatOffsets[player];
+                return (
                     <View
-                        key={`${player}-${index}`}
+                        key={player}
+                        pointerEvents="none"
                         style={[
                             styles.playedCard,
                             {
                                 transform: [
-                                    { translateX: index * step },
-                                    { translateY: index * step },
-                                    { rotate: `${index * 15}deg` },
+                                    { translateX: offset.x * cardHeight },
+                                    { translateY: offset.y * cardHeight },
+                                    { rotate: `${offset.rotate}deg` },
                                 ],
                             },
                         ]}
                     >
                         <Card card={card} faceUp height={cardHeight} />
                     </View>
-                ))
-            ) : gameResult ? (
-                <View style={styles.result}>
-                    <Text style={styles.announcement}>{gameResult.message}</Text>
-                    <Text style={styles.announcement}>{gameResult.points}</Text>
+                );
+            })}
+
+            {isTrickComplete ? (
+                <View style={styles.collectNote} pointerEvents="none">
+                    <Text style={styles.collectText} numberOfLines={1}>
+                        {trickWinnerName} takes the trick · tap anywhere to continue
+                    </Text>
                 </View>
-            ) : (
-                <Text style={styles.announcement}>
-                    {trickWinner ? `${trickWinner} wins the trick!` : "Play!"}
-                </Text>
-            )}
+            ) : null}
+
+            {playedCards.length === 0 && (canDeal || needsGame) ? (
+                <View style={[styles.center, isSmall && styles.centerRow]}>
+                    {gameResult ? (
+                        <View
+                            style={[styles.note, isSmall && { maxWidth: blanket.width - buttonSize - 40 }]}
+                            pointerEvents="none"
+                        >
+                            <Text style={styles.noteTitle}>{gameResult.message}</Text>
+                            <Text style={styles.noteText}>{gameResult.points}</Text>
+                        </View>
+                    ) : null}
+                    {canDeal ? <RoundButton label="Deal" size={buttonSize} onPress={onDeal} /> : null}
+                    {needsGame ? <RoundButton label="Choose game" size={buttonSize} onPress={onChooseGame} /> : null}
+                </View>
+            ) : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    board: {
+    blanket: {
         position: "absolute",
         alignItems: "center",
         justifyContent: "center",
-        borderWidth: 3,
-        borderColor: colors.gold,
-        borderRadius: 9999,
-        backgroundColor: colors.table,
-        padding: 12,
+        borderRadius: 10,
+        transform: [{ rotate: "-1.5deg" }],
+        ...softShadow,
     },
     playedCard: {
         position: "absolute",
+        ...softShadow,
     },
-    result: {
+    center: {
         alignItems: "center",
-        gap: 8,
+        gap: 10,
     },
-    announcement: {
+    centerRow: {
+        flexDirection: "row",
+        paddingHorizontal: 10,
+    },
+    collectNote: {
+        ...paper,
+        position: "absolute",
+        bottom: -14,
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        maxWidth: "95%",
+        zIndex: 2,
+    },
+    collectText: {
+        fontFamily: fonts.bodyBold,
+        fontSize: 13,
+        color: colors.ink,
+    },
+    roundButton: {
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.hay,
+        borderWidth: 3,
+        borderColor: colors.hayDeep,
+        padding: 8,
+        ...softShadow,
+    },
+    roundButtonHovered: {
+        transform: [{ scale: 1.04 }],
+    },
+    roundButtonPressed: {
+        transform: [{ scale: 0.97 }],
+    },
+    roundButtonText: {
+        fontFamily: fonts.title,
         textAlign: "center",
-        fontSize: 12,
-        fontWeight: "900",
-        lineHeight: 20,
-        letterSpacing: 3,
-        textTransform: "uppercase",
-        color: colors.textMuted,
+        color: colors.ink,
+    },
+    note: {
+        ...paper,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        alignItems: "center",
+        gap: 2,
+        maxWidth: "85%",
+    },
+    noteTitle: {
+        fontFamily: fonts.title,
+        fontSize: 17,
+        textAlign: "center",
+        color: colors.ink,
+    },
+    noteText: {
+        fontFamily: fonts.bodyBold,
+        fontSize: 15,
+        color: colors.inkSoft,
     },
 });
 

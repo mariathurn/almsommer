@@ -4,11 +4,33 @@ right), the card's points (top right) and its name (bottom left).
 Drawn in a 500 x 784 coordinate space that scales to any size. */
 
 import Svg, { Circle, ClipPath, Defs, G, Image, Line, Path, Pattern, Rect, Text } from "react-native-svg";
-import { cardFont, cardPoints, cardTexture, getCardNumber, ink, rankDesign, suitColors } from "../data/cardDesign";
+import { artSizes, cardPoints, cardTexture, getCardNumber, ink, labelFont, numberFont, rankDesign, suitColors } from "../data/cardDesign";
 
 const panel = { x: 37, y: 132, width: 428, height: 545, rx: 20 };
 // Artwork is fitted inside this box, so wide motifs (hat) and tall ones (dog) both fill it.
 const artBox = { x: 57, y: 156, width: 388, height: 497 };
+const PANEL_STROKE = 7;
+// Approximate width of an uppercase Barlow Condensed Bold letter at 36px, plus tracking.
+const LABEL_CHAR_WIDTH = 18;
+const LABEL_TRACKING = 2.5;
+// Area a standing figure may cover: inside the panel's side and bottom
+// borders, but open at the top so the hat can overlap the top border.
+const figureClip = {
+    x: panel.x + PANEL_STROKE / 2,
+    y: 0,
+    width: panel.width - PANEL_STROKE,
+    height: panel.y + panel.height - PANEL_STROKE / 2,
+};
+
+// Scales a figure so its feet touch the inside of the bottom border and the
+// middle of its hat sits on the top border line.
+function getFigurePlacement({ file, hatMiddle, offsetX = 0 }) {
+    const size = artSizes[file];
+    const feetY = figureClip.height;
+    const height = (feetY - panel.y) / (1 - hatMiddle);
+    const width = height * (size.width / size.height);
+    return { x: panel.x + panel.width / 2 - width / 2 + offsetX, y: feetY - height, width, height };
+}
 
 // Small suit symbols drawn in a 40 x 40 box.
 function SuitIcon({ suit, x, y, size }) {
@@ -52,10 +74,11 @@ function SuitIcon({ suit, x, y, size }) {
 function IllustratedCard({ card, width, height }) {
     const colors = suitColors[card.suit];
     const design = rankDesign[card.rank];
+    const figure = design.figure?.[card.suit];
     const number = String(getCardNumber(card));
     const points = String(cardPoints[card.rank]);
     const isTwoDigit = number.length > 1;
-    const labelWidth = design.label.length * 26 + 44;
+    const labelWidth = design.label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;
     const dotsId = `card-dots-${card.suit}`;
 
     return (
@@ -66,6 +89,9 @@ function IllustratedCard({ card, width, height }) {
                 </Pattern>
                 <ClipPath id="card-panel-clip">
                     <Rect {...panel} />
+                </ClipPath>
+                <ClipPath id="card-figure-clip">
+                    <Rect {...figureClip} />
                 </ClipPath>
             </Defs>
 
@@ -87,15 +113,22 @@ function IllustratedCard({ card, width, height }) {
                     opacity={0.5}
                 />
             </G>
-            <Image
-                href={design.art[card.suit]}
-                x={artBox.x}
-                y={artBox.y}
-                width={artBox.width}
-                height={artBox.height}
-                preserveAspectRatio="xMidYMid meet"
-            />
-            <Rect {...panel} fill="none" stroke={ink} strokeWidth={7} />
+            {figure ? null : (
+                <Image
+                    href={design.art[card.suit]}
+                    x={artBox.x}
+                    y={artBox.y}
+                    width={artBox.width}
+                    height={artBox.height}
+                    preserveAspectRatio="xMidYMid meet"
+                />
+            )}
+            <Rect {...panel} fill="none" stroke={ink} strokeWidth={PANEL_STROKE} />
+            {figure ? (
+                <G clipPath="url(#card-figure-clip)">
+                    <Image href={design.art[card.suit]} {...getFigurePlacement(figure)} preserveAspectRatio="none" />
+                </G>
+            ) : null}
 
             {/* Number and suit, top left */}
             <Rect x={24} y={17} width={108} height={142} rx={20} fill="white" stroke={ink} strokeWidth={7} />
@@ -103,7 +136,7 @@ function IllustratedCard({ card, width, height }) {
                 x={78}
                 y={isTwoDigit ? 94 : 100}
                 fontSize={isTwoDigit ? 60 : 84}
-                fontFamily={cardFont}
+                fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"
             >
@@ -117,7 +150,7 @@ function IllustratedCard({ card, width, height }) {
                 x={417}
                 y={points.length > 1 ? 83 : 86}
                 fontSize={points.length > 1 ? 44 : 54}
-                fontFamily={cardFont}
+                fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"
             >
@@ -126,7 +159,15 @@ function IllustratedCard({ card, width, height }) {
 
             {/* Name, bottom left */}
             <Rect x={37} y={697} width={labelWidth} height={60} rx={16} fill={ink} />
-            <Text x={37 + labelWidth / 2} y={740} fontSize={36} fontFamily={cardFont} fill="white" textAnchor="middle">
+            <Text
+                x={37 + labelWidth / 2 + LABEL_TRACKING / 2}
+                y={740}
+                fontSize={36}
+                fontFamily={labelFont}
+                letterSpacing={LABEL_TRACKING}
+                fill="white"
+                textAnchor="middle"
+            >
                 {design.label}
             </Text>
 
@@ -136,7 +177,7 @@ function IllustratedCard({ card, width, height }) {
                 x={424.5}
                 y={isTwoDigit ? 746 : 752}
                 fontSize={isTwoDigit ? 44 : 60}
-                fontFamily={cardFont}
+                fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"
                 transform="rotate(180 424.5 730.5)"

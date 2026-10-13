@@ -11,9 +11,16 @@ export const suitColors = {
 export const ink = "#1f1c19";
 
 // Loaded in App.jsx with expo-font.
-export const cardFont = "Rubik_900Black";
+// Alfa Slab One for all numbers (rank, points, rotated corner): a heavy slab
+// serif that stays legible small and in a fanned hand.
+export const numberFont = "AlfaSlabOne_400Regular";
+// Barlow Condensed Bold for the name tags: narrow, so longer names fit.
+export const labelFont = "BarlowCondensed_700Bold";
 
 export const cardTexture = require("../assets/Illus/bg-card.png");
+
+// Pixel sizes of the generated artwork, written by `npm run card-art`.
+export const artSizes = require("../assets/card-art/sizes.json");
 
 // Order of the suits from weakest to strongest, used to number dogs and shepherds.
 export const suitOrder = ["bell", "heart", "leaf", "acorn"];
@@ -80,6 +87,16 @@ export const rankDesign = {
             heart: require("../assets/card-art/shepard-red.png"),
             leaf: require("../assets/card-art/shepard-green.png"),
             acorn: require("../assets/card-art/shepard-blue.png"),
+        },
+        // Shepherds stand on the bottom of the panel and are scaled so the
+        // middle of their hat sits on the panel's top border, peeking over it.
+        // hatMiddle: how far down the image the middle of the hat is (0-1).
+        // offsetX: optional nudge to the right (card units, the card is 500 wide).
+        figure: {
+            bell: { file: "shepard-orange.png", hatMiddle: 50 / 720, offsetX: 20 },
+            heart: { file: "shepard-red.png", hatMiddle: 55 / 720 },
+            leaf: { file: "shepard-green.png", hatMiddle: 38 / 720 },
+            acorn: { file: "shepard-blue.png", hatMiddle: 45 / 720 },
         },
     },
 };

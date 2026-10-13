@@ -23,8 +23,8 @@ test("Caller cannot call an ace they already hold and can identify the partner",
         { id: "acorn-9", suit: "acorn", rank: "9" },
     ];
 
-    assert.equal(canCallAce("heart", callerHand), false);
-    assert.equal(canCallAce("bell", callerHand), true);
+    // No regular bell card in hand, so the bell sheep cannot be called
+    assert.equal(canCallAce("bell", callerHand), false);
 
     const players = {
         south: [
@@ -66,4 +66,20 @@ test("Sau Spiel labels keep the partner hidden until the called ace is played", 
 
     assert.equal(getSauSpielStatus("west", "south", teams, "west"), "Partner");
     assert.equal(getSauSpielStatus("north", "south", teams, "west"), "Opponent");
+});
+
+test("Only a regular sheep can be called, and only with a regular card of its colour", () => {
+    const hand = [
+        { suit: "bell", rank: "9" },
+        { suit: "acorn", rank: "A" },
+        { suit: "leaf", rank: "U" },
+    ];
+
+    assert.equal(canCallAce("bell", hand), true);
+    // The red sheep is a trump
+    assert.equal(canCallAce("heart", [...hand, { suit: "heart", rank: "9" }]), false);
+    // Holding the sheep yourself
+    assert.equal(canCallAce("acorn", [...hand, { suit: "acorn", rank: "K" }]), false);
+    // A green dog is a trump, not a regular green card
+    assert.equal(canCallAce("leaf", hand), false);
 });

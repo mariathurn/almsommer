@@ -1,0 +1,98 @@
+{
+  "dog-blue.png": {
+    "width": 372,
+    "height": 720
+  },
+  "dog-green.png": {
+    "width": 359,
+    "height": 720
+  },
+  "dog-orange.png": {
+    "width": 359,
+    "height": 720
+  },
+  "dog-red.png": {
+    "width": 359,
+    "height": 720
+  },
+  "grain-blue.png": {
+    "width": 612,
+    "height": 720
+  },
+  "grain-green.png": {
+    "width": 612,
+    "height": 720
+  },
+  "grain-orange.png": {
+    "width": 612,
+    "height": 720
+  },
+  "grain-red.png": {
+    "width": 612,
+    "height": 720
+  },
+  "hat-blue.png": {
+    "width": 720,
+    "height": 623
+  },
+  "hat-green.png": {
+    "width": 720,
+    "height": 623
+  },
+  "hat-orange.png": {
+    "width": 720,
+    "height": 623
+  },
+  "hat-red.png": {
+    "width": 720,
+    "height": 623
+  },
+  "sheep-blue.png": {
+    "width": 475,
+    "height": 720
+  },
+  "sheep-green.png": {
+    "width": 475,
+    "height": 720
+  },
+  "sheep-orange.png": {
+    "width": 475,
+    "height": 720
+  },
+  "sheep-red.png": {
+    "width": 475,
+    "height": 720
+  },
+  "shepard-blue.png": {
+    "width": 444,
+    "height": 720
+  },
+  "shepard-green.png": {
+    "width": 430,
+    "height": 720
+  },
+  "shepard-orange.png": {
+    "width": 323,
+    "height": 720
+  },
+  "shepard-red.png": {
+    "width": 448,
+    "height": 720
+  },
+  "staff-blue.png": {
+    "width": 180,
+    "height": 720
+  },
+  "staff-green.png": {
+    "width": 180,
+    "height": 720
+  },
+  "staff-orange.png": {
+    "width": 180,
+    "height": 720
+  },
+  "staff-red.png": {
+    "width": 180,
+    "height": 720
+  }
+}

@@ -3,10 +3,9 @@ import { combinations } from "../assets/CardDeck";
 import { canPlayCard, getSauSpielTeams, isTrumpForGame } from "../ai/schafkopfAI";
 
 // Timing constants - adjust these to change all delays at once
-const TESTING = 0.2;
-const AI_PLAY_DELAY = 1000 * TESTING;  // milliseconds between AI card plays
-const TRICK_DISPLAY_DELAY = 1200 * TESTING;  // milliseconds to show completed trick
-const WINNER_DISPLAY_DELAY = (TRICK_DISPLAY_DELAY + 1500) * TESTING;  // milliseconds before hiding winner
+// Milliseconds an opponent "thinks" before playing. A finished trick stays on
+// the table until the player collects it (collectTrick), so there is no timer.
+const AI_PLAY_DELAY = 900;
 
 const initialPlayers = {
     south: [],
@@ -158,17 +157,11 @@ function useSchafkopfGame() {
     const [revealedAceOwner, setRevealedAceOwner] = useState(null);
     const [humanPlayer] = useState("south");
     const aiTimeoutRef = useRef(null);
-    const clearPlayedCardsTimeoutRef = useRef(null);
-    const clearWinnerTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
 
-    // Stop pending AI moves and trick timers when the game screen is left.
-    useEffect(() => () => {
-        clearTimeout(aiTimeoutRef.current);
-        clearTimeout(clearPlayedCardsTimeoutRef.current);
-        clearTimeout(clearWinnerTimeoutRef.current);
-    }, []);
+    // Stop a pending AI move when the game screen is left.
+    useEffect(() => () => clearTimeout(aiTimeoutRef.current), []);
 
     // Keep gameStateRef in sync with current state
     useEffect(() => {
@@ -190,13 +183,10 @@ function useSchafkopfGame() {
     }, [selectedGame, calledAce, dealtHands, humanPlayer]);
 
     const dealHands = () => {
-        // Clean up any pending timeouts
+        // Clean up a pending AI move
         if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
-        if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
-        if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
         aiTimeoutRef.current = null;
-        clearPlayedCardsTimeoutRef.current = null;
-        clearWinnerTimeoutRef.current = null;
+        isProcessingRef.current = false;
 
         const shuffledDeck = shuffleDeck(combinations);
         const nextPlayers = {
@@ -217,12 +207,10 @@ function useSchafkopfGame() {
         setPlayedCards([]);
         setTrickWinner(null);
         setRevealedAceOwner(null);
-
-        if (selectedGame === "Sau Spiel" && calledAce) {
-            setTeams(getSauSpielTeams(nextPlayers, humanPlayer, calledAce));
-        } else {
-            setTeams({ callerTeam: [], opposingTeam: [] });
-        }
+        // Every round is declared anew after the deal.
+        setSelectedGame("Pass");
+        setCalledAce(null);
+        setTeams({ callerTeam: [], opposingTeam: [] });
     };
 
     const processCardPlay = (playerName, cardIndex, currentPlayersState, currentPlayedCardsState, currentTurnState, gameName = "Pass") => {
@@ -268,8 +256,27 @@ function useSchafkopfGame() {
         }
     }, [calledAce, revealedAceOwner, selectedGame]);
 
+    // A full trick stays on the table: show the winner, and give the turn to
+    // nobody until the trick is collected.
+    const showCompletedTrick = (result) => {
+        setPlayedCards(result.nextPlayedCards);
+        setTrickWinner(result.winner);
+        setCurrentTurn(null);
+    };
+
+    // Clears the finished trick; its winner leads the next one. After the
+    // last trick nobody has the turn until the next deal.
+    const collectTrick = useCallback(() => {
+        if (playedCards.length !== playerOrder.length || !trickWinner) return;
+        const roundOver = playerOrder.every((player) => players[player].length === 0);
+        setPlayedCards([]);
+        setCurrentTurn(roundOver ? null : trickWinner);
+        setTrickWinner(null);
+    }, [playedCards, trickWinner, players]);
+
     const playCard = useCallback(
         (playerName, cardIndex) => {
+            if (selectedGame === "Pass") return false; // Nothing is played before a game is chosen
             const result = processCardPlay(playerName, cardIndex, players, playedCards, currentTurn, selectedGame);
             if (!result) return false;
 
@@ -278,23 +285,7 @@ function useSchafkopfGame() {
             revealCalledAceIfNeeded(playerName, playedCard);
 
             if (result.isComplete) {
-                if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
-                if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
-
-                // Show all 4 cards first
-                setPlayedCards(result.nextPlayedCards);
-
-                clearPlayedCardsTimeoutRef.current = setTimeout(() => {
-                    setPlayedCards([]);
-                    setTrickWinner(result.winner);
-                    setCurrentTurn(result.winner);
-                }, TRICK_DISPLAY_DELAY);
-
-                clearWinnerTimeoutRef.current = setTimeout(() => {
-                    setTrickWinner(null);
-                    clearWinnerTimeoutRef.current = null;
-                }, WINNER_DISPLAY_DELAY);
-
+                showCompletedTrick(result);
                 return true;
             }
 
@@ -307,7 +298,7 @@ function useSchafkopfGame() {
     );
 
     useEffect(() => {
-        if (currentTurn !== humanPlayer && players[currentTurn].length > 0) {
+        if (currentTurn && currentTurn !== humanPlayer && players[currentTurn].length > 0) {
             if (aiTimeoutRef.current || isProcessingRef.current) return; // Already pending or processing
 
             aiTimeoutRef.current = setTimeout(() => {
@@ -333,29 +324,13 @@ function useSchafkopfGame() {
                 revealCalledAceIfNeeded(aiTurn, currentPlayers[aiTurn][cardIndex]);
 
                 if (result.isComplete) {
-                    if (clearPlayedCardsTimeoutRef.current) clearTimeout(clearPlayedCardsTimeoutRef.current);
-                    if (clearWinnerTimeoutRef.current) clearTimeout(clearWinnerTimeoutRef.current);
-
-                    // Show all 4 cards first
-                    setPlayedCards(result.nextPlayedCards);
-
-                    clearPlayedCardsTimeoutRef.current = setTimeout(() => {
-                        setPlayedCards([]);
-                        setTrickWinner(result.winner);
-                        setCurrentTurn(result.winner);
-                        isProcessingRef.current = false;  // Mark as done processing
-                    }, TRICK_DISPLAY_DELAY);
-
-                    clearWinnerTimeoutRef.current = setTimeout(() => {
-                        setTrickWinner(null);
-                        clearWinnerTimeoutRef.current = null;
-                    }, WINNER_DISPLAY_DELAY);
+                    showCompletedTrick(result);
                 } else {
                     // Normal card play - add to pile
                     setPlayedCards(result.nextPlayedCards);
                     setCurrentTurn(result.nextTurn);
-                    isProcessingRef.current = false;  // Mark as done processing
                 }
+                isProcessingRef.current = false;  // Mark as done processing
                 aiTimeoutRef.current = null;
             }, AI_PLAY_DELAY);
 
@@ -382,6 +357,7 @@ function useSchafkopfGame() {
         revealedAceOwner,
         dealHands,
         playCard,
+        collectTrick,
     };
 }
 

@@ -12,7 +12,10 @@
     "card-art": "node scripts/prepare-card-art.js"
   },
   "dependencies": {
-    "@expo-google-fonts/rubik": "^0.4.2",
+    "@expo-google-fonts/alegreya-sans": "^0.4.2",
+    "@expo-google-fonts/alfa-slab-one": "^0.4.1",
+    "@expo-google-fonts/barlow-condensed": "^0.4.1",
+    "@expo-google-fonts/fraunces": "^0.4.1",
     "expo": "~57.0.28",
     "expo-font": "~57.0.4",
     "expo-image": "~57.0.5",

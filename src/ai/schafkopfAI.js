@@ -7,7 +7,7 @@ const rankValue = {
     O: 6,
 };
 
-const validAceCalls = ["heart", "bell", "acorn", "leaf"];
+const validAceCalls = ["bell", "acorn", "leaf"];
 
 export function isTrumpForGame(card, gameName = "Pass") {
     if (!card) return false;
@@ -20,12 +20,20 @@ export function isTrumpForGame(card, gameName = "Pass") {
     return card.rank === "O" || card.rank === "U" || card.suit === "heart";
 }
 
+// A sheep (ace) can be called if it is a regular sheep (the red one is a
+// trump), the caller doesn't hold it, and the caller holds a regular card of
+// the same colour.
 export function canCallAce(aceSuit, hand = []) {
     if (!aceSuit || !validAceCalls.includes(aceSuit)) {
         return false;
     }
 
-    return !hand.some((card) => card.suit === aceSuit && card.rank === "A");
+    const holdsAce = hand.some((card) => card.suit === aceSuit && card.rank === "A");
+    const holdsRegularOfSuit = hand.some(
+        (card) => card.suit === aceSuit && !isTrumpForGame(card, "Sau Spiel")
+    );
+
+    return !holdsAce && holdsRegularOfSuit;
 }
 
 export function getPartnerForCalledAce(calledAceSuit, players, callerName) {

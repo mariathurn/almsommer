@@ -1,166 +1,75 @@
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { colors } from "../theme";
+/* Top of the table: Menu on the left and a ribbon banner naming the current
+game ("Maria calls the orange sheep") and what happens next. Dealing and
+choosing the game happen in the middle of the table. */
 
-const gameOptions = ["Sau Spiel", "Solo", "Wenz", "Pass"];
-const aceOptions = [
-    { label: "Ace of Hearts", value: "heart" },
-    { label: "Ace of Bells", value: "bell" },
-    { label: "Ace of Acorns", value: "acorn" },
-    { label: "Ace of Grass", value: "leaf" },
-];
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import Svg, { Path } from "react-native-svg";
+import PaperButton from "./PaperButton";
+import { getGameType } from "../data/gameTypes";
+import { colors, fonts, paper, suitTheme } from "../theme";
 
-function HeaderButton({ label, onPress, compact }) {
+function RibbonTail({ flip, height }) {
+    const w = height * 0.45;
     return (
-        <Pressable
-            onPress={onPress}
-            accessibilityRole="button"
-            style={({ pressed, hovered }) => [
-                styles.button,
-                compact && styles.buttonCompact,
-                (pressed || hovered) && styles.buttonActive,
-            ]}
-        >
-            <Text style={[styles.buttonText, compact && styles.textCompact]} numberOfLines={1}>
-                {label}
-            </Text>
-        </Pressable>
+        <Svg width={w} height={height} style={flip && { transform: [{ scaleX: -1 }] }}>
+            <Path
+                d={`M${w} ${height * 0.18} H0 L${w * 0.45} ${height * 0.55} L0 ${height * 0.92} H${w} Z`}
+                fill={colors.hay}
+                stroke={colors.hayDeep}
+                strokeWidth={1.5}
+            />
+        </Svg>
     );
 }
 
-// Touch-friendly replacement for the web dropdowns: a modal list of options.
-function OptionPicker({ title, visible, options, selected, onSelect, onClose }) {
-    return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.backdrop} onPress={onClose}>
-                <View style={styles.menu} accessibilityRole="menu" accessibilityLabel={title}>
-                    <Text style={styles.menuTitle}>{title}</Text>
-                    {options.map(({ label, value }) => (
-                        <Pressable
-                            key={value}
-                            onPress={() => onSelect(value)}
-                            style={({ pressed, hovered }) => [
-                                styles.option,
-                                (pressed || hovered) && styles.optionHover,
-                                selected === value && styles.optionActive,
-                            ]}
-                        >
-                            <Text style={[styles.optionText, selected === value && styles.optionTextActive]}>
-                                {label}
-                            </Text>
-                        </Pressable>
-                    ))}
-                </View>
-            </Pressable>
-        </Modal>
-    );
+function getBannerTitle({ hasCards, selectedGame, calledAce, callerName }) {
+    const game = getGameType(selectedGame);
+    if (!game) return hasCards ? "Declare your game" : "Almsommer";
+    if (game.value === "Sau Spiel") {
+        return calledAce
+            ? `${callerName} calls the ${suitTheme[calledAce].name.toLowerCase()} sheep`
+            : `${callerName} plays a Sheep Game`;
+    }
+    if (game.value === "Ramsch") return "Cowards Game: nobody announced";
+    if (game.value === "Marriage") return `${callerName} offers a Marriage`;
+    return `${callerName} plays a ${game.label}`;
 }
 
-function GameHeader({
-    currentTurn,
-    trickWinner,
-    onDeal,
-    selectedGame,
-    onSelectGame,
-    calledAce,
-    onSelectCalledAce,
-    playerHand = [],
-    onOpenMenu,
-}) {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isCalledAceOpen, setIsCalledAceOpen] = useState(false);
+function getBannerSubtitle({ hasCards, selectedGame, currentTurn, trickWinner, playerName }) {
+    if (trickWinner) return `${playerName(trickWinner)} takes the trick`;
+    if (!hasCards) return "Deal the cards to begin";
+    if (!getGameType(selectedGame)) return "Choose what you want to play";
+    if (currentTurn === "south") return "Your turn";
+    return `${playerName(currentTurn)} is thinking…`;
+}
+
+function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAce, playerName, onOpenMenu }) {
     const { width } = useWindowDimensions();
     const compact = width < 900;
-
-    const availableAceOptions = useMemo(
-        () =>
-            aceOptions.filter(
-                ({ value }) =>
-                    !playerHand.some(
-                        (card) => card.rank === "A" && card.suit === value
-                    )
-            ),
-        [playerHand]
-    );
-
-    useEffect(() => {
-        // Also re-pick after a deal hands the caller the ace they had called.
-        const isCalledAceAvailable = availableAceOptions.some(({ value }) => value === calledAce);
-        if (selectedGame === "Sau Spiel" && !isCalledAceAvailable && availableAceOptions.length > 0) {
-            onSelectCalledAce?.(availableAceOptions[0].value);
-        }
-
-        if (selectedGame !== "Sau Spiel") {
-            setIsCalledAceOpen(false);
-        }
-    }, [selectedGame, calledAce, availableAceOptions, onSelectCalledAce]);
-
-    const handleSelectGame = (game) => {
-        onSelectGame?.(game);
-        setIsMenuOpen(false);
-
-        if (game !== "Sau Spiel") {
-            onSelectCalledAce?.(null);
-        }
-    };
-
-    const calledAceLabel = calledAce
-        ? aceOptions.find((opt) => opt.value === calledAce)?.label
-        : "Select Ace";
+    const ribbonHeight = compact ? 46 : 58;
+    const state = { hasCards, selectedGame, calledAce, currentTurn, trickWinner, playerName };
 
     return (
         <View style={[styles.header, compact && styles.headerCompact]}>
-            <View>
-                {compact ? null : <Text style={styles.subtitle}>Bavarian Card Game</Text>}
-                <Text style={[styles.title, compact && styles.titleCompact]}>Schafkopf</Text>
+            <View style={styles.side}>
+                <PaperButton label="Menu" compact={compact} onPress={onOpenMenu} />
             </View>
 
-            <View style={styles.controls}>
-                {trickWinner ? (
-                    <Text style={[styles.pill, compact && styles.textCompact]}>Trick: {trickWinner}</Text>
-                ) : null}
-
-                <Text style={[styles.pill, compact && styles.textCompact]}>Turn: {currentTurn}</Text>
-
-                <HeaderButton
-                    compact={compact}
-                    label={`Game: ${selectedGame || "Pass"}`}
-                    onPress={() => setIsMenuOpen(true)}
-                />
-
-                {selectedGame === "Sau Spiel" ? (
-                    <HeaderButton
-                        compact={compact}
-                        label={`Call: ${calledAceLabel}`}
-                        onPress={() => setIsCalledAceOpen(true)}
-                    />
-                ) : null}
-
-                <HeaderButton compact={compact} label="Deal" onPress={onDeal} />
-
-                {onOpenMenu ? <HeaderButton compact={compact} label="Menu" onPress={onOpenMenu} /> : null}
+            <View style={styles.banner}>
+                <RibbonTail height={ribbonHeight} />
+                <View style={[styles.ribbon, { height: ribbonHeight }]}>
+                    <Text style={[styles.bannerTitle, compact && styles.bannerTitleCompact]} numberOfLines={1}>
+                        {getBannerTitle({ ...state, callerName: playerName("south") })}
+                    </Text>
+                    <Text style={styles.bannerSubtitle} numberOfLines={1}>
+                        {getBannerSubtitle(state)}
+                    </Text>
+                </View>
+                <RibbonTail height={ribbonHeight} flip />
             </View>
 
-            <OptionPicker
-                title="Choose game"
-                visible={isMenuOpen}
-                options={gameOptions.map((game) => ({ label: game, value: game }))}
-                selected={selectedGame}
-                onSelect={handleSelectGame}
-                onClose={() => setIsMenuOpen(false)}
-            />
-
-            <OptionPicker
-                title="Choose called ace"
-                visible={isCalledAceOpen}
-                options={availableAceOptions}
-                selected={calledAce}
-                onSelect={(value) => {
-                    onSelectCalledAce?.(value);
-                    setIsCalledAceOpen(false);
-                }}
-                onClose={() => setIsCalledAceOpen(false)}
-            />
+            {/* Keeps the banner centred opposite the Menu button */}
+            <View style={styles.side} />
         </View>
     );
 }
@@ -170,120 +79,47 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
         gap: 12,
+        paddingHorizontal: 14,
+        paddingTop: 10,
+        paddingBottom: 4,
     },
     headerCompact: {
         paddingHorizontal: 10,
-        paddingVertical: 6,
-    },
-    subtitle: {
-        fontSize: 12,
-        textTransform: "uppercase",
-        letterSpacing: 3,
-        color: colors.gold,
-    },
-    title: {
-        fontSize: 28,
-        letterSpacing: 1.5,
-        textTransform: "uppercase",
-        fontWeight: "bold",
-        color: "white",
-    },
-    titleCompact: {
-        fontSize: 18,
-    },
-    controls: {
-        flexShrink: 1,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "flex-end",
-        alignItems: "center",
+        paddingTop: 6,
         gap: 8,
     },
-    pill: {
-        borderRadius: 999,
-        overflow: "hidden",
-        paddingVertical: 4,
-        paddingHorizontal: 12,
-        fontSize: 14,
-        fontWeight: "600",
-        backgroundColor: "rgba(255, 255, 255, 0.15)",
-        borderWidth: 1,
-        borderColor: colors.goldSoft,
-        color: colors.goldText,
+    side: {
+        width: 90,
     },
-    button: {
-        borderRadius: 12,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderWidth: 1,
-        borderColor: "rgba(255, 255, 255, 0.3)",
-        backgroundColor: colors.button,
-    },
-    buttonCompact: {
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-    },
-    buttonActive: {
-        backgroundColor: "#b9d9ee",
-    },
-    buttonText: {
-        fontSize: 14,
-        fontWeight: "bold",
-        textTransform: "uppercase",
-        letterSpacing: 0.7,
-        color: "black",
-    },
-    textCompact: {
-        fontSize: 12,
-    },
-    backdrop: {
-        flex: 1,
+    banner: {
+        flexShrink: 1,
+        flexDirection: "row",
         alignItems: "center",
+    },
+    ribbon: {
+        ...paper,
+        borderRadius: 4,
+        borderColor: colors.hayDeep,
         justifyContent: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.45)",
+        alignItems: "center",
+        paddingHorizontal: 18,
+        marginHorizontal: -6,
+        zIndex: 1,
+        flexShrink: 1,
     },
-    menu: {
-        minWidth: 220,
-        gap: 4,
-        padding: 8,
-        borderRadius: 12,
-        backgroundColor: colors.menu,
-        borderWidth: 1,
-        borderColor: colors.goldSoft,
+    bannerTitle: {
+        fontFamily: fonts.title,
+        fontSize: 19,
+        color: colors.ink,
     },
-    menuTitle: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        fontSize: 12,
-        letterSpacing: 2,
-        textTransform: "uppercase",
-        color: colors.gold,
-    },
-    option: {
-        borderWidth: 1,
-        borderColor: "transparent",
-        borderRadius: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        backgroundColor: "rgba(255, 255, 255, 0.06)",
-    },
-    optionHover: {
-        backgroundColor: "rgba(251, 191, 36, 0.15)",
-        borderColor: "rgba(251, 191, 36, 0.5)",
-    },
-    optionActive: {
-        backgroundColor: "rgba(251, 191, 36, 0.18)",
-        borderColor: "rgba(251, 191, 36, 0.9)",
-    },
-    optionText: {
+    bannerTitleCompact: {
         fontSize: 15,
-        color: "white",
     },
-    optionTextActive: {
-        color: colors.goldText,
+    bannerSubtitle: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: 13,
+        color: colors.inkSoft,
     },
 });
 

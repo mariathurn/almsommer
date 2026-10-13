@@ -1,6 +1,7 @@
 /* A layout component for a player's cards fanned out in a fan
 Handles rotation and spacing for each player's hand.
-Face-up hands are tappable; face-down hands are display only. */
+Face-up hands are tappable. On your turn the cards you may play lift and the
+others fade, so "follow suit" needs no pop-up. */
 
 import { Pressable, StyleSheet, View } from "react-native";
 import Card from "./Card";
@@ -46,6 +47,7 @@ function FanOfCards({
 
                 const isLegal = canPlayCard(card, cards, playedCards);
                 const isDisabled = !isCurrentTurn || !isLegal;
+                const isPlayable = isCurrentTurn && isLegal;
 
                 return (
                     <Pressable
@@ -58,9 +60,8 @@ function FanOfCards({
                             styles.card,
                             placement,
                             isCurrentTurn && !isLegal && styles.illegal,
-                            !isDisabled && (pressed || hovered) && {
-                                top: -lift,
-                            },
+                            isPlayable && { top: -lift * 0.45 },
+                            isPlayable && (pressed || hovered) && { top: -lift },
                         ]}
                     >
                         <Card card={card} faceUp height={cardHeight} />
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
         transformOrigin: "50% 100%",
     },
     illegal: {
-        opacity: 0.45,
+        opacity: 0.5,
     },
 });
 

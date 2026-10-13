@@ -1,74 +1,70 @@
+/* Paper name tag: player name, their role in this game, and an optional
+hay-gold badge (the caller's game, or "Friend" once the partner is revealed). */
+
 import { StyleSheet, Text, View } from "react-native";
-import { colors } from "../theme";
+import { getGameType } from "../data/gameTypes";
+import { colors, fonts, paper } from "../theme";
 
 function PlayerName({
     name,
     gameType = null,
-    status = "Non-Player",
+    status = null,
     showFriendBadge = false,
     isCurrentTurn = false,
     style,
 }) {
-    const showGameTypeOrFriend = gameType || showFriendBadge;
-    const badgeLabel = showFriendBadge ? "Friend" : gameType;
+    const badgeLabel = showFriendBadge ? "Friend" : getGameType(gameType)?.label ?? gameType;
 
     return (
-        <View style={[styles.row, style]}>
-            <Text style={[styles.name, isCurrentTurn && styles.nameActive]} numberOfLines={1}>
+        <View style={[styles.tag, isCurrentTurn && styles.tagActive, style]}>
+            <Text style={styles.name} numberOfLines={1}>
                 {name}
             </Text>
-            <Text style={styles.divider}>|</Text>
-            <Text style={styles.pill}>{status}</Text>
-            {showGameTypeOrFriend ? (
-                <>
-                    <Text style={styles.divider}>|</Text>
-                    <Text style={[styles.pill, styles.badge]}>{badgeLabel}</Text>
-                </>
+            {status ? (
+                <Text style={styles.status} numberOfLines={1}>
+                    {status}
+                </Text>
             ) : null}
+            {badgeLabel ? <Text style={styles.badge}>{badgeLabel}</Text> : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    row: {
+    tag: {
+        ...paper,
+        borderRadius: 10,
         flexDirection: "row",
         alignItems: "center",
-        flexWrap: "wrap",
-        gap: 5,
+        gap: 7,
+        paddingVertical: 3,
+        paddingHorizontal: 10,
+    },
+    tagActive: {
+        borderColor: colors.hay,
+        borderWidth: 2,
     },
     name: {
+        fontFamily: fonts.title,
+        fontSize: 15,
+        color: colors.ink,
+    },
+    status: {
+        fontFamily: fonts.bodyMedium,
         fontSize: 13,
-        fontWeight: "900",
-        letterSpacing: 2,
-        textTransform: "uppercase",
-        color: colors.text,
-    },
-    nameActive: {
-        color: colors.goldText,
-    },
-    divider: {
-        color: colors.goldSoft,
-        fontSize: 11,
-        fontWeight: "700",
-    },
-    pill: {
-        paddingVertical: 2,
-        paddingHorizontal: 7,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: "rgba(251, 191, 36, 0.75)",
-        backgroundColor: colors.pill,
-        overflow: "hidden",
-        fontSize: 10,
-        letterSpacing: 1.4,
-        textTransform: "uppercase",
-        fontWeight: "700",
-        color: colors.text,
+        color: colors.inkSoft,
     },
     badge: {
-        backgroundColor: colors.badge,
-        borderColor: colors.badgeBorder,
-        color: colors.badgeText,
+        overflow: "hidden",
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 1,
+        backgroundColor: colors.hayLight,
+        borderWidth: 1,
+        borderColor: colors.hay,
+        fontFamily: fonts.bodyBold,
+        fontSize: 12,
+        color: colors.ink,
     },
 });
 

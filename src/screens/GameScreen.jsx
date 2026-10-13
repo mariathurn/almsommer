@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import GameHeader from "../components/GameHeader";
+import GamePicker from "../components/GamePicker";
+import MeadowBackground from "../components/MeadowBackground";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
-import { getSauSpielStatus } from "../ai/schafkopfAI";
-import { colors, getTableLayout } from "../theme";
+import { canCallAce, getSauSpielStatus } from "../ai/schafkopfAI";
+import { getGameType } from "../data/gameTypes";
+import { getTableLayout } from "../theme";
 
 const seats = ["north", "west", "east", "south"];
+const callableSuits = ["bell", "acorn", "leaf"];
 
 function GameScreen({ onOpenMenu }) {
   const {
@@ -23,9 +27,11 @@ function GameScreen({ onOpenMenu }) {
     revealedAceOwner,
     dealHands,
     playCard,
+    collectTrick,
   } = useSchafkopfGame();
 
   const [tableSize, setTableSize] = useState(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const playerLabels = {
     south: "Maria",
@@ -36,19 +42,40 @@ function GameScreen({ onOpenMenu }) {
 
   const playerName = (playerKey) => playerLabels[playerKey] || playerKey;
 
-  const isCaller = (playerKey) => selectedGame === "Sau Spiel" && playerKey === "south";
+  const gameType = getGameType(selectedGame);
+  // Maria (south) always announces the game; in Ramsch nobody does.
+  const isCaller = (playerKey) => playerKey === "south" && gameType && gameType.value !== "Ramsch";
   const getGameStatus = (playerKey) => {
     if (selectedGame === "Sau Spiel") {
       return getSauSpielStatus(playerKey, "south", teams, revealedAceOwner);
     }
-    return "Non-Player";
+    if (!gameType || gameType.value === "Ramsch") return null;
+    return playerKey === "south" ? "Player" : "Opponent";
+  };
+
+  // Round flow, as in the rulebook: deal, declare a game, then play.
+  const hasCards = playedCards.length > 0 || seats.some((seat) => players[seat].length > 0);
+  const isTrickComplete = playedCards.length === seats.length;
+  const canDeal = !hasCards;
+  const needsGame = hasCards && !gameType && playedCards.length === 0;
+  const availableAces = callableSuits.filter((suit) => canCallAce(suit, players.south));
+
+  const handleDeal = () => {
+    dealHands();
+    setIsPickerOpen(true);
+  };
+
+  const handlePickGame = (game, ace) => {
+    setSelectedGame(game);
+    setCalledAce(game === "Sau Spiel" ? ace : null);
+    setIsPickerOpen(false);
   };
 
   const isGameOver = () => {
     // Game is over when all players have played all their cards
     return (
-      selectedGame !== "Pass" &&
-      selectedGame &&
+      gameType &&
+      playedCards.length === 0 &&
       players.south.length === 0 &&
       players.west.length === 0 &&
       players.north.length === 0 &&
@@ -68,31 +95,29 @@ function GameScreen({ onOpenMenu }) {
 
       if (winnerKeys.length > 0) {
         const winnerNames = winnerKeys.map(key => playerName(key)).join(" and ");
-        const points = 5;
 
         return {
-          message: `${winnerNames} won ${selectedGame}`,
-          points: `+${points} points`,
+          message: `${winnerNames} win the ${gameType.label}`,
+          points: `+${gameType.coins} coins`,
         };
       }
     }
 
-    return null;
+    return { message: `The ${gameType.label} is over`, points: "" };
   };
 
   const layout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
 
   return (
     <View style={styles.shell}>
+      <MeadowBackground />
       <GameHeader
+        hasCards={hasCards}
         currentTurn={currentTurn}
         trickWinner={trickWinner}
-        onDeal={dealHands}
         selectedGame={selectedGame}
-        onSelectGame={setSelectedGame}
         calledAce={calledAce}
-        onSelectCalledAce={setCalledAce}
-        playerHand={players.south}
+        playerName={playerName}
         onOpenMenu={onOpenMenu}
       />
 
@@ -103,10 +128,15 @@ function GameScreen({ onOpenMenu }) {
         {layout ? (
           <>
             <TableCenter
-              board={layout.board}
+              blanket={layout.blanket}
               playedCards={playedCards}
-              trickWinner={trickWinner}
+              trickWinnerName={trickWinner ? playerName(trickWinner) : null}
+              isTrickComplete={isTrickComplete}
               gameResult={getGameResult()}
+              canDeal={canDeal}
+              needsGame={needsGame}
+              onDeal={handleDeal}
+              onChooseGame={() => setIsPickerOpen(true)}
             />
 
             {seats.map((seat) => (
@@ -116,7 +146,7 @@ function GameScreen({ onOpenMenu }) {
                 layout={layout}
                 name={playerName(seat)}
                 cards={players[seat]}
-                isCurrentTurn={currentTurn === seat}
+                isCurrentTurn={currentTurn === seat && Boolean(gameType)}
                 onPlayCard={(index) => playCard(seat, index)}
                 playedCards={playedCards}
                 gameType={isCaller(seat) ? selectedGame : null}
@@ -124,9 +154,28 @@ function GameScreen({ onOpenMenu }) {
                 showFriendBadge={revealedAceOwner === seat}
               />
             ))}
+
+            {/* A finished trick stays until you tap anywhere on the table. */}
+            {isTrickComplete ? (
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={collectTrick}
+                accessibilityRole="button"
+                accessibilityLabel="Collect the trick"
+              />
+            ) : null}
           </>
         ) : null}
       </View>
+
+      <GamePicker
+        visible={isPickerOpen}
+        selectedGame={selectedGame}
+        calledAce={calledAce}
+        availableAces={availableAces}
+        onPick={handlePickGame}
+        onClose={() => setIsPickerOpen(false)}
+      />
     </View>
   );
 }
@@ -134,9 +183,6 @@ function GameScreen({ onOpenMenu }) {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    borderWidth: 3,
-    borderColor: colors.goldSoft,
-    backgroundColor: colors.table,
     overflow: "hidden",
   },
   table: {
