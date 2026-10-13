@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import "../styles/gameheader.css";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { colors } from "../theme";
 
 const gameOptions = ["Sau Spiel", "Solo", "Wenz", "Pass"];
 const aceOptions = [
@@ -8,6 +9,52 @@ const aceOptions = [
     { label: "Ace of Acorns", value: "acorn" },
     { label: "Ace of Grass", value: "leaf" },
 ];
+
+function HeaderButton({ label, onPress, compact }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            style={({ pressed, hovered }) => [
+                styles.button,
+                compact && styles.buttonCompact,
+                (pressed || hovered) && styles.buttonActive,
+            ]}
+        >
+            <Text style={[styles.buttonText, compact && styles.textCompact]} numberOfLines={1}>
+                {label}
+            </Text>
+        </Pressable>
+    );
+}
+
+// Touch-friendly replacement for the web dropdowns: a modal list of options.
+function OptionPicker({ title, visible, options, selected, onSelect, onClose }) {
+    return (
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+            <Pressable style={styles.backdrop} onPress={onClose}>
+                <View style={styles.menu} accessibilityRole="menu" accessibilityLabel={title}>
+                    <Text style={styles.menuTitle}>{title}</Text>
+                    {options.map(({ label, value }) => (
+                        <Pressable
+                            key={value}
+                            onPress={() => onSelect(value)}
+                            style={({ pressed, hovered }) => [
+                                styles.option,
+                                (pressed || hovered) && styles.optionHover,
+                                selected === value && styles.optionActive,
+                            ]}
+                        >
+                            <Text style={[styles.optionText, selected === value && styles.optionTextActive]}>
+                                {label}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            </Pressable>
+        </Modal>
+    );
+}
 
 function GameHeader({
     currentTurn,
@@ -21,26 +68,8 @@ function GameHeader({
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isCalledAceOpen, setIsCalledAceOpen] = useState(false);
-    const menuRef = useRef(null);
-    const calledAceRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setIsMenuOpen(false);
-            }
-
-            if (calledAceRef.current && !calledAceRef.current.contains(event.target)) {
-                setIsCalledAceOpen(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    const { width } = useWindowDimensions();
+    const compact = width < 900;
 
     const availableAceOptions = useMemo(
         () =>
@@ -72,91 +101,185 @@ function GameHeader({
         }
     };
 
-    return (
-        <header className="game-header">
-            <div className="game-header-title-section">
-                <p className="game-header-subtitle">
-                    Bavarian Card Game
-                </p>
-                <h1 className="game-header-title">Schafkopf</h1>
-            </div>
+    const calledAceLabel = calledAce
+        ? aceOptions.find((opt) => opt.value === calledAce)?.label
+        : "Select Ace";
 
-            <div className="game-header-controls">
+    return (
+        <View style={[styles.header, compact && styles.headerCompact]}>
+            <View>
+                {compact ? null : <Text style={styles.subtitle}>Bavarian Card Game</Text>}
+                <Text style={[styles.title, compact && styles.titleCompact]}>Schafkopf</Text>
+            </View>
+
+            <View style={styles.controls}>
                 {trickWinner ? (
-                    <span className="turn-pill">
-                        Trick: {trickWinner}
-                    </span>
+                    <Text style={[styles.pill, compact && styles.textCompact]}>Trick: {trickWinner}</Text>
                 ) : null}
 
-                <span className="turn-pill">
-                    Turn: {currentTurn}
-                </span>
+                <Text style={[styles.pill, compact && styles.textCompact]}>Turn: {currentTurn}</Text>
 
-                <div className="game-menu" ref={menuRef}>
-                    <button
-                        type="button"
-                        className="table-button game-menu-trigger"
-                        onClick={() => setIsMenuOpen((prev) => !prev)}
-                    >
-                        Game: {selectedGame || "Pass"}
-                    </button>
-
-                    {isMenuOpen ? (
-                        <div className="game-menu-popup" role="menu" aria-label="Choose game">
-                            {gameOptions.map((game) => (
-                                <button
-                                    key={game}
-                                    type="button"
-                                    className={`game-menu-option ${selectedGame === game ? "is-active" : ""}`}
-                                    onClick={() => handleSelectGame(game)}
-                                >
-                                    {game}
-                                </button>
-                            ))}
-                        </div>
-                    ) : null}
-                </div>
+                <HeaderButton
+                    compact={compact}
+                    label={`Game: ${selectedGame || "Pass"}`}
+                    onPress={() => setIsMenuOpen(true)}
+                />
 
                 {selectedGame === "Sau Spiel" ? (
-                    <div className="game-menu" ref={calledAceRef}>
-                        <button
-                            type="button"
-                            className="table-button game-menu-trigger"
-                            onClick={() => setIsCalledAceOpen((prev) => !prev)}
-                        >
-                            Call: {calledAce ? aceOptions.find((opt) => opt.value === calledAce)?.label : "Select Ace"}
-                        </button>
-
-                        {isCalledAceOpen ? (
-                            <div className="game-menu-popup" role="menu" aria-label="Choose called ace">
-                                {availableAceOptions.map(({ label, value }) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        className={`game-menu-option ${calledAce === value ? "is-active" : ""}`}
-                                        onClick={() => {
-                                            onSelectCalledAce?.(value);
-                                            setIsCalledAceOpen(false);
-                                        }}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                    </div>
+                    <HeaderButton
+                        compact={compact}
+                        label={`Call: ${calledAceLabel}`}
+                        onPress={() => setIsCalledAceOpen(true)}
+                    />
                 ) : null}
 
-                <button
-                    type="button"
-                    onClick={onDeal}
-                    className="table-button"
-                >
-                    Deal
-                </button>
-            </div>
-        </header>
+                <HeaderButton compact={compact} label="Deal" onPress={onDeal} />
+            </View>
+
+            <OptionPicker
+                title="Choose game"
+                visible={isMenuOpen}
+                options={gameOptions.map((game) => ({ label: game, value: game }))}
+                selected={selectedGame}
+                onSelect={handleSelectGame}
+                onClose={() => setIsMenuOpen(false)}
+            />
+
+            <OptionPicker
+                title="Choose called ace"
+                visible={isCalledAceOpen}
+                options={availableAceOptions}
+                selected={calledAce}
+                onSelect={(value) => {
+                    onSelectCalledAce?.(value);
+                    setIsCalledAceOpen(false);
+                }}
+                onClose={() => setIsCalledAceOpen(false)}
+            />
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 12,
+    },
+    headerCompact: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    subtitle: {
+        fontSize: 12,
+        textTransform: "uppercase",
+        letterSpacing: 3,
+        color: colors.gold,
+    },
+    title: {
+        fontSize: 28,
+        letterSpacing: 1.5,
+        textTransform: "uppercase",
+        fontWeight: "bold",
+        color: "white",
+    },
+    titleCompact: {
+        fontSize: 18,
+    },
+    controls: {
+        flexShrink: 1,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        gap: 8,
+    },
+    pill: {
+        borderRadius: 999,
+        overflow: "hidden",
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        fontSize: 14,
+        fontWeight: "600",
+        backgroundColor: "rgba(255, 255, 255, 0.15)",
+        borderWidth: 1,
+        borderColor: colors.goldSoft,
+        color: colors.goldText,
+    },
+    button: {
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.3)",
+        backgroundColor: colors.button,
+    },
+    buttonCompact: {
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+    },
+    buttonActive: {
+        backgroundColor: "#b9d9ee",
+    },
+    buttonText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        textTransform: "uppercase",
+        letterSpacing: 0.7,
+        color: "black",
+    },
+    textCompact: {
+        fontSize: 12,
+    },
+    backdrop: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.45)",
+    },
+    menu: {
+        minWidth: 220,
+        gap: 4,
+        padding: 8,
+        borderRadius: 12,
+        backgroundColor: colors.menu,
+        borderWidth: 1,
+        borderColor: colors.goldSoft,
+    },
+    menuTitle: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        fontSize: 12,
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        color: colors.gold,
+    },
+    option: {
+        borderWidth: 1,
+        borderColor: "transparent",
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: "rgba(255, 255, 255, 0.06)",
+    },
+    optionHover: {
+        backgroundColor: "rgba(251, 191, 36, 0.15)",
+        borderColor: "rgba(251, 191, 36, 0.5)",
+    },
+    optionActive: {
+        backgroundColor: "rgba(251, 191, 36, 0.18)",
+        borderColor: "rgba(251, 191, 36, 0.9)",
+    },
+    optionText: {
+        fontSize: 15,
+        color: "white",
+    },
+    optionTextActive: {
+        color: colors.goldText,
+    },
+});
 
 export default GameHeader;

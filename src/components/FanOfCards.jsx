@@ -1,38 +1,85 @@
-/* A layout component for the player’s cards fanned out in a fan
-Handles rotation and spacing for each player’s hand */
+/* A layout component for a player's cards fanned out in a fan
+Handles rotation and spacing for each player's hand.
+Face-up hands are tappable; face-down hands are display only. */
 
+import { Pressable, StyleSheet, View } from "react-native";
 import Card from "./Card";
 import { canPlayCard } from "../ai/schafkopfAI";
+import { CARD_RATIO, fanWidth } from "../theme";
 
-function FanOfCards({ cards, onPlayCard, isCurrentTurn = false, orientation = "horizontal", playedCards = [] }) {
+function FanOfCards({
+    cards,
+    cardHeight,
+    faceUp = false,
+    onPlayCard,
+    isCurrentTurn = false,
+    playedCards = [],
+    spacing = 0.45,
+    rotationStep = 4,
+}) {
     if (!cards.length) return null;
 
+    const cardWidth = cardHeight * CARD_RATIO;
+    const width = fanWidth(cards.length, cardHeight, spacing);
+    const middle = (cards.length - 1) / 2;
+    const lift = cardHeight * 0.14;
+
     return (
-        <div className="hand-fan">
+        <View style={{ width, height: cardHeight }}>
             {cards.map((card, index) => {
-                const rotation = (index - (cards.length - 1) / 2) * 8;
+                const offset = index - middle;
+                const placement = {
+                    left: index * cardWidth * spacing,
+                    transform: [
+                        { translateY: offset * offset * cardHeight * 0.012 },
+                        { rotate: `${offset * rotationStep}deg` },
+                    ],
+                };
+
+                if (!faceUp) {
+                    return (
+                        <View key={card.id} style={[styles.card, placement]}>
+                            <Card card={card} faceUp={false} height={cardHeight} />
+                        </View>
+                    );
+                }
+
                 const isLegal = canPlayCard(card, cards, playedCards);
                 const isDisabled = !isCurrentTurn || !isLegal;
 
                 return (
-                    <button
-                        key={`${card.suit}-${card.rank}-${index}`}
-                        type="button"
-                        onClick={() => onPlayCard && onPlayCard(index)}
+                    <Pressable
+                        key={card.id}
+                        onPress={() => onPlayCard?.(index)}
                         disabled={isDisabled}
-                        className={`hand-card ${orientation}`}
-                        style={{
-                            transform: `translateX(${index * 55}px) rotate(${rotation}deg)`,
-                            top: orientation === "vertical" ? `${index * 18}px` : "0",
-                        }}
-                        title={!isLegal ? "Must follow suit" : ""}
+                        accessibilityRole="button"
+                        accessibilityHint={!isLegal ? "Must follow suit" : undefined}
+                        style={({ pressed, hovered }) => [
+                            styles.card,
+                            placement,
+                            isCurrentTurn && !isLegal && styles.illegal,
+                            !isDisabled && (pressed || hovered) && {
+                                top: -lift,
+                            },
+                        ]}
                     >
-                        <Card card={card} faceUp={false} />
-                    </button>
+                        <Card card={card} faceUp height={cardHeight} />
+                    </Pressable>
                 );
             })}
-        </div>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    card: {
+        position: "absolute",
+        top: 0,
+        transformOrigin: "50% 100%",
+    },
+    illegal: {
+        opacity: 0.45,
+    },
+});
 
 export default FanOfCards;

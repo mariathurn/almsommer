@@ -1,10 +1,14 @@
-import "./styles/table.css";
-import "./styles/cards.css"
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import GameHeader from "./components/GameHeader";
 import PlayerPanel from "./components/PlayerPanel";
-import SouthPlayerPanel from "./components/SouthPlayerPanel";
 import TableCenter from "./components/TableCenter";
 import useSchafkopfGame from "./hooks/useSchafkopfGame";
+import { colors, getTableLayout } from "./theme";
+
+const seats = ["north", "west", "east", "south"];
 
 function App() {
   const {
@@ -21,6 +25,8 @@ function App() {
     dealHands,
     playCard,
   } = useSchafkopfGame();
+
+  const [tableSize, setTableSize] = useState(null);
 
   const playerLabels = {
     south: "Maria",
@@ -83,91 +89,79 @@ function App() {
     return null;
   };
 
+  const layout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
+
   return (
-    <div className="table-wrapper">
-      <div className="table-shell">
-        <GameHeader
-          currentTurn={currentTurn}
-          trickWinner={trickWinner}
-          onDeal={dealHands}
-          selectedGame={selectedGame}
-          onSelectGame={setSelectedGame}
-          calledAce={calledAce}
-          onSelectCalledAce={setCalledAce}
-          playerHand={players.south}
-        />
-
-        <TableCenter
-          playedCards={playedCards}
-          trickWinner={trickWinner}
-          gameResult={getGameResult()}
-        />
-
-        <div className="player-slot north">
-          <PlayerPanel
-            name={playerName("north")}
-            cards={players.north}
-            isCurrentTurn={currentTurn === "north"}
-            onPlayCard={(index) => playCard("north", index)}
-            orientation="horizontal"
-            playedCards={playedCards}
-            gameType={isCaller("north") ? selectedGame : null}
-            status={getGameStatus("north")}
-            hiddenName={isHiddenFriend("north") ? "Friend" : null}
-            revealHiddenName={revealedAceOwner === "north"}
-            showFriendBadge={revealedAceOwner === "north"}
+    <SafeAreaProvider>
+      <StatusBar hidden />
+      <SafeAreaView style={styles.page}>
+        <View style={styles.shell}>
+          <GameHeader
+            currentTurn={currentTurn}
+            trickWinner={trickWinner}
+            onDeal={dealHands}
+            selectedGame={selectedGame}
+            onSelectGame={setSelectedGame}
+            calledAce={calledAce}
+            onSelectCalledAce={setCalledAce}
+            playerHand={players.south}
           />
-        </div>
 
-        <div className="player-slot east">
-          <PlayerPanel
-            name={playerName("east")}
-            cards={players.east}
-            isCurrentTurn={currentTurn === "east"}
-            onPlayCard={(index) => playCard("east", index)}
-            orientation="vertical"
-            playedCards={playedCards}
-            gameType={isCaller("east") ? selectedGame : null}
-            status={getGameStatus("east")}
-            hiddenName={isHiddenFriend("east") ? "Friend" : null}
-            revealHiddenName={revealedAceOwner === "east"}
-            showFriendBadge={revealedAceOwner === "east"}
-          />
-        </div>
+          <View
+            style={styles.table}
+            onLayout={({ nativeEvent }) => setTableSize(nativeEvent.layout)}
+          >
+            {layout ? (
+              <>
+                <TableCenter
+                  board={layout.board}
+                  playedCards={playedCards}
+                  trickWinner={trickWinner}
+                  gameResult={getGameResult()}
+                />
 
-        <div className="player-slot south">
-          <SouthPlayerPanel
-            name={playerName("south")}
-            cards={players.south}
-            isCurrentTurn={currentTurn === "south"}
-            onPlayCard={(index) => playCard("south", index)}
-            playedCards={playedCards}
-            gameType={isCaller("south") ? selectedGame : null}
-            status={getGameStatus("south")}
-            hiddenName={isHiddenFriend("south") ? "Friend" : null}
-            revealHiddenName={revealedAceOwner === "south"}
-            showFriendBadge={revealedAceOwner === "south"}
-          />
-        </div>
-
-        <div className="player-slot west">
-          <PlayerPanel
-            name={playerName("west")}
-            cards={players.west}
-            isCurrentTurn={currentTurn === "west"}
-            onPlayCard={(index) => playCard("west", index)}
-            orientation="vertical"
-            playedCards={playedCards}
-            gameType={isCaller("west") ? selectedGame : null}
-            status={getGameStatus("west")}
-            hiddenName={isHiddenFriend("west") ? "Friend" : null}
-            revealHiddenName={revealedAceOwner === "west"}
-            showFriendBadge={revealedAceOwner === "west"}
-          />
-        </div>
-      </div>
-    </div>
+                {seats.map((seat) => (
+                  <PlayerPanel
+                    key={seat}
+                    seat={seat}
+                    layout={layout}
+                    name={playerName(seat)}
+                    cards={players[seat]}
+                    isCurrentTurn={currentTurn === seat}
+                    onPlayCard={(index) => playCard(seat, index)}
+                    playedCards={playedCards}
+                    gameType={isCaller(seat) ? selectedGame : null}
+                    status={getGameStatus(seat)}
+                    hiddenName={isHiddenFriend(seat) ? "Friend" : null}
+                    revealHiddenName={revealedAceOwner === seat}
+                    showFriendBadge={revealedAceOwner === seat}
+                  />
+                ))}
+              </>
+            ) : null}
+          </View>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: colors.page,
+    padding: 4,
+  },
+  shell: {
+    flex: 1,
+    borderWidth: 3,
+    borderColor: colors.goldSoft,
+    backgroundColor: colors.table,
+    overflow: "hidden",
+  },
+  table: {
+    flex: 1,
+  },
+});
 
 export default App;

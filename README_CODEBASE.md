@@ -1,28 +1,31 @@
 # Schafkopf Card Game - Codebase Overview
 
-A React/Vite implementation of Schafkopf, a traditional Bavarian card game. One human player (South) plays against three AI opponents in real-time.
+An Expo (React Native) implementation of Schafkopf, running on iOS, Android and the web,, a traditional Bavarian card game. One human player (South) plays against three AI opponents in real-time.
 
 ## Quick Start
 
 ```bash
 npm install
-npm run dev      # Development server at http://localhost:5173
-npm run build    # Production build
+npm start                          # Expo dev server (i = iOS, a = Android, w = web)
+npm test                           # Unit tests (node:test)
+npx expo export --platform web     # Static web build in dist/
 ```
 
 ## Architecture Overview
 
 ```
+index.js                         # Expo entry point, registers src/App
+app.json                         # Expo config (name, icons, landscape orientation)
+metro.config.js                  # Adds .svg to the bundled asset types
 src/
 ├── App.jsx                      # Main app component, orchestrates game UI
-├── main.jsx                     # Entry point
-├── App.css                      # (deprecated)
+├── theme.js                     # Colours and table layout maths (card sizes, seat positions)
 │
-├── components/                  # Reusable UI components
-│   ├── Card.jsx                # Single card renderer (uses cardArt.js for images)
-│   ├── FanOfCards.jsx          # Hand layout with rotation, card validation via canPlayCard()
-│   ├── GameHeader.jsx          # Title, turn display, deal button
-│   ├── PlayerPanel.jsx         # Wrapper for player name + hand
+├── components/                  # React Native UI components
+│   ├── Card.jsx                # Single card renderer (expo-image + cardArt.js)
+│   ├── FanOfCards.jsx          # Fanned hand; face-up hands are tappable, illegal cards dimmed
+│   ├── GameHeader.jsx          # Title, turn display, game/ace pickers (modals), deal button
+│   ├── PlayerPanel.jsx         # One seat: positions and rotates the fan, shows the name label
 │   ├── PlayerName.jsx          # Player seat label
 │   └── TableCenter.jsx         # Central trick display (shows played cards)
 │
@@ -30,26 +33,16 @@ src/
 │   └── useSchafkopfGame.js     # Core game logic (dealing, turns, trick resolution, AI automation)
 │
 ├── ai/                          # AI decision-making
-│   └── schafkopfAI.js          # canPlayCard(), getAIMove() - suit following + basic strategy
+│   ├── schafkopfAI.js          # canPlayCard(), getAIMove(), Sau Spiel teams
+│   └── schafkopfAI.test.js     # Rule tests
 │
 ├── assets/
-│   ├── cardArt.js              # Imports all 24 SVG card images, exported as cardArt map
+│   ├── cardArt.js              # require()s all 24 SVG card images, exported as cardArt map
 │   ├── CardDeck.js             # Initial deck array with all 24 cards
 │   └── cards/                  # SVG card images
-│       ├── acorn/              # Acorn suit (9, K, 10, A, U, O)
-│       ├── leaf/               # Leaf suit (9, K, 10, A, U, O)
-│       ├── heart/              # Heart suit (9, K, 10, A, U, O)
-│       ├── bell/               # Bell suit (9, K, 10, A, U, O)
-│       └── back.svg            # Card back design
 │
-├── data/
-│   └── cardMeta.js             # Card metadata (suit, rank, value) for all 24 cards
-│
-├── styles/
-│   └── table.css               # All custom styling (board, cards, layout, responsive)
-│
-├── index.html                  # HTML template
-└── vite.config.js              # Vite configuration
+└── data/
+    └── cardMeta.js             # Card metadata (suit, rank, value) for all 24 cards
 ```
 
 ## Key Functionality by Feature
@@ -99,7 +92,7 @@ src/
 **`FanOfCards.jsx`** - Hand display
 - Renders cards in a fan layout
 - Disables illegal cards (opacity 0.4)
-- Shows "Must follow suit" tooltip on hover
+- Dims cards that would break suit-following when it is your turn
 - Uses `canPlayCard()` to mark playable cards
 
 **`Card.jsx`** - Individual card
@@ -108,27 +101,16 @@ src/
 - Used in both hands and center trick area
 
 ### 4. **Card Assets** (`src/assets/`)
-- **`cardArt.js`** - Imports all 24 SVG files using Vite's `?url` query parameter
-  - Exports `cardArt` object: `{ "suit-rank": url, ... }`
-  - Maps stored as `"acorn-9"`, `"leaf-K"`, etc.
-- **`cards/` directory** - SVG files organized by suit
-  - Each file: `<suit>/<rank>.svg` (e.g., `acorn/9.svg`)
-  - Hand-drawn Bavarian card design
-  - Back design included
+- **`cardArt.js`** - `require()`s all 24 SVG files plus the card back
+  - Exports `cardArt` object: `{ "suit-rank": asset, ... }`
+  - `metro.config.js` registers `.svg` as an asset type; `expo-image` renders the SVGs natively and on the web
+- **`cards/` directory** - SVG files organized by suit (`<suit>/<rank>.svg`) plus `back.svg`
 
-### 5. **Styling** (`src/styles/table.css`)
-- **Board layout:**
-  - `.table-shell` - main container, teal background, responsive sizing
-  - `.table-center` - central trick area (circle, centered)
-  - `.player-slot.{north,east,south,west}` - player seat positions with rotation
-- **Card styling:**
-  - `.hand-card` - individual card button (90×130px)
-  - `.hand-card:disabled` - reduced opacity for illegal moves
-  - `.hand-card:hover:not(:disabled)` - lifts on hover
-  - `.trick-card` - played cards in center (same size as hand cards)
-- **Responsiveness:**
-  - `@media (max-width: 820px)` - adjust player slot widths
-  - `@media (max-width: 560px)` - stack layout for mobile
+### 5. **Styling & Layout**
+- Styles live next to each component in `StyleSheet.create` blocks; shared colours are in `src/theme.js`
+- `App.jsx` measures the table with `onLayout`, and `getTableLayout()` derives card sizes, the board circle and seat positions from that size, so one layout scales from phones to tablets and desktop browsers
+- North/West/East fans are rotated 180°/90°/-90° so their cards point at the middle
+- The app is locked to landscape (`app.json`)
 
 ### 6. **Data** (`src/data/`)
 - **`cardMeta.js`** - Metadata for all 24 cards
@@ -186,21 +168,19 @@ useSchafkopfGame (state + logic)
 ## Key Bugs & Fixes
 
 - **Stale closure bug (fixed)** - AI timeout was capturing old state. Solution: use `gameStateRef` to get current state at timeout fire time.
-- **Card images not showing (fixed)** - Vite was converting SVGs to base64. Solution: import with `?url` query parameter.
 - **Player position bug (fixed)** - East/West swapped on small screens. Fixed media query.
 
 ## Running Tests
 
 ```bash
-npm run build  # Verify production build succeeds
+npm test
 ```
 
-No unit tests yet. Tested manually during development.
+Covers the Sau Spiel rules in `src/ai/schafkopfAI.js`.
 
 ## Technologies
 
-- **React 19** - UI framework
-- **Vite** - Build tool & dev server
-- **TailwindCSS** - Utility classes (minimal usage)
-- **Custom CSS** - Game board styling
-- **SVG** - Card graphics (hand-drawn)
+- **Expo SDK 57 / React Native 0.86** - iOS, Android and web (via react-native-web)
+- **React 19**
+- **expo-image** - SVG card rendering
+- **react-native-safe-area-context** - keeps the table clear of notches

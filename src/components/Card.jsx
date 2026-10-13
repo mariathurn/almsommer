@@ -1,4 +1,6 @@
+import { Image } from "expo-image";
 import { cardArt } from "../assets/cardArt";
+import { CARD_RATIO } from "../theme";
 
 /* A single card visual
 Easy to reuse for:
@@ -8,18 +10,17 @@ played cards
 hand cards
  */
 
-function Card({ card, faceUp = true, className = "" }) {
-    const imagePath = faceUp ? cardArt[`${card.suit}-${card.rank}`] : cardArt.back;
+function Card({ card, faceUp = true, height, style }) {
+    const source = faceUp ? cardArt[`${card.suit}-${card.rank}`] : cardArt.back;
 
     return (
-        <img
-            src={imagePath}
-            alt={faceUp ? `${card.rank} of ${card.suit}` : "Card back"}
-            className={className}
-            draggable={false}
+        <Image
+            source={source}
+            style={[{ width: height * CARD_RATIO, height }, style]}
+            contentFit="contain"
+            accessibilityLabel={faceUp ? `${card.rank} of ${card.suit}` : "Card back"}
         />
     );
 }
 
 export default Card;
-
