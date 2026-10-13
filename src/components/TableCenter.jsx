@@ -6,6 +6,7 @@ Deal button (and the result), and after the deal a round "Choose game" button. *
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
+import { isTrumpForGame } from "../ai/schafkopfAI";
 import { cardTexture } from "../data/cardDesign";
 import { colors, fonts, paper, softShadow } from "../theme";
 
@@ -79,8 +80,9 @@ function TableCenter({
     needsGame,
     onDeal,
     onChooseGame,
+    trumpGame = null,
 }) {
-    const cardHeight = Math.min(blanket.height * 0.56, blanket.width * 0.4);
+    const cardHeight = Math.min(blanket.height * 0.6, blanket.width * 0.4);
     const buttonSize = Math.min(blanket.height * 0.42, 112);
     // On a small (phone) blanket the result sits beside the Deal button.
     const isSmall = blanket.height < 200;
@@ -117,7 +119,12 @@ function TableCenter({
                             },
                         ]}
                     >
-                        <Card card={card} faceUp height={cardHeight} />
+                        <Card
+                            card={card}
+                            faceUp
+                            isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
+                            height={cardHeight}
+                        />
                     </View>
                 );
             })}

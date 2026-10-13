@@ -8,7 +8,9 @@ import {
     getSauSpielTeams,
     getTeamForPlayer,
     getSauSpielStatus,
+    sortHandForGame,
 } from "./schafkopfAI.js";
+import { getAvailableGames } from "../data/gameTypes.js";
 
 test("Sau Spiel treats hearts, obers, and unters as trumps", () => {
     assert.equal(isTrumpForGame({ suit: "heart", rank: "A" }, "Sau Spiel"), true);
@@ -82,4 +84,45 @@ test("Only a regular sheep can be called, and only with a regular card of its co
     assert.equal(canCallAce("acorn", [...hand, { suit: "acorn", rank: "K" }]), false);
     // A green dog is a trump, not a regular green card
     assert.equal(canCallAce("leaf", hand), false);
+});
+
+test("Only the games a hand allows can be announced, never the Cowards Game", () => {
+    const labels = (hand) => getAvailableGames(hand).map((game) => game.label);
+
+    // Regular orange card without the orange sheep, and two trumps
+    const sheepHand = [
+        { suit: "bell", rank: "9" },
+        { suit: "heart", rank: "K" },
+        { suit: "acorn", rank: "O" },
+    ];
+    assert.deepEqual(labels(sheepHand), ["Sheep Game", "Solo Game", "Dog Game"]);
+
+    // Exactly one trump and no sheep to call
+    const marriageHand = [
+        { suit: "bell", rank: "A" },
+        { suit: "acorn", rank: "A" },
+        { suit: "leaf", rank: "A" },
+        { suit: "heart", rank: "9" },
+    ];
+    assert.deepEqual(labels(marriageHand), ["Solo Game", "Dog Game", "Marriage"]);
+});
+
+test("Trumps are sorted strongest first, depending on the game", () => {
+    const hand = [
+        { suit: "heart", rank: "9" },
+        { suit: "bell", rank: "U" },
+        { suit: "leaf", rank: "A" },
+        { suit: "acorn", rank: "O" },
+        { suit: "heart", rank: "A" },
+        { suit: "acorn", rank: "U" },
+    ];
+    const ids = (cards) => cards.map((c) => `${c.suit}-${c.rank}`);
+
+    assert.deepEqual(ids(sortHandForGame(hand, "Sau Spiel")), [
+        "acorn-O", "acorn-U", "bell-U", "heart-A", "heart-9", "leaf-A",
+    ]);
+    // Dog Game: only dogs are trumps; the shepherd is an ordinary blue card
+    assert.deepEqual(ids(sortHandForGame(hand, "Wenz")), [
+        "acorn-U", "bell-U", "acorn-O", "leaf-A", "heart-A", "heart-9",
+    ]);
 });

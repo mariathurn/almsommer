@@ -3,10 +3,51 @@ Handles rotation and spacing for each player's hand.
 Face-up hands are tappable. On your turn the cards you may play lift and the
 others fade, so "follow suit" needs no pop-up. */
 
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
 import Card from "./Card";
-import { canPlayCard } from "../ai/schafkopfAI";
+import { canPlayCard, isTrumpForGame, sortHandForGame } from "../ai/schafkopfAI";
 import { CARD_RATIO, fanWidth } from "../theme";
+
+// How far a card rises, as a share of its height: playable cards sit a little
+// higher, and hovering (or pressing) lifts them a bit further.
+const PLAYABLE_RISE = 0.04;
+const HOVER_RISE = 0.15;
+const RISE_DURATION = 320;
+
+// One tappable card in your hand. Its lift is animated with a slow ease.
+function HandCard({ card, cardHeight, placement, isPlayable, isFaded, isTrump, accessibilityHint, onPress }) {
+    const [isHovered, setIsHovered] = useState(false);
+    const rise = useRef(new Animated.Value(0)).current;
+    const target = isPlayable ? (isHovered ? HOVER_RISE : PLAYABLE_RISE) : 0;
+
+    useEffect(() => {
+        Animated.timing(rise, {
+            toValue: -target * cardHeight,
+            duration: RISE_DURATION,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: Platform.OS !== "web",
+        }).start();
+    }, [target, cardHeight, rise]);
+
+    return (
+        <Pressable
+            onPress={onPress}
+            onHoverIn={() => setIsHovered(true)}
+            onHoverOut={() => setIsHovered(false)}
+            onPressIn={() => setIsHovered(true)}
+            onPressOut={() => setIsHovered(false)}
+            disabled={!isPlayable}
+            accessibilityRole="button"
+            accessibilityHint={accessibilityHint}
+            style={[styles.card, placement, isFaded && styles.illegal]}
+        >
+            <Animated.View style={{ transform: [{ translateY: rise }] }}>
+                <Card card={card} faceUp isTrump={isTrump} height={cardHeight} />
+            </Animated.View>
+        </Pressable>
+    );
+}
 
 function FanOfCards({
     cards,
@@ -17,17 +58,21 @@ function FanOfCards({
     playedCards = [],
     spacing = 0.45,
     rotationStep = 4,
+    trumpGame = null,
 }) {
     if (!cards.length) return null;
+
+    // With a game hovered or chosen, trumps are sorted to the left (strongest
+    // first) and decorated. Taps still report the card's index in `cards`.
+    const shown = trumpGame ? sortHandForGame(cards, trumpGame) : cards;
 
     const cardWidth = cardHeight * CARD_RATIO;
     const width = fanWidth(cards.length, cardHeight, spacing);
     const middle = (cards.length - 1) / 2;
-    const lift = cardHeight * 0.14;
 
     return (
         <View style={{ width, height: cardHeight }}>
-            {cards.map((card, index) => {
+            {shown.map((card, index) => {
                 const offset = index - middle;
                 const placement = {
                     left: index * cardWidth * spacing,
@@ -45,27 +90,22 @@ function FanOfCards({
                     );
                 }
 
-                const isLegal = canPlayCard(card, cards, playedCards);
-                const isDisabled = !isCurrentTurn || !isLegal;
+                const isLegal = canPlayCard(card, cards, playedCards, trumpGame ?? undefined);
+                const handIndex = cards.indexOf(card);
                 const isPlayable = isCurrentTurn && isLegal;
 
                 return (
-                    <Pressable
+                    <HandCard
                         key={card.id}
-                        onPress={() => onPlayCard?.(index)}
-                        disabled={isDisabled}
-                        accessibilityRole="button"
+                        card={card}
+                        cardHeight={cardHeight}
+                        placement={placement}
+                        isPlayable={isPlayable}
+                        isFaded={isCurrentTurn && !isLegal}
+                        isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
                         accessibilityHint={!isLegal ? "Must follow suit" : undefined}
-                        style={({ pressed, hovered }) => [
-                            styles.card,
-                            placement,
-                            isCurrentTurn && !isLegal && styles.illegal,
-                            isPlayable && { top: -lift * 0.45 },
-                            isPlayable && (pressed || hovered) && { top: -lift },
-                        ]}
-                    >
-                        <Card card={card} faceUp height={cardHeight} />
-                    </Pressable>
+                        onPress={() => onPlayCard?.(handIndex)}
+                    />
                 );
             })}
         </View>

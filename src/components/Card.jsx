@@ -13,11 +13,11 @@ hand cards
 Ranks with new artwork use the illustrated design; the rest keep the classic SVGs.
  */
 
-function Card({ card, faceUp = true, height, style }) {
+function Card({ card, faceUp = true, isTrump = false, height, style }) {
     const width = height * CARD_RATIO;
 
     if (faceUp && hasIllustratedDesign(card)) {
-        return <IllustratedCard card={card} width={width} height={height} />;
+        return <IllustratedCard card={card} width={width} height={height} isTrump={isTrump} />;
     }
 
     const source = faceUp ? cardArt[`${card.suit}-${card.rank}`] : cardArt.back;

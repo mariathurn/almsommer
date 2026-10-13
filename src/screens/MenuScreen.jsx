@@ -28,7 +28,7 @@ function MenuScreen({ onPlay, onOpenDeck }) {
                 <Text style={styles.kicker}>A trick-taking card game</Text>
                 <Text style={[styles.title, compact && styles.titleCompact]}>Almsommer</Text>
                 <Text style={styles.tagline}>
-                    The annual Shepard's games are taking place. A mix of collaborative and solo challenges await!
+                    The annual shepherds' games are taking place. A mix of collaborative and solo challenges await!
                 </Text>
 
                 <View style={styles.buttons}>

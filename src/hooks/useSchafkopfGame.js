@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
-import { canPlayCard, getSauSpielTeams, isTrumpForGame } from "../ai/schafkopfAI";
+import { canPlayCard, getPlainRank, getSauSpielTeams, getTrumpStrength, isTrumpForGame } from "../ai/schafkopfAI";
 
 // Timing constants - adjust these to change all delays at once
 // Milliseconds an opponent "thinks" before playing. A finished trick stays on
@@ -58,11 +58,9 @@ const getTrickWinner = (cards, gameName = "Pass") => {
             return best;
         }
 
-        // Both trump: higher rank wins
+        // Both trump: the stronger trump wins
         if (bestIsTrump && currentIsTrump) {
-            const bestValue = rankValue[bestCard.rank] ?? 0;
-            const currentValue = rankValue[currentCard.rank] ?? 0;
-            return currentValue > bestValue ? current : best;
+            return getTrumpStrength(currentCard, gameName) > getTrumpStrength(bestCard, gameName) ? current : best;
         }
 
         // Neither trump: only led suit can win
@@ -75,9 +73,7 @@ const getTrickWinner = (cards, gameName = "Pass") => {
 
         // Both same suit: higher rank wins
         if (bestCard.suit === currentCard.suit) {
-            const bestValue = rankValue[bestCard.rank] ?? 0;
-            const currentValue = rankValue[currentCard.rank] ?? 0;
-            return currentValue > bestValue ? current : best;
+            return getPlainRank(currentCard) > getPlainRank(bestCard) ? current : best;
         }
 
         return best;

@@ -9,15 +9,45 @@ const rankValue = {
 
 const validAceCalls = ["bell", "acorn", "leaf"];
 
-export function isTrumpForGame(card, gameName = "Pass") {
-    if (!card) return false;
+// Colour order for shepherds and dogs: blue (acorn) > green > red > orange.
+const suitStrength = { acorn: 4, leaf: 3, heart: 2, bell: 1 };
+// Order of non-trump cards within a colour (a shepherd only appears here in the Dog Game).
+const plainRank = { A: 6, "10": 5, K: 4, O: 3, U: 2, "9": 1 };
 
-    if (gameName === "Sau Spiel") {
-        return card.rank === "O" || card.rank === "U" || card.suit === "heart";
+// How strong a trump is in the given game (higher wins), or 0 if the card is
+// not a trump. Dog Game: only the dogs. Every other game (Solo for now with
+// red as its trump colour): shepherds, then dogs, then the red cards.
+export function getTrumpStrength(card, gameName = "Pass") {
+    if (!card) return 0;
+    if (gameName === "Wenz") {
+        return card.rank === "U" ? 10 + suitStrength[card.suit] : 0;
     }
+    if (card.rank === "O") return 20 + suitStrength[card.suit];
+    if (card.rank === "U") return 10 + suitStrength[card.suit];
+    if (card.suit === "heart") return rankValue[card.rank];
+    return 0;
+}
 
-    // Fallback for the game variants we have so far.
-    return card.rank === "O" || card.rank === "U" || card.suit === "heart";
+export function isTrumpForGame(card, gameName = "Pass") {
+    return getTrumpStrength(card, gameName) > 0;
+}
+
+// Rank of a card within its colour when it is not a trump.
+export function getPlainRank(card) {
+    return plainRank[card.rank];
+}
+
+// Hand order for a game: trumps from strongest to weakest on the left, then
+// the other cards by colour (blue, green, red, orange), highest first.
+export function sortHandForGame(hand, gameName) {
+    const colourOrder = ["acorn", "leaf", "heart", "bell"];
+    return [...hand].sort((a, b) => {
+        const trumpDiff = getTrumpStrength(b, gameName) - getTrumpStrength(a, gameName);
+        if (trumpDiff !== 0) return trumpDiff;
+        if (isTrumpForGame(a, gameName)) return 0;
+        const colourDiff = colourOrder.indexOf(a.suit) - colourOrder.indexOf(b.suit);
+        return colourDiff !== 0 ? colourDiff : getPlainRank(b) - getPlainRank(a);
+    });
 }
 
 // A sheep (ace) can be called if it is a regular sheep (the red one is a

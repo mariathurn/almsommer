@@ -14,6 +14,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
+import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import { colors } from "./theme";
 
 // Three screens, switched with plain state: "menu", "game" and "deck".
@@ -32,13 +33,14 @@ function App() {
     AlegreyaSans_500Medium,
     AlegreyaSans_700Bold,
   });
+  const cardArtLoaded = usePreloadedCardArt();
   const openMenu = () => setScreen("menu");
 
   return (
     <SafeAreaProvider>
       <StatusBar hidden />
       <SafeAreaView style={styles.page}>
-        {!fontsLoaded ? null : screen === "game" ? (
+        {!fontsLoaded || !cardArtLoaded ? null : screen === "game" ? (
           <GameScreen onOpenMenu={openMenu} />
         ) : screen === "deck" ? (
           <DeckScreen onBack={openMenu} />

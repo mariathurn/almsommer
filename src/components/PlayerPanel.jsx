@@ -9,7 +9,7 @@ import FanOfCards from "./FanOfCards";
 import PlayerName from "./PlayerName";
 import { colors, fanWidth, fonts, paper } from "../theme";
 
-const SOUTH_SPACING = 0.72;
+const SOUTH_SPACING = 0.55;
 const SOUTH_ROTATION_STEP = 5;
 const seatColors = { west: colors.weide, north: colors.enzian, east: colors.alpenrose };
 
@@ -76,6 +76,7 @@ function PlayerPanel({
     gameType = null,
     status = null,
     showFriendBadge = false,
+    trumpGame = null,
 }) {
     const tag = (
         <PlayerName
@@ -117,6 +118,7 @@ function PlayerPanel({
                     playedCards={playedCards}
                     spacing={SOUTH_SPACING}
                     rotationStep={SOUTH_ROTATION_STEP}
+                    trumpGame={trumpGame}
                 />
             </View>
             <View

@@ -64,6 +64,8 @@ export const CARD_RATIO = 500 / 784;
 const EDGE = 10;
 const LABEL_HEIGHT = 30;
 const TAG_HEIGHT = 30;
+// Share of your cards' height that shows above the bottom edge at rest.
+export const HAND_VISIBLE = 0.8;
 
 // Width of a fan of `count` cards for a given card height and overlap.
 export function fanWidth(count, cardHeight, spacingFactor) {
@@ -74,22 +76,23 @@ export function fanWidth(count, cardHeight, spacingFactor) {
 // Derives card sizes and seat positions from the table's measured size,
 // so the same layout works on phones, tablets and the web.
 export function getTableLayout(width, height) {
-    // Phones in landscape: smaller seats, north's tag beside its medallion,
-    // your tag beside your hand, and the hand dipping below the screen edge.
+    // Phones in landscape: smaller seats, north's tag beside its medallion and
+    // your tag beside your hand. On every screen your hand dips below the
+    // bottom edge (hovering lifts a card a little), leaving more room
+    // for the blanket.
     const compact = height < 460;
     const southCardHeight = Math.min(height * (compact ? 0.36 : 0.38), 280);
     const medallionSize = compact ? 40 : Math.max(Math.min(height * 0.17, 84), 46);
 
-    // Fanned cards tilt and drop at the ends, so leave room for the arc.
-    const southFanTop = compact ? height - southCardHeight * 0.9 : height - EDGE - southCardHeight * 1.1;
+    const southFanTop = height - southCardHeight * HAND_VISIBLE;
     const northBottom = EDGE + medallionSize * 1.18 + (compact ? 0 : TAG_HEIGHT);
     const southTop = southFanTop - (compact ? 12 : LABEL_HEIGHT);
     const gap = southTop - northBottom;
 
     // The trick is played onto a picnic blanket between the side seats.
     const sideSeatWidth = medallionSize + 90;
-    const blanketHeight = Math.max(gap - 12, 90);
-    const blanketWidth = Math.max(Math.min(width - 2 * (EDGE + sideSeatWidth), blanketHeight * 1.7, 560), 140);
+    const blanketHeight = Math.max(gap - 8, 90);
+    const blanketWidth = Math.max(Math.min(width - 2 * (EDGE + sideSeatWidth), blanketHeight * 1.8, 760), 140);
 
     return {
         width,

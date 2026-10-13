@@ -71,7 +71,10 @@ function SuitIcon({ suit, x, y, size }) {
     );
 }
 
-function IllustratedCard({ card, width, height }) {
+// Trump cards get yellow corner boxes and a crown above the rank.
+const TRUMP_FILL = "#eec652";
+
+function IllustratedCard({ card, width, height, isTrump = false }) {
     const colors = suitColors[card.suit];
     const design = rankDesign[card.rank];
     const figure = design.figure?.[card.suit];
@@ -130,19 +133,31 @@ function IllustratedCard({ card, width, height }) {
                 </G>
             ) : null}
 
-            {/* Number and suit, top left */}
-            <Rect x={24} y={17} width={108} height={142} rx={20} fill="white" stroke={ink} strokeWidth={7} />
+            {/* Number and suit, top left (crowned and yellow for trumps) */}
+            <Rect
+                x={24}
+                y={17}
+                width={108}
+                height={142}
+                rx={20}
+                fill={isTrump ? TRUMP_FILL : "white"}
+                stroke={ink}
+                strokeWidth={7}
+            />
+            {isTrump ? (
+                <Path d="M60 50 L58 31 L69 40 L78 27 L87 40 L98 31 L96 50 Z" fill={ink} strokeLinejoin="round" />
+            ) : null}
             <Text
                 x={78}
-                y={isTwoDigit ? 94 : 100}
-                fontSize={isTwoDigit ? 60 : 84}
+                y={isTrump ? (isTwoDigit ? 107 : 112) : isTwoDigit ? 94 : 100}
+                fontSize={isTrump ? (isTwoDigit ? 50 : 64) : isTwoDigit ? 60 : 84}
                 fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"
             >
                 {number}
             </Text>
-            <SuitIcon suit={card.suit} x={78} y={128} size={34} />
+            <SuitIcon suit={card.suit} x={78} y={isTrump ? 135 : 128} size={isTrump ? 30 : 34} />
 
             {/* Points, top right */}
             <Circle cx={417} cy={67} r={47} fill="white" stroke={ink} strokeWidth={7} />
@@ -172,7 +187,16 @@ function IllustratedCard({ card, width, height }) {
             </Text>
 
             {/* Mirrored number, bottom right */}
-            <Rect x={382} y={689} width={85} height={83} rx={18} fill="white" stroke={ink} strokeWidth={7} />
+            <Rect
+                x={382}
+                y={689}
+                width={85}
+                height={83}
+                rx={18}
+                fill={isTrump ? TRUMP_FILL : "white"}
+                stroke={ink}
+                strokeWidth={7}
+            />
             <Text
                 x={424.5}
                 y={isTwoDigit ? 746 : 752}

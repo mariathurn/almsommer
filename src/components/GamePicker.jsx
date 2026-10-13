@@ -1,12 +1,16 @@
-/* Game choice as festival banners: one pennant tile per game with its coin
-reward. Choosing Sauspiel asks which sheep (ace) to call, shown as the cards. */
+/* Declaring a game, as festival banners: one pennant tile per game this hand
+may announce, with its coin reward, plus Pass. If everybody passes, the
+Cowards Game is played. Choosing the Sheep Game asks which sheep to call.
+
+The panel sits at the top of the table, sized to the space above your hand,
+so your cards stay visible while you decide. */
 
 import { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Card from "./Card";
 import PaperButton from "./PaperButton";
-import { gameTypes } from "../data/gameTypes";
+import { getAvailableGames } from "../data/gameTypes";
 import { colors, fonts, paper, softShadow, suitTheme } from "../theme";
 
 const bannerColors = {
@@ -14,8 +18,10 @@ const bannerColors = {
     Solo: colors.alpenrose,
     Wenz: colors.enzian,
     Marriage: colors.weide,
-    Ramsch: colors.hay,
 };
+
+const HEADER_HEIGHT = 44;
+const PANEL_PADDING = 14;
 
 export function Coin({ value, size = 34 }) {
     return (
@@ -25,60 +31,67 @@ export function Coin({ value, size = 34 }) {
     );
 }
 
-function BannerTile({ game, width, height, isActive, disabledNote, onPress }) {
+function BannerTile({ game, width, height, isActive, onPress, onPreview }) {
     const color = bannerColors[game.value];
-    const notch = height * 0.12;
+    const notch = height * 0.1;
+    const showBlurb = height >= 140;
 
     return (
         <Pressable
             onPress={onPress}
-            disabled={Boolean(disabledNote)}
+            onHoverIn={() => onPreview(game.value)}
+            onHoverOut={() => onPreview(null)}
+            onPressIn={() => onPreview(game.value)}
             accessibilityRole="button"
             accessibilityLabel={`${game.label}, ${game.coins} coins`}
             style={({ pressed, hovered }) => [
                 { width, height },
                 styles.tile,
-                !disabledNote && (hovered || isActive) && styles.tileRaised,
-                !disabledNote && pressed && styles.tilePressed,
-                disabledNote && styles.tileDisabled,
+                (hovered || isActive) && styles.tileRaised,
+                pressed && styles.tilePressed,
             ]}
         >
             <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
                 <Path
                     d={`M2 2 H${width - 2} V${height - 2} L${width / 2} ${height - 2 - notch} L2 ${height - 2} Z`}
                     fill={colors.paper}
-                    stroke={isActive ? colors.hay : colors.keyline}
+                    stroke={isActive ? colors.hayDeep : colors.keyline}
                     strokeWidth={isActive ? 3 : 1.5}
                 />
-                <Path d={`M2 2 H${width - 2} V${height * 0.2} H2 Z`} fill={color} opacity={0.85} />
+                <Path d={`M2 2 H${width - 2} V${height * 0.16} H2 Z`} fill={color} opacity={0.85} />
             </Svg>
-            <View style={[styles.tileContent, { paddingTop: height * 0.24, paddingBottom: notch + 8 }]}>
-                <Text style={styles.tileTitle} numberOfLines={1}>
+            <View style={[styles.tileContent, { paddingTop: height * 0.2, paddingBottom: notch + 6 }]}>
+                <Text style={[styles.tileTitle, !showBlurb && styles.tileTitleSmall]} numberOfLines={1}>
                     {game.label}
                 </Text>
-                <Text style={styles.tileBlurb} numberOfLines={3}>
-                    {disabledNote ?? game.blurb}
-                </Text>
-                <Coin value={game.coins} />
+                {showBlurb ? (
+                    <Text style={styles.tileBlurb} numberOfLines={3}>
+                        {game.blurb}
+                    </Text>
+                ) : null}
+                <Coin value={game.coins} size={showBlurb ? 34 : 28} />
             </View>
         </Pressable>
     );
 }
 
-function GamePicker({ visible, selectedGame, calledAce, availableAces, onPick, onClose }) {
+// onPreview(game) reports the hovered (or pressed) game so the hand can show
+// its trumps; null when nothing is hovered.
+function GamePicker({ width, maxHeight, hand, selectedGame, calledAce, availableAces, onPick, onPass, onPreview }) {
     const [step, setStep] = useState("game");
-    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const games = getAvailableGames(hand);
 
-    useEffect(() => {
-        if (visible) setStep("game");
-    }, [visible]);
+    // Start at the game list each time the hand changes (a new deal).
+    useEffect(() => setStep("game"), [hand.length]);
 
-    const tileWidth = Math.min((windowWidth - 120) / gameTypes.length, 170);
-    const tileHeight = Math.min(windowHeight * 0.5, tileWidth * 1.25);
-    const aceCardHeight = Math.min(windowHeight * 0.42, 220);
+    const contentHeight = Math.max(maxHeight - HEADER_HEIGHT - PANEL_PADDING * 2 - 8, 80);
+    const tileWidth = Math.min((width - PANEL_PADDING * 2 - 12 * (games.length - 1)) / Math.max(games.length, 1), 180);
+    const tileHeight = Math.min(contentHeight, 200);
+    const aceCardHeight = Math.min(contentHeight - 22, 200);
 
     const chooseGame = (game) => {
         if (game.value === "Sau Spiel") {
+            onPreview("Sau Spiel"); // keep showing its trumps while the sheep is chosen
             setStep("ace");
             return;
         }
@@ -86,95 +99,85 @@ function GamePicker({ visible, selectedGame, calledAce, availableAces, onPick, o
     };
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.backdrop} onPress={onClose}>
-                <Pressable style={styles.sheet} onPress={() => {}}>
-                    {step === "game" ? (
-                        <>
-                            <Text style={styles.heading}>What will you play?</Text>
-                            <View style={styles.tiles}>
-                                {gameTypes.map((game) => (
-                                    <BannerTile
-                                        key={game.value}
-                                        game={game}
-                                        width={tileWidth}
-                                        height={tileHeight}
-                                        isActive={selectedGame === game.value}
-                                        disabledNote={
-                                            game.value === "Sau Spiel" && availableAces.length === 0
-                                                ? "You have no sheep you may call this round."
-                                                : null
-                                        }
-                                        onPress={() => chooseGame(game)}
-                                    />
-                                ))}
-                            </View>
-                        </>
-                    ) : (
-                        <>
-                            <Text style={styles.heading}>Which sheep do you call?</Text>
-                            <Text style={styles.subheading}>Whoever holds it plays with you, but stays secret until it is played.</Text>
-                            <View style={styles.tiles}>
-                                {availableAces.map((suit) => (
-                                    <Pressable
-                                        key={suit}
-                                        onPress={() => onPick("Sau Spiel", suit)}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={`${suitTheme[suit].name} sheep`}
-                                        style={({ pressed, hovered }) => [
-                                            styles.aceChoice,
-                                            (hovered || calledAce === suit) && styles.tileRaised,
-                                            pressed && styles.tilePressed,
-                                        ]}
-                                    >
-                                        <Card card={{ id: `${suit}-A`, suit, rank: "A" }} height={aceCardHeight} />
-                                        <Text style={[styles.aceLabel, { color: suitTheme[suit].color }]}>
-                                            {suitTheme[suit].name}
-                                        </Text>
-                                    </Pressable>
-                                ))}
-                            </View>
-                            <PaperButton label="Back" compact onPress={() => setStep("game")} />
-                        </>
-                    )}
-                </Pressable>
-            </Pressable>
-        </Modal>
+        <View style={[styles.panel, { width, maxHeight }]}>
+            <View style={styles.header}>
+                {step === "ace" ? <PaperButton
+                        label="‹ Back"
+                        compact
+                        onPress={() => {
+                            onPreview(null);
+                            setStep("game");
+                        }}
+                    /> : null}
+                <Text style={styles.heading} numberOfLines={1}>
+                    {step === "game" ? "What will you play?" : "Which sheep do you call?"}
+                </Text>
+                {step === "game" ? <PaperButton label="Pass" compact onPress={onPass} /> : null}
+            </View>
+
+            {step === "game" ? (
+                <View style={styles.tiles}>
+                    {games.map((game) => (
+                        <BannerTile
+                            key={game.value}
+                            game={game}
+                            width={tileWidth}
+                            height={tileHeight}
+                            isActive={selectedGame === game.value}
+                            onPress={() => chooseGame(game)}
+                            onPreview={onPreview}
+                        />
+                    ))}
+                </View>
+            ) : (
+                <View style={styles.tiles}>
+                    {availableAces.map((suit) => (
+                        <Pressable
+                            key={suit}
+                            onPress={() => onPick("Sau Spiel", suit)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${suitTheme[suit].name} sheep`}
+                            style={({ pressed, hovered }) => [
+                                styles.aceChoice,
+                                (hovered || calledAce === suit) && styles.tileRaised,
+                                pressed && styles.tilePressed,
+                            ]}
+                        >
+                            <Card card={{ id: `${suit}-A`, suit, rank: "A" }} height={aceCardHeight} />
+                            <Text style={[styles.aceLabel, { color: suitTheme[suit].color }]}>
+                                {suitTheme[suit].name}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
+            )}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
+    panel: {
+        ...paper,
+        borderRadius: 18,
+        padding: PANEL_PADDING,
+        gap: 8,
+        alignSelf: "center",
+    },
+    header: {
+        height: HEADER_HEIGHT,
+        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: colors.scrim,
-        padding: 16,
-    },
-    sheet: {
-        ...paper,
-        borderRadius: 20,
-        paddingVertical: 18,
-        paddingHorizontal: 22,
-        alignItems: "center",
-        gap: 12,
-        maxWidth: "100%",
+        gap: 14,
     },
     heading: {
+        flexShrink: 1,
         fontFamily: fonts.title,
-        fontSize: 24,
+        fontSize: 22,
         color: colors.ink,
-    },
-    subheading: {
-        fontFamily: fonts.body,
-        fontSize: 15,
-        color: colors.inkSoft,
-        textAlign: "center",
-        marginTop: -6,
     },
     tiles: {
         flexDirection: "row",
-        flexWrap: "wrap",
         justifyContent: "center",
         gap: 12,
     },
@@ -182,11 +185,8 @@ const styles = StyleSheet.create({
         ...softShadow,
     },
     tileRaised: {
-        transform: [{ translateY: -4 }],
+        transform: [{ translateY: -3 }],
         shadowOpacity: 0.32,
-    },
-    tileDisabled: {
-        opacity: 0.5,
     },
     tilePressed: {
         transform: [{ translateY: -1 }],
@@ -201,6 +201,9 @@ const styles = StyleSheet.create({
         fontFamily: fonts.title,
         fontSize: 19,
         color: colors.ink,
+    },
+    tileTitleSmall: {
+        fontSize: 15,
     },
     tileBlurb: {
         fontFamily: fonts.body,
@@ -222,12 +225,12 @@ const styles = StyleSheet.create({
     },
     aceChoice: {
         alignItems: "center",
-        gap: 6,
+        gap: 4,
         borderRadius: 12,
     },
     aceLabel: {
         fontFamily: fonts.bodyBold,
-        fontSize: 16,
+        fontSize: 15,
     },
 });
 

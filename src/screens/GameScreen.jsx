@@ -8,9 +8,10 @@ import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { canCallAce, getSauSpielStatus } from "../ai/schafkopfAI";
 import { getGameType } from "../data/gameTypes";
-import { getTableLayout } from "../theme";
+import { colors, getTableLayout } from "../theme";
 
 const seats = ["north", "west", "east", "south"];
+const opponents = ["north", "west", "east"];
 const callableSuits = ["bell", "acorn", "leaf"];
 
 function GameScreen({ onOpenMenu }) {
@@ -32,6 +33,8 @@ function GameScreen({ onOpenMenu }) {
 
   const [tableSize, setTableSize] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  // Game hovered in the picker; its trumps are previewed in your hand.
+  const [previewGame, setPreviewGame] = useState(null);
 
   const playerLabels = {
     south: "Maria",
@@ -66,10 +69,22 @@ function GameScreen({ onOpenMenu }) {
   };
 
   const handlePickGame = (game, ace) => {
+    setPreviewGame(null);
     setSelectedGame(game);
     setCalledAce(game === "Sau Spiel" ? ace : null);
     setIsPickerOpen(false);
   };
+
+  // The computer players never announce, so passing means everybody passed:
+  // the Cowards Game is played.
+  const handlePass = () => handlePickGame("Ramsch", null);
+  const closePicker = () => {
+    setPreviewGame(null);
+    setIsPickerOpen(false);
+  };
+  const showPicker = isPickerOpen && needsGame;
+  // Trumps shown on the cards: the hovered game while choosing, then the chosen one.
+  const trumpGame = (showPicker && previewGame) || (gameType ? selectedGame : null);
 
   const isGameOver = () => {
     // Game is over when all players have played all their cards
@@ -111,15 +126,18 @@ function GameScreen({ onOpenMenu }) {
   return (
     <View style={styles.shell}>
       <MeadowBackground />
-      <GameHeader
-        hasCards={hasCards}
-        currentTurn={currentTurn}
-        trickWinner={trickWinner}
-        selectedGame={selectedGame}
-        calledAce={calledAce}
-        playerName={playerName}
-        onOpenMenu={onOpenMenu}
-      />
+      <View>
+        <GameHeader
+          hasCards={hasCards}
+          currentTurn={currentTurn}
+          trickWinner={trickWinner}
+          selectedGame={selectedGame}
+          calledAce={calledAce}
+          playerName={playerName}
+          onOpenMenu={onOpenMenu}
+        />
+        {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" /> : null}
+      </View>
 
       <View
         style={styles.table}
@@ -137,9 +155,10 @@ function GameScreen({ onOpenMenu }) {
               needsGame={needsGame}
               onDeal={handleDeal}
               onChooseGame={() => setIsPickerOpen(true)}
+              trumpGame={trumpGame}
             />
 
-            {seats.map((seat) => (
+            {opponents.map((seat) => (
               <PlayerPanel
                 key={seat}
                 seat={seat}
@@ -155,6 +174,40 @@ function GameScreen({ onOpenMenu }) {
               />
             ))}
 
+            {/* Declaring a game: the table darkens, your hand stays visible above it. */}
+            {showPicker ? (
+              <>
+                <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" />
+                <View style={styles.pickerSlot} pointerEvents="box-none">
+                  <GamePicker
+                    width={Math.min(layout.width - 24, 900)}
+                    maxHeight={layout.southFanTop - (layout.compact ? 12 : layout.labelHeight) - 16}
+                    hand={players.south}
+                    selectedGame={selectedGame}
+                    calledAce={calledAce}
+                    availableAces={availableAces}
+                    onPick={handlePickGame}
+                    onPass={handlePass}
+                    onPreview={setPreviewGame}
+                  />
+                </View>
+              </>
+            ) : null}
+
+            <PlayerPanel
+              seat="south"
+              layout={layout}
+              name={playerName("south")}
+              cards={players.south}
+              isCurrentTurn={currentTurn === "south" && Boolean(gameType)}
+              onPlayCard={(index) => playCard("south", index)}
+              playedCards={playedCards}
+              gameType={isCaller("south") ? selectedGame : null}
+              status={getGameStatus("south")}
+              showFriendBadge={revealedAceOwner === "south"}
+              trumpGame={trumpGame}
+            />
+
             {/* A finished trick stays until you tap anywhere on the table. */}
             {isTrickComplete ? (
               <Pressable
@@ -168,14 +221,6 @@ function GameScreen({ onOpenMenu }) {
         ) : null}
       </View>
 
-      <GamePicker
-        visible={isPickerOpen}
-        selectedGame={selectedGame}
-        calledAce={calledAce}
-        availableAces={availableAces}
-        onPick={handlePickGame}
-        onClose={() => setIsPickerOpen(false)}
-      />
     </View>
   );
 }
@@ -187,6 +232,17 @@ const styles = StyleSheet.create({
   },
   table: {
     flex: 1,
+  },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.scrim,
+  },
+  pickerSlot: {
+    position: "absolute",
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
 });
 
