@@ -77,6 +77,7 @@ function PlayerPanel({
     status = null,
     showFriendBadge = false,
     trumpGame = null,
+    highlightTrumps = false,
 }) {
     const tag = (
         <PlayerName
@@ -119,6 +120,7 @@ function PlayerPanel({
                     spacing={SOUTH_SPACING}
                     rotationStep={SOUTH_ROTATION_STEP}
                     trumpGame={trumpGame}
+                    highlightTrumps={highlightTrumps}
                 />
             </View>
             <View

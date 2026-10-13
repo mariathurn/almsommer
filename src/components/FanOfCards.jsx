@@ -10,42 +10,103 @@ import { canPlayCard, isTrumpForGame, sortHandForGame } from "../ai/schafkopfAI"
 import { CARD_RATIO, fanWidth } from "../theme";
 
 // How far a card rises, as a share of its height: playable cards sit a little
-// higher, and hovering (or pressing) lifts them a bit further.
+// higher, hovering (or pressing) lifts them further, and while a game is
+// hovered in the picker its trumps rise to stand out.
 const PLAYABLE_RISE = 0.04;
-const HOVER_RISE = 0.15;
+const HOVER_RISE = 0.25;
+const PREVIEW_RISE = 0.1;
 const RISE_DURATION = 320;
+// Re-sorting glides cards to their new place; the trump corner fades in and out.
+const MOVE_DURATION = 380;
+const FADE_DURATION = 300;
 
-// One tappable card in your hand. Its lift is animated with a slow ease.
-function HandCard({ card, cardHeight, placement, isPlayable, isFaded, isTrump, accessibilityHint, onPress }) {
+const useNativeDriver = Platform.OS !== "web";
+const ease = Easing.out(Easing.cubic);
+
+// One card in your hand. Position, lift and trump decoration are animated:
+// `slot` is its place in the fan, and the trump version of the card is
+// cross-faded over the plain one.
+function HandCard({
+    card,
+    cardHeight,
+    slot,
+    slotCount,
+    spacing,
+    rotationStep,
+    isPlayable,
+    isFaded,
+    isTrump,
+    isHighlighted,
+    accessibilityHint,
+    onPress,
+}) {
     const [isHovered, setIsHovered] = useState(false);
+    const [showTrumpLayer, setShowTrumpLayer] = useState(isTrump);
     const rise = useRef(new Animated.Value(0)).current;
-    const target = isPlayable ? (isHovered ? HOVER_RISE : PLAYABLE_RISE) : 0;
+    const position = useRef(new Animated.Value(slot)).current;
+    const trumpOpacity = useRef(new Animated.Value(isTrump ? 1 : 0)).current;
+
+    let target = 0;
+    if (isPlayable) target = isHovered ? HOVER_RISE : PLAYABLE_RISE;
+    if (isHighlighted) target = Math.max(target, PREVIEW_RISE);
 
     useEffect(() => {
-        Animated.timing(rise, {
-            toValue: -target * cardHeight,
-            duration: RISE_DURATION,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: Platform.OS !== "web",
-        }).start();
+        Animated.timing(rise, { toValue: -target * cardHeight, duration: RISE_DURATION, easing: ease, useNativeDriver }).start();
     }, [target, cardHeight, rise]);
 
+    useEffect(() => {
+        Animated.timing(position, { toValue: slot, duration: MOVE_DURATION, easing: ease, useNativeDriver }).start();
+    }, [slot, position]);
+
+    useEffect(() => {
+        if (isTrump) setShowTrumpLayer(true);
+        Animated.timing(trumpOpacity, { toValue: isTrump ? 1 : 0, duration: FADE_DURATION, easing: ease, useNativeDriver }).start(
+            ({ finished }) => {
+                if (finished && !isTrump) setShowTrumpLayer(false);
+            }
+        );
+    }, [isTrump, trumpOpacity]);
+
+    // Fan geometry as a function of the (animated) slot: shift, arc and tilt.
+    const cardWidth = cardHeight * CARD_RATIO;
+    const middle = (slotCount - 1) / 2;
+    const slots = Array.from({ length: Math.max(slotCount, 2) }, (_, i) => i);
+    const translateX = Animated.multiply(position, cardWidth * spacing);
+    const arc = position.interpolate({
+        inputRange: slots,
+        outputRange: slots.map((i) => (i - middle) * (i - middle) * cardHeight * 0.012),
+    });
+    const rotate = position.interpolate({
+        inputRange: [0, Math.max(slotCount - 1, 1)],
+        outputRange: [`${-middle * rotationStep}deg`, `${(Math.max(slotCount - 1, 1) - middle) * rotationStep}deg`],
+    });
+
     return (
-        <Pressable
-            onPress={onPress}
-            onHoverIn={() => setIsHovered(true)}
-            onHoverOut={() => setIsHovered(false)}
-            onPressIn={() => setIsHovered(true)}
-            onPressOut={() => setIsHovered(false)}
-            disabled={!isPlayable}
-            accessibilityRole="button"
-            accessibilityHint={accessibilityHint}
-            style={[styles.card, placement, isFaded && styles.illegal]}
+        <Animated.View
+            style={[styles.card, { transform: [{ translateX }, { translateY: arc }, { rotate }] }]}
+            pointerEvents="box-none"
         >
-            <Animated.View style={{ transform: [{ translateY: rise }] }}>
-                <Card card={card} faceUp isTrump={isTrump} height={cardHeight} />
-            </Animated.View>
-        </Pressable>
+            <Pressable
+                onPress={onPress}
+                onHoverIn={() => setIsHovered(true)}
+                onHoverOut={() => setIsHovered(false)}
+                onPressIn={() => setIsHovered(true)}
+                onPressOut={() => setIsHovered(false)}
+                disabled={!isPlayable}
+                accessibilityRole="button"
+                accessibilityHint={accessibilityHint}
+                style={isFaded && styles.illegal}
+            >
+                <Animated.View style={{ transform: [{ translateY: rise }] }}>
+                    <Card card={card} faceUp height={cardHeight} />
+                    {showTrumpLayer ? (
+                        <Animated.View style={[StyleSheet.absoluteFill, { opacity: trumpOpacity }]} pointerEvents="none">
+                            <Card card={card} faceUp isTrump height={cardHeight} />
+                        </Animated.View>
+                    ) : null}
+                </Animated.View>
+            </Pressable>
+        </Animated.View>
     );
 }
 
@@ -59,6 +120,7 @@ function FanOfCards({
     spacing = 0.45,
     rotationStep = 4,
     trumpGame = null,
+    highlightTrumps = false,
 }) {
     if (!cards.length) return null;
 
@@ -94,15 +156,21 @@ function FanOfCards({
                 const handIndex = cards.indexOf(card);
                 const isPlayable = isCurrentTurn && isLegal;
 
+                const isTrump = Boolean(trumpGame) && isTrumpForGame(card, trumpGame);
+
                 return (
                     <HandCard
                         key={card.id}
                         card={card}
                         cardHeight={cardHeight}
-                        placement={placement}
+                        slot={index}
+                        slotCount={shown.length}
+                        spacing={spacing}
+                        rotationStep={rotationStep}
                         isPlayable={isPlayable}
                         isFaded={isCurrentTurn && !isLegal}
-                        isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
+                        isTrump={isTrump}
+                        isHighlighted={highlightTrumps && isTrump}
                         accessibilityHint={!isLegal ? "Must follow suit" : undefined}
                         onPress={() => onPlayCard?.(handIndex)}
                     />

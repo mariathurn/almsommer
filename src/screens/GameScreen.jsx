@@ -152,7 +152,7 @@ function GameScreen({ onOpenMenu }) {
               isTrickComplete={isTrickComplete}
               gameResult={getGameResult()}
               canDeal={canDeal}
-              needsGame={needsGame}
+              needsGame={needsGame && !showPicker}
               onDeal={handleDeal}
               onChooseGame={() => setIsPickerOpen(true)}
               trumpGame={trumpGame}
@@ -206,6 +206,7 @@ function GameScreen({ onOpenMenu }) {
               status={getGameStatus("south")}
               showFriendBadge={revealedAceOwner === "south"}
               trumpGame={trumpGame}
+              highlightTrumps={Boolean(showPicker && previewGame)}
             />
 
             {/* A finished trick stays until you tap anywhere on the table. */}

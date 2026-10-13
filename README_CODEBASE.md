@@ -130,7 +130,7 @@ src/
 - A finished trick stays on the blanket until you tap anywhere; opponents take 0.9 s per card
 - Your hand shows 70% of its height (`HAND_VISIBLE` in `theme.js`) and dips below the bottom edge, so the blanket gets more room; hovering lifts a card a little with a slow ease (`HOVER_RISE`, `RISE_DURATION` in `FanOfCards.jsx`)
 - On your turn, playable cards lift and the rest fade, so following suit needs no pop-up
-- Trumps per game (`getTrumpStrength` in `schafkopfAI.js`): Dog Game only dogs; all other games shepherds, dogs, then red (Solo has no colour choice yet). Shepherds and dogs rank blue > green > red > orange. Hovering a game in the picker sorts your hand with trumps strongest-first on the left (`sortHandForGame`) and gives trump cards a yellow corner with a crown; both stay once the game is chosen
+- Trumps per game (`getTrumpStrength` in `schafkopfAI.js`): Dog Game only dogs; all other games shepherds, dogs, then red (Solo has no colour choice yet). Shepherds and dogs rank blue > green > red > orange. Hovering a game in the picker sorts your hand with trumps strongest-first on the left (`sortHandForGame`) and gives trump cards a yellow corner with a crown; both stay once the game is chosen. While hovering, the trumps also rise a little (`PREVIEW_RISE`); re-sorting glides the cards and the crown corner fades in and out (`FanOfCards.jsx`)
 - Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). The other games can be chosen but still play with Sheep Game trumps; winning by 61 points is not implemented yet
 - `getTableLayout()` derives card, medallion and blanket sizes from the measured table; below 460 px height it switches to a compact phone layout
 - The app is locked to landscape (`app.json`)
@@ -207,5 +207,5 @@ Covers the Sau Spiel rules in `src/ai/schafkopfAI.js`.
 - **React 19**
 - **expo-image** - classic SVG card rendering
 - **react-native-svg** - illustrated card design
-- **expo-font** with Alfa Slab One (card numbers) and Barlow Condensed Bold (name tags)
+- **expo-font** with Fraunces and Alegreya Sans (interface), Alfa Slab One and Barlow Condensed Bold (card faces)
 - **react-native-safe-area-context** - keeps the table clear of notches
