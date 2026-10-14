@@ -39,7 +39,9 @@ function getBannerTitle({ hasCards, selectedGame, calledAce, callerName, marriag
         return `${callerName} marries ${marriagePartnerName}`;
     }
     const { suit } = parseGame(selectedGame);
-    if (game.value === "Solo" && suit) return `${callerName} plays a ${suitNamesEn[suit]} Solo`;
+    if (game.value === "Solo" && suit) {
+        return `${callerName} plays ${suit === "acorn" ? "an" : "a"} ${suitNamesEn[suit]} Solo`;
+    }
     return `${callerName} plays a ${game.label}`;
 }
 
@@ -62,6 +64,8 @@ function GameHeader({
     onOpenMenu,
     coins = 0,
     marriagePartnerName = null,
+    caller = null,
+    title = null,
     note = null,
 }) {
     const { width } = useStage();
@@ -87,7 +91,7 @@ function GameHeader({
                         <Rect width="100%" height="100%" fill="url(#banner-dots)" />
                     </Svg>
                     <Text style={[styles.bannerTitle, compact && styles.bannerTitleCompact]} numberOfLines={1}>
-                        {getBannerTitle({ ...state, callerName: playerName("south") })}
+                        {title ?? getBannerTitle({ ...state, callerName: playerName(caller ?? "south") })}
                     </Text>
                     <Text style={styles.bannerSubtitle} numberOfLines={1}>
                         {getBannerSubtitle(state)}

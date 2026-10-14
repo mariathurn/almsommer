@@ -102,10 +102,16 @@ export const rankDesign = {
 };
 
 // Card number: hat 1, staff 2, grain 3, sheep 4, dogs 5-8, shepherds 9-12.
-export function getCardNumber(card) {
+// In the Dog Game the shepherd is no trump but an ordinary card between hat
+// and staff: hat 1, shepherd 2, staff 3, grain 4, sheep 5, dogs 6-9.
+export function getCardNumber(card, gameName = null) {
+    const suitIndex = suitOrder.indexOf(card.suit);
+    if (String(gameName ?? "").split(":")[0] === "Wenz") {
+        const plain = { "9": 1, O: 2, K: 3, "10": 4, A: 5 }[card.rank];
+        return plain ?? 6 + suitIndex;
+    }
     const base = { "9": 1, K: 2, "10": 3, A: 4 }[card.rank];
     if (base) return base;
-    const suitIndex = suitOrder.indexOf(card.suit);
     return (card.rank === "U" ? 5 : 9) + suitIndex;
 }
 

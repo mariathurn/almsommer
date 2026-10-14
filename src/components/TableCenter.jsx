@@ -193,6 +193,7 @@ function TableCenter({
                                 faceUp
                                 isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
                                 height={cardHeight}
+                                gameName={trumpGame}
                             />
                         </WinnerGlow>
                     </View>

@@ -74,11 +74,11 @@ export function SuitIcon({ suit, x, y, size }) {
 // Trump cards get yellow corner boxes and a crown above the rank.
 const TRUMP_FILL = "#eec652";
 
-function IllustratedCard({ card, width, height, isTrump = false }) {
+function IllustratedCard({ card, width, height, isTrump = false, gameName = null }) {
     const colors = suitColors[card.suit];
     const design = rankDesign[card.rank];
     const figure = design.figure?.[card.suit];
-    const number = String(getCardNumber(card));
+    const number = String(getCardNumber(card, gameName));
     const points = String(cardPoints[card.rank]);
     const isTwoDigit = number.length > 1;
     const labelWidth = design.label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;

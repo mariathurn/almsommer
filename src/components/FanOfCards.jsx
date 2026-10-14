@@ -38,6 +38,7 @@ function HandCard({
     isTrump,
     isHighlighted,
     isSelected = false,
+    trumpGame = null,
     accessibilityHint,
     onPress,
 }) {
@@ -98,10 +99,10 @@ function HandCard({
                 accessibilityHint={accessibilityHint}
             >
                 <Animated.View style={{ transform: [{ translateY: rise }] }}>
-                    <Card card={card} faceUp height={cardHeight} />
+                    <Card card={card} faceUp gameName={trumpGame} height={cardHeight} />
                     {showTrumpLayer ? (
                         <Animated.View style={[StyleSheet.absoluteFill, { opacity: trumpOpacity }]} pointerEvents="none">
-                            <Card card={card} faceUp isTrump height={cardHeight} />
+                            <Card card={card} faceUp isTrump gameName={trumpGame} height={cardHeight} />
                         </Animated.View>
                     ) : null}
                     {/* Cards you may not play stay solid but are greyed a little. */}
@@ -188,6 +189,7 @@ function FanOfCards({
                         isTrump={isTrump}
                         isHighlighted={highlightTrumps && isTrump}
                         isSelected={confirmTap && selectedId === card.id}
+                        trumpGame={trumpGame}
                         accessibilityHint={!isLegal ? "Must follow suit" : undefined}
                         onPress={() => {
                             if (confirmTap && selectedId !== card.id) {

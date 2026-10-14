@@ -48,6 +48,7 @@ src/
 │
 ├── ai/                          # AI decision-making
 │   ├── schafkopfAI.js          # canPlayCard(), getAIMove(), Sau Spiel teams
+│   ├── players.js              # Computer players: when to announce, which card to play
 │   ├── scoring.js              # Card points, 61-point rule, coin payouts per game (scoreRound)
 │   └── schafkopfAI.test.js     # Rule tests
 │
@@ -140,10 +141,13 @@ src/
 - "Almsommer": warm linen paper with thin keylines and soft shadows on a watercolour meadow, with a bright yellow accent (`#ffe300`). Palette, suit colour names (orange, red, blue, green), fonts and the shared `paper` style live in `src/theme.js`
 - Type: three fonts in the interface. Caveat Brush for big moments (headings, banner, results), Alfa Slab One for all numbers, Alegreya Sans for everything else (card name tags keep Barlow Condensed). Gold `#eec652`, ink `#1f1c19` and paper come from the cards
 - Round flow as in the rulebook: a round Deal button in the middle of the blanket (only when nobody holds cards), then the game picker. It sits above your hand and darkens only the table behind it, offers only the games your hand allows (`getAvailableGames`) plus Pass; passing plays the Cowards Game. Cards can be played once a game is declared
+- Round flow: the forehand (first say and first card) is Maria in round 1 and moves on clockwise every round (Jonas, Bernd, Ernie, …). After the deal each player in turn from the forehand announces a game stronger than the best so far, or passes (Sheep Game / Marriage < Dog Game < Solo, `GAME_RANK`). The best game is played by whoever announced it; if everybody passes, the Cowards Game
+- Computer players (`src/ai/players.js`): `decideAnnouncement` counts trumps (Solo: 5+ trumps of a suit with 2 shepherds/dogs; Dog Game: 3 dogs; Sheep Game: 4 trumps, or 3 with 2 shepherds/dogs, calling the colour they hold least of). `chooseCard` knows who its partner is (`getRelation`), smears points onto a trick its partner is sure to win, takes tricks worth having (as cheaply as possible when last), searches for the called sheep, pulls trumps when announcing, and in the Cowards Game avoids taking tricks
 - Keyboard shortcuts on the web (`hooks/useHotkey.js`): Esc goes back to the menu (or closes the settings), P plays from the menu, D or Enter deals when dealing is possible
 - Settings (title screen → settings): music and sound effects switch off separately; `updateSoundSettings` / `useSoundSettings` in `sounds.js`, saved under `almsommer.sound` in AsyncStorage (localStorage on the web)
 - Sound (`src/audio/sounds.js`, files in `src/assets/audio/`): `sheep.mp3` plays when you tap play on the title screen; `meadow.mp3` loops from when the app opens (on the web straight away if the browser allows it, otherwise with the first tap or key press anywhere, since browsers block sound before that); `card-shuffle` on deal at 1.6x speed (`SHUFFLE_RATE`); a random `card-place-1..4` for every card played; `card-shove-1` when a trick is collected. Effects are M4A converted from the OGG originals (`afconvert -f m4af -d aac`), since iOS can't play OGG
 - When a trick is complete, the winning card and the winner's name tag shine once with a gold halo (`WinnerGlow.jsx`)
+- Card numbers follow the game (`getCardNumber(card, gameName)`): in the Dog Game the shepherd is an ordinary card, so hat 1, shepherd 2, staff 3, grain 4, sheep 5, dogs 6–9
 - Trump cards get a gold frame with ink dots (`#eec652`) as well as the crowned corner
 - A finished trick stays on the blanket until you tap anywhere; opponents take 0.9 s per card
 - Your hand is always sorted strongest trump first: by Sheep Game trumps right after the deal, then by the hovered or chosen game

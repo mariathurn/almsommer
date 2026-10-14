@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
 import { getTrickPoints, scoreRound } from "../ai/scoring";
+import { chooseCard, decideAnnouncement, getGameRank } from "../ai/players";
 import { getGameType } from "../data/gameTypes";
 import {
     canPlayCard,
@@ -8,6 +9,7 @@ import {
     getSauSpielTeams,
     getTrumpStrength,
     isTrumpForGame,
+    parseGame,
     resolveMarriage,
 } from "../ai/schafkopfAI";
 
@@ -15,6 +17,8 @@ import {
 // Milliseconds an opponent "thinks" before playing. A finished trick stays on
 // the table until the player collects it (collectTrick), so there is no timer.
 const AI_PLAY_DELAY = 900;
+// Milliseconds a computer player takes to decide whether to announce a game.
+const AI_BID_DELAY = 1100;
 
 const initialPlayers = {
     south: [],
@@ -24,13 +28,10 @@ const initialPlayers = {
 };
 
 const playerOrder = ["south", "west", "north", "east"];
-const rankValue = {
-    "9": 1,
-    K: 2,
-    "10": 3,
-    A: 4,
-    U: 5,
-    O: 6,
+// The four seats in play order, starting with `seat`.
+const rotateFrom = (seat) => {
+    const start = playerOrder.indexOf(seat);
+    return playerOrder.map((_, i) => playerOrder[(start + i) % playerOrder.length]);
 };
 
 function isTrump(card, gameName = "Pass") {
@@ -89,73 +90,6 @@ const getTrickWinner = (cards, gameName = "Pass") => {
     }, cards[0]);
 };
 
-// The AI's choice among the cards it may legally play (e.g. it must play the
-// called sheep when its colour is led). Returns an index into `hand`.
-const chooseLegalAIMove = (hand, playedCards, gameName, calledAce) => {
-    const legal = hand.filter((card) => canPlayCard(card, hand, playedCards, gameName, calledAce));
-    const options = legal.length ? legal : hand;
-    return hand.indexOf(options[getAIMove(options, playedCards, gameName)]);
-};
-
-const getAIMove = (hand, playedCards, gameName = "Pass") => {
-    if (!hand || hand.length === 0) return 0;
-
-    // If this is the first card (leading), play lowest non-trump to preserve trump
-    if (playedCards.length === 0) {
-        const nonTrumpCards = hand.filter((c) => !isTrump(c, gameName));
-        if (nonTrumpCards.length > 0) {
-            const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
-            return hand.findIndex(
-                (c) => !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
-            );
-        }
-        // All cards are trump, play lowest trump
-        const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
-        return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
-    }
-
-    const ledCard = playedCards[0].card;
-    const ledIsTrump = isTrump(ledCard, gameName);
-
-    // If trump was led, must follow with trump
-    if (ledIsTrump) {
-        const trumpCards = hand.filter((c) => isTrump(c, gameName));
-        if (trumpCards.length > 0) {
-            const lowestRank = Math.min(...trumpCards.map((c) => rankValue[c.rank]));
-            return hand.findIndex((c) => isTrump(c, gameName) && rankValue[c.rank] === lowestRank);
-        }
-        // No trump, play lowest card
-        const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
-        return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
-    }
-
-    // Regular suit was led
-    const ledSuit = ledCard.suit;
-    const sameSuitCards = hand.filter((c) => c.suit === ledSuit && !isTrump(c, gameName));
-
-    // If we have cards of the led suit (non-trump), play lowest
-    if (sameSuitCards.length > 0) {
-        const lowestRank = Math.min(...sameSuitCards.map((c) => rankValue[c.rank]));
-        return hand.findIndex(
-            (c) => c.suit === ledSuit && !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
-        );
-    }
-
-    // Can't follow suit, play lowest non-trump card if possible
-    const nonTrumpCards = hand.filter((c) => !isTrump(c, gameName));
-    if (nonTrumpCards.length > 0) {
-        const lowestRank = Math.min(...nonTrumpCards.map((c) => rankValue[c.rank]));
-        return hand.findIndex(
-            (c) => !isTrump(c, gameName) && rankValue[c.rank] === lowestRank
-        );
-    }
-
-    // Must play trump, play lowest
-    const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
-    return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
-};
-
-
 function useSchafkopfGame() {
     const [players, setPlayers] = useState(initialPlayers);
     // Hands as dealt. Teams are derived from these, because the called ace
@@ -175,6 +109,18 @@ function useSchafkopfGame() {
     // Marriage outcome: { partner, trump, given } (only set once someone accepted).
     const [marriage, setMarriage] = useState(null);
     const [humanPlayer] = useState("south");
+    // Rounds dealt so far. The first round Maria leads; then the lead (and
+    // the first say in announcing) moves on clockwise every round.
+    const [roundNumber, setRoundNumber] = useState(0);
+    const [forehand, setForehand] = useState("south");
+    // Who announced the game being played (null for the Cowards Game).
+    const [caller, setCaller] = useState(null);
+    // Announcing, after the deal: each player in turn from the forehand
+    // announces a game that beats the best so far, or passes.
+    // { order, index, best: { seat, game, calledAce } | null }
+    const [bidding, setBidding] = useState(null);
+    // The latest decision while announcing, for the banner: { seat, game }.
+    const [lastBid, setLastBid] = useState(null);
     const aiTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
@@ -188,19 +134,24 @@ function useSchafkopfGame() {
     }, [players, currentTurn, playedCards]);
 
     useEffect(() => {
-        if (selectedGame !== "Sau Spiel") {
+        const base = parseGame(selectedGame).base;
+        if (base !== "Sau Spiel") {
             setCalledAce(null);
-            // A Marriage sets its teams when it is announced.
-            if (selectedGame !== "Marriage") setTeams({ callerTeam: [], opposingTeam: [] });
             setRevealedAceOwner(null);
+            // One against three in a Solo or Dog Game; a Marriage sets its
+            // teams when it is agreed.
+            if ((base === "Solo" || base === "Wenz") && caller) {
+                setTeams({ callerTeam: [caller], opposingTeam: playerOrder.filter((p) => p !== caller) });
+            } else if (base !== "Marriage") {
+                setTeams({ callerTeam: [], opposingTeam: [] });
+            }
             return;
         }
 
-        if (calledAce) {
-            const nextTeams = getSauSpielTeams(dealtHands, humanPlayer, calledAce);
-            setTeams(nextTeams);
+        if (calledAce && caller) {
+            setTeams(getSauSpielTeams(dealtHands, caller, calledAce));
         }
-    }, [selectedGame, calledAce, dealtHands, humanPlayer]);
+    }, [selectedGame, calledAce, dealtHands, caller]);
 
     const dealHands = () => {
         // Clean up a pending AI move
@@ -221,9 +172,17 @@ function useSchafkopfGame() {
             nextPlayers[player].push(card);
         });
 
+        // The forehand leads the first trick and has the first say.
+        const lead = playerOrder[roundNumber % playerOrder.length];
+        setRoundNumber(roundNumber + 1);
+        setForehand(lead);
+        setCaller(null);
+        setLastBid(null);
+        setBidding({ order: rotateFrom(lead), index: 0, best: null });
+
         setPlayers(nextPlayers);
         setDealtHands(nextPlayers);
-        setCurrentTurn("south");
+        setCurrentTurn(lead);
         setPlayedCards([]);
         setTrickWinner(null);
         setRevealedAceOwner(null);
@@ -282,19 +241,68 @@ function useSchafkopfGame() {
     // Maria announces a Marriage. If someone accepts, the partner swaps a card
     // for her one trump and the game starts. If nobody does, there is no
     // marriage (no forced marriage): she chooses another game or passes.
-    const commitMarriage = useCallback((result) => {
+    const commitMarriage = useCallback((result, marriageCaller) => {
         setPlayers(result.players);
         setMarriage({ partner: result.partner, trump: result.trump, given: result.given });
-        const callerTeam = result.partner ? [humanPlayer, result.partner] : [humanPlayer];
+        const callerTeam = [marriageCaller, result.partner];
         setTeams({ callerTeam, opposingTeam: playerOrder.filter((p) => !callerTeam.includes(p)) });
         setSelectedGame("Marriage");
-    }, [humanPlayer]);
+    }, []);
 
-    const announceMarriage = useCallback(() => {
-        const result = resolveMarriage(players, humanPlayer);
-        if (result.partner) commitMarriage(result);
-        return result;
-    }, [players, humanPlayer, commitMarriage]);
+    // Whether someone would accept Maria's marriage (checked before she
+    // announces it; the cards are only swapped if the Marriage is played).
+    const canMarry = useCallback(() => Boolean(resolveMarriage(players, humanPlayer).partner), [players, humanPlayer]);
+
+    // The end of announcing: the best game is played, or the Cowards Game if
+    // everybody passed.
+    const finishBidding = useCallback(
+        (best) => {
+            setBidding(null);
+            if (!best) {
+                setCaller(null);
+                setSelectedGame("Ramsch");
+                return;
+            }
+            setCaller(best.seat);
+            if (best.game === "Marriage") {
+                commitMarriage(resolveMarriage(players, best.seat), best.seat);
+                return;
+            }
+            setCalledAce(best.game === "Sau Spiel" ? best.calledAce : null);
+            setSelectedGame(best.game);
+        },
+        [players, commitMarriage]
+    );
+
+    // One player's say: a game ({ game, calledAce }) or null to pass.
+    const placeBid = useCallback(
+        (seat, decision) => {
+            if (!bidding || bidding.order[bidding.index] !== seat) return;
+            const best = decision ? { seat, ...decision } : bidding.best;
+            setLastBid({ seat, game: decision?.game ?? null });
+            const index = bidding.index + 1;
+            if (index >= bidding.order.length) finishBidding(best);
+            else setBidding({ ...bidding, index, best });
+        },
+        [bidding, finishBidding]
+    );
+
+    // Maria's say: a game value ("Solo:leaf", "Sau Spiel", …) or null to pass.
+    const humanBid = useCallback(
+        (game, ace = null) => placeBid(humanPlayer, game ? { game, calledAce: ace } : null),
+        [placeBid, humanPlayer]
+    );
+
+    // Computer players decide in turn while announcing.
+    useEffect(() => {
+        if (!bidding) return undefined;
+        const seat = bidding.order[bidding.index];
+        if (seat === humanPlayer) return undefined;
+        const timer = setTimeout(() => {
+            placeBid(seat, decideAnnouncement(players[seat], getGameRank(bidding.best?.game)));
+        }, AI_BID_DELAY);
+        return () => clearTimeout(timer);
+    }, [bidding, players, humanPlayer, placeBid]);
 
     // A full trick stays on the table: show the winner, and give the turn to
     // nobody until the trick is collected.
@@ -317,12 +325,9 @@ function useSchafkopfGame() {
 
         if (roundOver) {
             const game = getGameType(selectedGame);
-            // Maria announces every game except the Cowards Game; in a Sheep
-            // Game her partner is whoever was dealt the called sheep.
-            const callerTeam =
-                (selectedGame === "Sau Spiel" || selectedGame === "Marriage") && teams.callerTeam.length
-                    ? teams.callerTeam
-                    : [humanPlayer];
+            // The announcing side: the caller, plus in a Sheep Game whoever was
+            // dealt the called sheep, or in a Marriage the partner.
+            const callerTeam = teams.callerTeam.length ? teams.callerTeam : [caller ?? humanPlayer];
             setRoundResult({
                 id: Date.now(),
                 gameName: selectedGame,
@@ -331,7 +336,7 @@ function useSchafkopfGame() {
                 ...scoreRound({ gameName: selectedGame, coins: game?.coins ?? 0, callerTeam, points: nextPoints }),
             });
         }
-    }, [playedCards, trickWinner, players, trickPoints, selectedGame, teams, humanPlayer]);
+    }, [playedCards, trickWinner, players, trickPoints, selectedGame, teams, caller, humanPlayer]);
 
     const playCard = useCallback(
         (playerName, cardIndex) => {
@@ -357,6 +362,8 @@ function useSchafkopfGame() {
     );
 
     useEffect(() => {
+        // Cards are only played once a game has been decided.
+        if (bidding || selectedGame === "Pass") return undefined;
         if (currentTurn && currentTurn !== humanPlayer && players[currentTurn].length > 0) {
             if (aiTimeoutRef.current || isProcessingRef.current) return; // Already pending or processing
 
@@ -370,7 +377,16 @@ function useSchafkopfGame() {
                     return;
                 }
 
-                const cardIndex = chooseLegalAIMove(hand, currentPlayedCards, selectedGame, calledAce);
+                const cardIndex = chooseCard({
+                    me: aiTurn,
+                    hand,
+                    playedCards: currentPlayedCards,
+                    gameName: selectedGame,
+                    calledAce,
+                    caller,
+                    teams,
+                    revealedAceOwner,
+                });
                 const result = processCardPlay(aiTurn, cardIndex, currentPlayers, currentPlayedCards, aiTurn, selectedGame);
 
                 if (!result) {
@@ -401,7 +417,8 @@ function useSchafkopfGame() {
                 }
             };
         }
-    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, revealCalledAceIfNeeded]);
+        return undefined;
+    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, revealCalledAceIfNeeded]);
 
     return {
         players,
@@ -420,7 +437,12 @@ function useSchafkopfGame() {
         trickPoints,
         roundResult,
         marriage,
-        announceMarriage,
+        canMarry,
+        caller,
+        forehand,
+        bidding: bidding && { seat: bidding.order[bidding.index], best: bidding.best },
+        lastBid,
+        humanBid,
     };
 }
 

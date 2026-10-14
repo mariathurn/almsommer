@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         gap: 10,
         backgroundColor: "#2f2421",
-        borderWidth: 2,
+        borderWidth: 3,
         borderColor: colors.ink,
     },
     tagText: {

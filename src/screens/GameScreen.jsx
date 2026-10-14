@@ -6,8 +6,9 @@ import SceneBackground from "../components/SceneBackground";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
-import { getSauSpielStatus } from "../ai/schafkopfAI";
-import { getCardName, getGameType } from "../data/gameTypes";
+import { getSauSpielStatus, parseGame } from "../ai/schafkopfAI";
+import { getCardName, getGameType, suitNamesEn } from "../data/gameTypes";
+import { getGameRank } from "../ai/players";
 import { colors, getTableLayout } from "../theme";
 import { sounds } from "../audio/sounds";
 import useHotkey from "../hooks/useHotkey";
@@ -22,9 +23,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     playedCards,
     trickWinner,
     selectedGame,
-    setSelectedGame,
     calledAce,
-    setCalledAce,
     teams,
     revealedAceOwner,
     dealHands,
@@ -32,7 +31,11 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     collectTrick,
     roundResult,
     marriage,
-    announceMarriage,
+    canMarry,
+    caller,
+    bidding,
+    lastBid,
+    humanBid,
   } = useSchafkopfGame();
 
   // A card landing on the table, and a finished trick being collected.
@@ -71,19 +74,47 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const playerName = (playerKey) => playerLabels[playerKey] || playerKey;
 
   const gameType = getGameType(selectedGame);
-  // Maria (south) always announces the game; in Ramsch nobody does.
-  const isCaller = (playerKey) => playerKey === "south" && gameType && gameType.value !== "Ramsch";
+  // Whoever announced the game; in the Cowards Game nobody did.
+  const isCaller = (playerKey) => playerKey === caller && gameType && gameType.value !== "Ramsch";
   const getGameStatus = (playerKey) => {
+    if (!gameType || gameType.value === "Ramsch" || !caller) return null;
     if (selectedGame === "Sau Spiel") {
-      return getSauSpielStatus(playerKey, "south", teams, revealedAceOwner);
+      // Maria knows she is the partner when she holds the called sheep.
+      if (playerKey === "south" && caller !== "south" && teams.callerTeam.includes("south")) return "Partner";
+      return getSauSpielStatus(playerKey, caller, teams, revealedAceOwner);
     }
     if (selectedGame === "Marriage") {
-      if (playerKey === "south") return "Caller";
-      return playerKey === marriage?.partner ? "Partner" : "Opponent";
+      if (playerKey === caller) return "Caller";
+      return teams.callerTeam.includes(playerKey) ? "Partner" : "Opponent";
     }
-    if (!gameType || gameType.value === "Ramsch") return null;
-    return playerKey === "south" ? "Player" : "Opponent";
+    return playerKey === caller ? "Player" : "Opponent";
   };
+
+  // Announcing: who has the say, and the best game so far.
+  const biddingSeat = bidding?.seat ?? null;
+  const bestBid = bidding?.best ?? null;
+  const gameLabel = (value) => {
+    const { base, suit } = parseGame(value);
+    return base === "Solo" ? `${suitNamesEn[suit]} Solo` : getGameType(base)?.label;
+  };
+  // "a Sheep Game", "an Acorn Solo"
+  const withArticle = (value) => {
+    const label = gameLabel(value);
+    return `${/^[AEIOU]/.test(label) ? "an" : "a"} ${label}`;
+  };
+  const biddingTitle = bidding
+    ? bestBid
+      ? `${playerName(bestBid.seat)} wants ${withArticle(bestBid.game)}`
+      : "Who will play?"
+    : null;
+  const lastBidText = lastBid
+    ? `${playerName(lastBid.seat)} ${lastBid.game ? `announces ${withArticle(lastBid.game)}` : "passes"}`
+    : null;
+  const biddingNote = bidding
+    ? [lastBidText, biddingSeat === "south" ? "your say" : `${playerName(biddingSeat)} is deciding…`]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   // Until the first card is played, the banner tells how the marriage went.
   const firstTrickNotStarted = playedCards.length === 0 && players.south.length === 6;
@@ -96,34 +127,51 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const hasCards = playedCards.length > 0 || seats.some((seat) => players[seat].length > 0);
   const isTrickComplete = playedCards.length === seats.length;
   const canDeal = !hasCards;
-  const needsGame = hasCards && !gameType && playedCards.length === 0;
+  // Maria's turn to announce a game or pass.
+  const needsGame = biddingSeat === "south";
 
   const handleDeal = () => {
     setMarriageDeclined(false);
     sounds.shuffle();
     dealHands();
-    setIsPickerOpen(true);
   };
+
+  // The game panel opens when it's Maria's say.
+  useEffect(() => {
+    if (needsGame) setIsPickerOpen(true);
+  }, [needsGame]);
 
   const handlePickGame = (game, ace) => {
     setPreviewGame(null);
-    setIsPickerOpen(false);
-    if (game === "Marriage") {
-      // Nobody accepted: no marriage. The panel stays open with the Marriage
-      // tile greyed out, so Maria picks another game or passes.
-      if (!announceMarriage().partner) {
-        setMarriageDeclined(true);
-        setIsPickerOpen(true);
-      }
+    if (game === "Marriage" && !canMarry()) {
+      // Nobody would accept: no marriage. The panel stays open with the
+      // Marriage tile greyed out, so Maria picks another game or passes.
+      setMarriageDeclined(true);
       return;
     }
-    setSelectedGame(game);
-    setCalledAce(game === "Sau Spiel" ? ace : null);
+    setIsPickerOpen(false);
+    humanBid(game, game === "Sau Spiel" ? ace : null);
   };
 
-  // The computer players never announce, so passing means everybody passed:
-  // the Cowards Game is played.
-  const handlePass = () => handlePickGame("Ramsch", null);
+  // Passing hands the say on; if everybody passes, the Cowards Game is played.
+  const handlePass = () => {
+    setPreviewGame(null);
+    setIsPickerOpen(false);
+    humanBid(null);
+  };
+
+  // Games Maria can't announce any more: a marriage nobody accepts, and
+  // anything not stronger than what someone already announced.
+  const declinedGames = {
+    ...(bestBid
+      ? Object.fromEntries(
+          ["Sau Spiel", "Marriage", "Wenz", "Solo"]
+            .filter((value) => getGameRank(value) <= getGameRank(bestBid.game))
+            .map((value) => [value, `${playerName(bestBid.seat)} wants ${withArticle(bestBid.game)}`])
+        )
+      : {}),
+    ...(marriageDeclined ? { Marriage: "Nobody accepted your marriage" } : {}),
+  };
 
   // Web shortcuts: D or Enter deals when dealing is possible.
   useHotkey("d", handleDeal, canDeal);
@@ -202,7 +250,9 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
           onOpenMenu={onOpenMenu}
           coins={sessionScores?.south ?? 0}
           marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
-          note={marriageNote}
+          caller={caller}
+          title={biddingTitle}
+          note={biddingNote ?? marriageNote}
         />
         {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" /> : null}
       </View>
@@ -235,7 +285,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 layout={layout}
                 name={playerName(seat)}
                 cards={players[seat]}
-                isCurrentTurn={currentTurn === seat && Boolean(gameType)}
+                isCurrentTurn={bidding ? biddingSeat === seat : currentTurn === seat && Boolean(gameType)}
                 onPlayCard={(index) => playCard(seat, index)}
                 playedCards={playedCards}
                 gameType={isCaller(seat) ? selectedGame : null}
@@ -258,7 +308,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                     onPick={handlePickGame}
                     onPass={handlePass}
                     onPreview={setPreviewGame}
-                    declined={marriageDeclined ? { Marriage: "Nobody accepted your marriage" } : null}
+                    declined={declinedGames}
                   />
                 </View>
               </>

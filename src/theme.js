@@ -6,7 +6,7 @@ export const colors = {
     paper: "#f7f3e9",
     paperDeep: "#ece5d5",
     keyline: "#d9cfba",
-    ink: "#1f1c19",
+    ink: "#141210",
     inkSoft: "#5f574c",
     hay: "#eec652",
     hayLight: "#f8e7b0",
