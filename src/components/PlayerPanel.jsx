@@ -7,7 +7,7 @@ still hold; the medallion gets a gold ring while it is their turn. */
 import { StyleSheet, Text, View } from "react-native";
 import FanOfCards from "./FanOfCards";
 import PlayerName from "./PlayerName";
-import { colors, fanWidth, fonts, paper } from "../theme";
+import { CARD_RATIO, colors, fanWidth, fonts, paper } from "../theme";
 
 const SOUTH_SPACING = 0.55;
 const SOUTH_ROTATION_STEP = 5;
@@ -43,8 +43,15 @@ function Medallion({ name, seat, size, isCurrentTurn, cardCount }) {
     );
 }
 
+// Portrait: the three opponents share the top row, one column each.
+const portraitColumn = { west: 0, north: 1, east: 2 };
+
 function getOpponentPlacement(seat, layout) {
     const { edge, blanket, medallionSize } = layout;
+    if (layout.portrait) {
+        const columnWidth = layout.width / 3;
+        return { left: portraitColumn[seat] * columnWidth, width: columnWidth, top: edge, alignItems: "center" };
+    }
     const lift = { transform: [{ translateY: -medallionSize * 0.75 }] };
 
     switch (seat) {
@@ -81,6 +88,7 @@ function PlayerPanel({
 }) {
     const tag = (
         <PlayerName
+            style={layout.portrait && seat !== "south" && styles.portraitTag}
             name={name}
             gameType={gameType}
             status={status}
@@ -92,20 +100,31 @@ function PlayerPanel({
     if (seat !== "south") {
         return (
             <View style={[styles.seat, getOpponentPlacement(seat, layout)]} pointerEvents="none">
-                <Medallion
-                    name={name}
-                    seat={seat}
-                    size={layout.medallionSize}
-                    isCurrentTurn={isCurrentTurn}
-                    cardCount={cards.length}
-                />
+                {/* Portrait shows only the name tags, as in the phone sketch. */}
+                {layout.portrait ? null : (
+                    <Medallion
+                        name={name}
+                        seat={seat}
+                        size={layout.medallionSize}
+                        isCurrentTurn={isCurrentTurn}
+                        cardCount={cards.length}
+                    />
+                )}
                 {tag}
             </View>
         );
     }
 
-    const fanLength = cards.length ? fanWidth(cards.length, layout.southCardHeight, SOUTH_SPACING) : 0;
-    const left = (layout.width - fanLength) / 2;
+    // On narrow (portrait) screens the cards overlap more so the hand fits,
+    // with a margin for the tilt of the outer cards.
+    const cardWidth = layout.southCardHeight * CARD_RATIO;
+    const spacing =
+        cards.length > 1
+            ? Math.min(SOUTH_SPACING, (layout.width - 2 * layout.edge - 24 - cardWidth) / ((cards.length - 1) * cardWidth))
+            : SOUTH_SPACING;
+    const fanLength = cards.length ? fanWidth(cards.length, layout.southCardHeight, spacing) : 0;
+    // Portrait: nudged right, since the tilted fan otherwise looks left-heavy.
+    const left = (layout.width - fanLength) / 2 + (layout.portrait ? cardWidth * 0.1 : 0);
 
     return (
         <>
@@ -117,7 +136,7 @@ function PlayerPanel({
                     onPlayCard={onPlayCard}
                     isCurrentTurn={isCurrentTurn}
                     playedCards={playedCards}
-                    spacing={SOUTH_SPACING}
+                    spacing={spacing}
                     rotationStep={SOUTH_ROTATION_STEP}
                     trumpGame={trumpGame}
                     highlightTrumps={highlightTrumps}
@@ -126,9 +145,11 @@ function PlayerPanel({
             <View
                 style={[
                     styles.label,
-                    layout.compact
-                        ? { right: layout.width - left + 10, top: layout.southFanTop + layout.southCardHeight * 0.35 }
-                        : { left: cards.length ? left : layout.width / 2 - 80, top: layout.southFanTop - layout.labelHeight },
+                    layout.portrait
+                        ? styles.labelBottom
+                        : layout.compact
+                          ? { right: layout.width - left + 10, top: layout.southFanTop + layout.southCardHeight * 0.35 }
+                          : { left: cards.length ? left : layout.width / 2 - 80, top: layout.southFanTop - layout.labelHeight },
                 ]}
                 pointerEvents="none"
             >
@@ -139,6 +160,19 @@ function PlayerPanel({
 }
 
 const styles = StyleSheet.create({
+    // Portrait opponents: name above status, like the phone sketch.
+    portraitTag: {
+        maxWidth: 136,
+        flexDirection: "column",
+        gap: 0,
+        paddingVertical: 4,
+    },
+    labelBottom: {
+        left: 0,
+        right: 0,
+        bottom: 10,
+        alignItems: "center",
+    },
     seat: {
         position: "absolute",
         gap: 4,

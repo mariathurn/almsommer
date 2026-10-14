@@ -2,9 +2,10 @@
 game ("Maria calls the orange sheep") and what happens next. Dealing and
 choosing the game happen in the middle of the table. */
 
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import PaperButton from "./PaperButton";
+import { useStage } from "./Stage";
 import { getGameType } from "../data/gameTypes";
 import { colors, fonts, paper, suitTheme } from "../theme";
 
@@ -44,14 +45,14 @@ function getBannerSubtitle({ hasCards, selectedGame, currentTurn, trickWinner, p
 }
 
 function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAce, playerName, onOpenMenu }) {
-    const { width } = useWindowDimensions();
+    const { width } = useStage();
     const compact = width < 900;
     const ribbonHeight = compact ? 46 : 58;
     const state = { hasCards, selectedGame, calledAce, currentTurn, trickWinner, playerName };
 
     return (
         <View style={[styles.header, compact && styles.headerCompact]}>
-            <View style={styles.side}>
+            <View style={[styles.side, compact && styles.sideCompact]}>
                 <PaperButton label="Menu" compact={compact} onPress={onOpenMenu} />
             </View>
 
@@ -69,7 +70,7 @@ function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAc
             </View>
 
             {/* Keeps the banner centred opposite the Menu button */}
-            <View style={styles.side} />
+            <View style={[styles.side, compact && styles.sideCompact]} />
         </View>
     );
 }
@@ -91,6 +92,9 @@ const styles = StyleSheet.create({
     },
     side: {
         width: 90,
+    },
+    sideCompact: {
+        width: 64,
     },
     banner: {
         flexShrink: 1,

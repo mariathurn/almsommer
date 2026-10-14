@@ -11,7 +11,7 @@ import Svg, { Path } from "react-native-svg";
 import Card from "./Card";
 import PaperButton from "./PaperButton";
 import { getAvailableGames } from "../data/gameTypes";
-import { colors, fonts, paper, softShadow, suitTheme } from "../theme";
+import { CARD_RATIO, colors, fonts, paper, softShadow, suitTheme } from "../theme";
 
 const bannerColors = {
     "Sau Spiel": colors.apricot,
@@ -85,9 +85,13 @@ function GamePicker({ width, maxHeight, hand, selectedGame, calledAce, available
     useEffect(() => setStep("game"), [hand.length]);
 
     const contentHeight = Math.max(maxHeight - HEADER_HEIGHT - PANEL_PADDING * 2 - 8, 80);
-    const tileWidth = Math.min((width - PANEL_PADDING * 2 - 12 * (games.length - 1)) / Math.max(games.length, 1), 180);
-    const tileHeight = Math.min(contentHeight, 200);
-    const aceCardHeight = Math.min(contentHeight - 22, 200);
+    // One row of tiles, or a two-column grid on narrow (portrait) screens.
+    const inner = width - PANEL_PADDING * 2;
+    const columns = width < 560 ? Math.min(2, games.length) : Math.max(games.length, 1);
+    const rows = Math.ceil(games.length / columns);
+    const tileWidth = Math.min((inner - 12 * (columns - 1)) / columns, 180);
+    const tileHeight = Math.min((contentHeight - 12 * (rows - 1)) / rows, 200);
+    const aceCardHeight = Math.min(contentHeight - 22, 200, (inner - 24) / 3 / CARD_RATIO);
 
     const chooseGame = (game) => {
         if (game.value === "Sau Spiel") {
@@ -178,6 +182,7 @@ const styles = StyleSheet.create({
     },
     tiles: {
         flexDirection: "row",
+        flexWrap: "wrap",
         justifyContent: "center",
         gap: 12,
     },

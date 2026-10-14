@@ -37,6 +37,7 @@ export const fonts = {
     body: "AlegreyaSans_400Regular",
     bodyMedium: "AlegreyaSans_500Medium",
     bodyBold: "AlegreyaSans_700Bold",
+    hand: "CaveatBrush_400Regular",
 };
 
 // Soft drop shadow for paper on the table (iOS/web use shadow*, Android elevation).
@@ -76,6 +77,8 @@ export function fanWidth(count, cardHeight, spacingFactor) {
 // Derives card sizes and seat positions from the table's measured size,
 // so the same layout works on phones, tablets and the web.
 export function getTableLayout(width, height) {
+    if (height > width) return getPortraitTableLayout(width, height);
+
     // Phones in landscape: smaller seats, north's tag beside its medallion and
     // your tag beside your hand. On every screen your hand dips below the
     // bottom edge (hovering lifts a card a little), leaving more room
@@ -109,6 +112,43 @@ export function getTableLayout(width, height) {
             height: blanketHeight,
             centerX: width / 2,
             centerY: northBottom + gap / 2,
+        },
+    };
+}
+
+// Phones in portrait: the opponents' name tags in a row along the top, a round
+// paper disc in the middle where the trick is played, and a large hand at the
+// bottom running off the edge, with your name tag at the very bottom.
+const PORTRAIT_TAG_ROW = 64;
+
+function getPortraitTableLayout(width, height) {
+    const southCardHeight = Math.min(height * 0.36, 300);
+    const southFanTop = height - southCardHeight * 0.84;
+    const opponentsBottom = EDGE + PORTRAIT_TAG_ROW;
+    const gap = southFanTop - opponentsBottom;
+    // The trick (cards fanning out above the disc, plus the disc) spans about
+    // 0.63 disc sizes above the disc centre and 0.5 below. It sits a little
+    // above the middle of the gap.
+    const discSize = Math.max(Math.min(width * 0.7, (gap - 24) / 1.13), 160);
+    const discCenterY = opponentsBottom + (gap - 1.13 * discSize) * 0.3 + 0.63 * discSize;
+
+    return {
+        width,
+        height,
+        compact: false,
+        portrait: true,
+        edge: EDGE,
+        labelHeight: LABEL_HEIGHT,
+        tagHeight: TAG_HEIGHT,
+        southCardHeight,
+        southFanTop,
+        medallionSize: 0,
+        blanket: {
+            round: true,
+            width: discSize,
+            height: discSize,
+            centerX: width / 2,
+            centerY: discCenterY,
         },
     };
 }

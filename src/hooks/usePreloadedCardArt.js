@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Image, Platform } from "react-native";
 import { Asset } from "expo-asset";
 import { cardTexture, rankDesign } from "../data/cardDesign";
+import { uiImages } from "../data/uiArt";
 
-// Every image the card faces use: the artwork for each rank and colour, and
-// the paper texture.
+// Every image the card faces use (artwork for each rank and colour, the
+// texture), plus the background, title and menu figures.
 const cardImages = [
+    ...uiImages,
     cardTexture,
     ...Object.values(rankDesign).flatMap((design) => Object.values(design.art)),
 ];

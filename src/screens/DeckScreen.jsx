@@ -4,8 +4,9 @@ Tap a card to see it large together with its number and points. */
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Card from "../components/Card";
-import MeadowBackground from "../components/MeadowBackground";
+import SceneBackground from "../components/SceneBackground";
 import PaperButton from "../components/PaperButton";
+import { useStage } from "../components/Stage";
 import { cardMeta } from "../data/cardMeta";
 import { cardPoints, getCardNumber, rankDesign, suitColors, suitNames, suitOrder } from "../data/cardDesign";
 import { CARD_RATIO, colors, fonts, paper, softShadow } from "../theme";
@@ -21,16 +22,22 @@ const GAP = 10;
 function DeckScreen({ onBack }) {
     const [contentWidth, setContentWidth] = useState(0);
     const [selectedCard, setSelectedCard] = useState(null);
-    const { height: windowHeight } = useWindowDimensions();
+    const { isPortrait } = useStage();
+    // The enlarged card opens in a modal over the whole window, outside the stage.
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const windowIsPortrait = windowHeight > windowWidth;
+    const columns = isPortrait ? 3 : rankOrder.length;
 
     const rowWidth = contentWidth - PANEL_PADDING * 2;
-    const cardWidth = rowWidth > 0 ? (rowWidth - GAP * (rankOrder.length - 1)) / rankOrder.length : 0;
+    const cardWidth = rowWidth > 0 ? (rowWidth - GAP * (columns - 1)) / columns : 0;
     const cardHeight = Math.min(cardWidth / CARD_RATIO, 300);
-    const largeCardHeight = Math.min(windowHeight * 0.8, 560);
+    const largeCardHeight = windowIsPortrait
+        ? Math.min(windowHeight * 0.55, (windowWidth * 0.8) / CARD_RATIO)
+        : Math.min(windowHeight * 0.8, 560);
 
     return (
         <View style={styles.shell}>
-            <MeadowBackground />
+            <SceneBackground />
 
             <View style={styles.header}>
                 <PaperButton label="‹ Menu" compact onPress={onBack} />
@@ -86,7 +93,7 @@ function DeckScreen({ onBack }) {
             >
                 <Pressable style={styles.backdrop} onPress={() => setSelectedCard(null)}>
                     {selectedCard ? (
-                        <View style={styles.detail}>
+                        <View style={[styles.detail, windowIsPortrait && styles.detailStacked]}>
                             <View style={styles.cardShadow}>
                                 <Card card={selectedCard} height={largeCardHeight} />
                             </View>
@@ -145,8 +152,8 @@ const styles = StyleSheet.create({
         marginLeft: "auto",
         fontFamily: fonts.bodyMedium,
         fontSize: 14,
-        color: colors.ink,
-        opacity: 0.75,
+        color: colors.paper,
+        opacity: 0.85,
     },
     content: {
         paddingHorizontal: PADDING,
@@ -178,6 +185,7 @@ const styles = StyleSheet.create({
     },
     row: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: GAP,
     },
     cardSlot: {
@@ -208,6 +216,10 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 24,
+    },
+    detailStacked: {
+        flexDirection: "column",
+        gap: 14,
     },
     detailPanel: {
         ...paper,

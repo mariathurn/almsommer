@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import GameHeader from "../components/GameHeader";
 import GamePicker from "../components/GamePicker";
-import MeadowBackground from "../components/MeadowBackground";
+import SceneBackground from "../components/SceneBackground";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
@@ -125,7 +125,7 @@ function GameScreen({ onOpenMenu }) {
 
   return (
     <View style={styles.shell}>
-      <MeadowBackground />
+      <SceneBackground />
       <View>
         <GameHeader
           hasCards={hasCards}

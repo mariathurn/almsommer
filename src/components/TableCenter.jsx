@@ -1,5 +1,5 @@
-/* The picnic blanket in the middle of the meadow, where the current trick is
-played. Each card lands on the side of the player who played it, and a full
+/* The picnic blanket in the middle of the table (or, on phones in portrait,
+a round paper disc), where the current trick is played. Each card lands on the side of the player who played it, and a full
 trick stays until it is collected. Between rounds the blanket holds the round
 Deal button (and the result), and after the deal a round "Choose game" button. */
 
@@ -7,7 +7,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
 import { isTrumpForGame } from "../ai/schafkopfAI";
+import { Image as PaintedImage } from "expo-image";
 import { cardTexture } from "../data/cardDesign";
+import { dealButton, tableDisc } from "../data/uiArt";
 import { colors, fonts, paper, softShadow } from "../theme";
 
 // Where a played card sits relative to the blanket centre, as a share of the
@@ -17,6 +19,15 @@ const seatOffsets = {
     west: { x: -0.62, y: 0, rotate: -12 },
     north: { x: 0, y: -0.28, rotate: 6 },
     east: { x: 0.62, y: 0, rotate: 11 },
+};
+
+// Portrait: the opponents sit in a row above the disc, so their cards fan out
+// over its top edge, each tilted towards its player; yours lands at the bottom.
+const discOffsets = {
+    west: { x: -0.5, y: -0.42, rotate: -38 },
+    north: { x: 0, y: -0.62, rotate: 0 },
+    east: { x: 0.5, y: -0.42, rotate: 38 },
+    south: { x: 0, y: 0.12, rotate: -3 },
 };
 
 function Gingham({ width, height }) {
@@ -70,6 +81,24 @@ function RoundButton({ label, size, onPress }) {
     );
 }
 
+// The hand-painted "deal" button.
+function DealButton({ size, onPress }) {
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel="Deal"
+            style={({ pressed, hovered }) => [
+                { width: size, height: size },
+                hovered && styles.roundButtonHovered,
+                pressed && styles.roundButtonPressed,
+            ]}
+        >
+            <PaintedImage source={dealButton} contentFit="contain" style={StyleSheet.absoluteFill} />
+        </Pressable>
+    );
+}
+
 function TableCenter({
     blanket,
     playedCards,
@@ -82,16 +111,18 @@ function TableCenter({
     onChooseGame,
     trumpGame = null,
 }) {
-    const cardHeight = Math.min(blanket.height * 0.6, blanket.width * 0.4);
+    const cardHeight = blanket.round ? blanket.width * 0.56 : Math.min(blanket.height * 0.6, blanket.width * 0.4);
+    const offsets = blanket.round ? discOffsets : seatOffsets;
     const buttonSize = Math.min(blanket.height * 0.42, 112);
     // On a small (phone) blanket the result sits beside the Deal button.
-    const isSmall = blanket.height < 200;
+    const isSmall = blanket.height < 200 && !blanket.round;
 
     return (
         <View
             pointerEvents="box-none"
             style={[
                 styles.blanket,
+                blanket.round && [styles.disc, { borderRadius: blanket.width / 2 }],
                 {
                     width: blanket.width,
                     height: blanket.height,
@@ -100,10 +131,15 @@ function TableCenter({
                 },
             ]}
         >
-            <Gingham width={blanket.width} height={blanket.height} />
+            {/* Portrait: before a deal the painted deal button takes the disc's place. */}
+            {blanket.round && canDeal ? null : blanket.round ? (
+                <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} pointerEvents="none" />
+            ) : (
+                <Gingham width={blanket.width} height={blanket.height} />
+            )}
 
             {playedCards.map(({ player, card }) => {
-                const offset = seatOffsets[player];
+                const offset = offsets[player];
                 return (
                     <View
                         key={player}
@@ -131,7 +167,7 @@ function TableCenter({
 
             {isTrickComplete ? (
                 <View style={styles.collectNote} pointerEvents="none">
-                    <Text style={styles.collectText} numberOfLines={1}>
+                    <Text style={styles.collectText} numberOfLines={2}>
                         {trickWinnerName} takes the trick · tap anywhere to continue
                     </Text>
                 </View>
@@ -141,14 +177,19 @@ function TableCenter({
                 <View style={[styles.center, isSmall && styles.centerRow]}>
                     {gameResult ? (
                         <View
-                            style={[styles.note, isSmall && { maxWidth: blanket.width - buttonSize - 40 }]}
+                            style={[
+                                styles.note,
+                                isSmall && { maxWidth: blanket.width - buttonSize - 40 },
+                                // Above the deal circle, which fills the whole disc area.
+                                blanket.round && canDeal && styles.noteAboveDisc,
+                            ]}
                             pointerEvents="none"
                         >
                             <Text style={styles.noteTitle}>{gameResult.message}</Text>
                             <Text style={styles.noteText}>{gameResult.points}</Text>
                         </View>
                     ) : null}
-                    {canDeal ? <RoundButton label="Deal" size={buttonSize} onPress={onDeal} /> : null}
+                    {canDeal ? <DealButton size={blanket.round ? blanket.width : buttonSize * 1.15} onPress={onDeal} /> : null}
                     {needsGame ? <RoundButton label="Choose game" size={buttonSize} onPress={onChooseGame} /> : null}
                 </View>
             ) : null}
@@ -165,9 +206,21 @@ const styles = StyleSheet.create({
         transform: [{ rotate: "-1.5deg" }],
         ...softShadow,
     },
+    // The painted disc image brings its own edge and translucency.
+    disc: {
+        transform: [],
+        shadowOpacity: 0,
+        elevation: 0,
+    },
     playedCard: {
         position: "absolute",
         ...softShadow,
+    },
+    noteAboveDisc: {
+        position: "absolute",
+        bottom: "100%",
+        marginBottom: 12,
+        zIndex: 2,
     },
     center: {
         alignItems: "center",

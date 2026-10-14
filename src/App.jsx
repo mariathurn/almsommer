@@ -10,7 +10,9 @@ import {
   AlegreyaSans_500Medium,
   AlegreyaSans_700Bold,
 } from "@expo-google-fonts/alegreya-sans";
+import { CaveatBrush_400Regular } from "@expo-google-fonts/caveat-brush";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import Stage from "./components/Stage";
 import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
@@ -32,6 +34,8 @@ function App() {
     AlegreyaSans_400Regular,
     AlegreyaSans_500Medium,
     AlegreyaSans_700Bold,
+    // Hand-drawn buttons on the title screen
+    CaveatBrush_400Regular,
   });
   const cardArtLoaded = usePreloadedCardArt();
   const openMenu = () => setScreen("menu");
@@ -40,12 +44,16 @@ function App() {
     <SafeAreaProvider>
       <StatusBar hidden />
       <SafeAreaView style={styles.page}>
-        {!fontsLoaded || !cardArtLoaded ? null : screen === "game" ? (
-          <GameScreen onOpenMenu={openMenu} />
-        ) : screen === "deck" ? (
-          <DeckScreen onBack={openMenu} />
-        ) : (
-          <MenuScreen onPlay={() => setScreen("game")} onOpenDeck={() => setScreen("deck")} />
+        {!fontsLoaded || !cardArtLoaded ? null : (
+          <Stage>
+            {screen === "game" ? (
+              <GameScreen onOpenMenu={openMenu} />
+            ) : screen === "deck" ? (
+              <DeckScreen onBack={openMenu} />
+            ) : (
+              <MenuScreen onPlay={() => setScreen("game")} onOpenDeck={() => setScreen("deck")} />
+            )}
+          </Stage>
         )}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -55,7 +63,7 @@ function App() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: colors.paperDeep,
+    backgroundColor: "#1d2433",
   },
 });
 

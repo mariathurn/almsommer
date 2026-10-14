@@ -3,7 +3,7 @@
     "name": "Schafkopf",
     "slug": "schafkopf",
     "version": "1.0.0",
-    "orientation": "landscape",
+    "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#10244d",
