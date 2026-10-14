@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
+import { getTrickPoints, scoreRound } from "../ai/scoring";
+import { getGameType } from "../data/gameTypes";
 import { canPlayCard, getPlainRank, getSauSpielTeams, getTrumpStrength, isTrumpForGame } from "../ai/schafkopfAI";
 
 // Timing constants - adjust these to change all delays at once
@@ -151,6 +153,10 @@ function useSchafkopfGame() {
     const [calledAce, setCalledAce] = useState(null);
     const [teams, setTeams] = useState({ callerTeam: [], opposingTeam: [] });
     const [revealedAceOwner, setRevealedAceOwner] = useState(null);
+    // Card points each player has taken in tricks this round.
+    const [trickPoints, setTrickPoints] = useState({ south: 0, west: 0, north: 0, east: 0 });
+    // Set when the last trick is collected: winners, losers and coin changes.
+    const [roundResult, setRoundResult] = useState(null);
     const [humanPlayer] = useState("south");
     const aiTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
@@ -203,6 +209,8 @@ function useSchafkopfGame() {
         setPlayedCards([]);
         setTrickWinner(null);
         setRevealedAceOwner(null);
+        setTrickPoints({ south: 0, west: 0, north: 0, east: 0 });
+        setRoundResult(null);
         // Every round is declared anew after the deal.
         setSelectedGame("Pass");
         setCalledAce(null);
@@ -265,10 +273,27 @@ function useSchafkopfGame() {
     const collectTrick = useCallback(() => {
         if (playedCards.length !== playerOrder.length || !trickWinner) return;
         const roundOver = playerOrder.every((player) => players[player].length === 0);
+        const nextPoints = { ...trickPoints, [trickWinner]: trickPoints[trickWinner] + getTrickPoints(playedCards) };
+        setTrickPoints(nextPoints);
         setPlayedCards([]);
         setCurrentTurn(roundOver ? null : trickWinner);
         setTrickWinner(null);
-    }, [playedCards, trickWinner, players]);
+
+        if (roundOver) {
+            const game = getGameType(selectedGame);
+            // Maria announces every game except the Cowards Game; in a Sheep
+            // Game her partner is whoever was dealt the called sheep.
+            const callerTeam =
+                selectedGame === "Sau Spiel" && teams.callerTeam.length ? teams.callerTeam : [humanPlayer];
+            setRoundResult({
+                id: Date.now(),
+                gameName: selectedGame,
+                points: nextPoints,
+                callerTeam: selectedGame === "Ramsch" ? [] : callerTeam,
+                ...scoreRound({ gameName: selectedGame, coins: game?.coins ?? 0, callerTeam, points: nextPoints }),
+            });
+        }
+    }, [playedCards, trickWinner, players, trickPoints, selectedGame, teams, humanPlayer]);
 
     const playCard = useCallback(
         (playerName, cardIndex) => {
@@ -354,6 +379,8 @@ function useSchafkopfGame() {
         dealHands,
         playCard,
         collectTrick,
+        trickPoints,
+        roundResult,
     };
 }
 

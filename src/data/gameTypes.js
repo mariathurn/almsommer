@@ -2,7 +2,7 @@
 // banners with their coin reward. Only the Sheep Game rules are implemented so
 // far; the others are selectable but currently play with the same trumps.
 
-import { canCallAce, isTrumpForGame } from "../ai/schafkopfAI.js";
+import { canCallAce, isTrumpForGame, parseGame } from "../ai/schafkopfAI.js";
 
 export const gameTypes = [
     {
@@ -52,6 +52,19 @@ export function getAvailableGames(hand) {
     });
 }
 
+// English suit names, as in the Solo trump choice.
+export const suitNamesEn = { acorn: "Acorn", heart: "Heart", leaf: "Leaf", bell: "Bell" };
+
+// Accepts full game values like "Solo:leaf" too.
 export function getGameType(value) {
-    return gameTypes.find((game) => game.value === value) ?? null;
+    const { base } = parseGame(value);
+    return gameTypes.find((game) => game.value === base) ?? null;
+}
+
+// Why a game can't be announced with this hand, or null if it can.
+export function getUnavailableReason(game, hand) {
+    if (getAvailableGames(hand).some((g) => g.value === game.value)) return null;
+    if (game.value === "Sau Spiel") return "No sheep you may call";
+    if (game.value === "Marriage") return "Needs exactly one trump in your hand";
+    return "Not possible with this hand";
 }

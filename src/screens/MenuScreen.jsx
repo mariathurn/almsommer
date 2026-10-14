@@ -107,7 +107,7 @@ function MenuScreen({ onPlay, onOpenDeck }) {
                         width: titleWidth,
                         height: titleWidth / TITLE_RATIO,
                         // Portrait: buttons sit over the lower half, between the figures.
-                        marginBottom: isPortrait ? height * 0.27 : height * 0.07,
+                        marginBottom: isPortrait ? height * 0.28 : height * 0.07,
                     }}
                 />
                 <View style={[styles.buttons, { gap: Math.max(height * (isPortrait ? 0.03 : 0.05), 26) }]}>
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
         paddingTop: "4%",
     },
     centrePortrait: {
-        paddingTop: "8%",
+        paddingTop: "23%",
     },
     buttons: {
         alignItems: "center",

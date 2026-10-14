@@ -33,7 +33,7 @@ function getFigurePlacement({ file, hatMiddle, offsetX = 0 }) {
 }
 
 // Small suit symbols drawn in a 40 x 40 box.
-function SuitIcon({ suit, x, y, size }) {
+export function SuitIcon({ suit, x, y, size }) {
     const color = suitColors[suit].accent;
     const stroke = { stroke: ink, strokeWidth: 3, strokeLinejoin: "round" };
 
@@ -82,13 +82,16 @@ function IllustratedCard({ card, width, height, isTrump = false }) {
     const points = String(cardPoints[card.rank]);
     const isTwoDigit = number.length > 1;
     const labelWidth = design.label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;
-    const dotsId = `card-dots-${card.suit}`;
+    // Trumps get a gold frame with ink dots instead of the suit colour.
+    const dotsId = isTrump ? "card-dots-trump" : `card-dots-${card.suit}`;
+    const frameFill = isTrump ? TRUMP_FILL : colors.frame;
+    const dotFill = isTrump ? ink : colors.dots;
 
     return (
         <Svg width={width} height={height} viewBox="0 0 500 784">
             <Defs>
                 <Pattern id={dotsId} width={16} height={16} patternUnits="userSpaceOnUse">
-                    <Circle cx={8} cy={8} r={2.2} fill={colors.dots} />
+                    <Circle cx={8} cy={8} r={2.2} fill={dotFill} opacity={isTrump ? 0.3 : 1} />
                 </Pattern>
                 <ClipPath id="card-panel-clip">
                     <Rect {...panel} />
@@ -99,7 +102,7 @@ function IllustratedCard({ card, width, height, isTrump = false }) {
             </Defs>
 
             {/* Frame with dot pattern */}
-            <Rect x={4} y={4} width={492} height={776} rx={34} fill={colors.frame} />
+            <Rect x={4} y={4} width={492} height={776} rx={34} fill={frameFill} />
             <Rect x={4} y={4} width={492} height={776} rx={34} fill={`url(#${dotsId})`} />
             <Rect x={4} y={4} width={492} height={776} rx={34} fill="none" stroke={ink} strokeWidth={8} />
 

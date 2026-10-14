@@ -85,6 +85,8 @@ function PlayerPanel({
     showFriendBadge = false,
     trumpGame = null,
     highlightTrumps = false,
+    isTrickWinner = false,
+    score = 0,
 }) {
     const tag = (
         <PlayerName
@@ -94,6 +96,8 @@ function PlayerPanel({
             status={status}
             showFriendBadge={showFriendBadge}
             isCurrentTurn={isCurrentTurn}
+            isTrickWinner={isTrickWinner}
+            score={score}
         />
     );
 
@@ -140,6 +144,7 @@ function PlayerPanel({
                     rotationStep={SOUTH_ROTATION_STEP}
                     trumpGame={trumpGame}
                     highlightTrumps={highlightTrumps}
+                    confirmTap={Boolean(layout.portrait)}
                 />
             </View>
             <View

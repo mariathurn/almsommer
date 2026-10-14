@@ -37,6 +37,7 @@ function HandCard({
     isFaded,
     isTrump,
     isHighlighted,
+    isSelected = false,
     accessibilityHint,
     onPress,
 }) {
@@ -47,7 +48,7 @@ function HandCard({
     const trumpOpacity = useRef(new Animated.Value(isTrump ? 1 : 0)).current;
 
     let target = 0;
-    if (isPlayable) target = isHovered ? HOVER_RISE : PLAYABLE_RISE;
+    if (isPlayable) target = isHovered || isSelected ? HOVER_RISE : PLAYABLE_RISE;
     if (isHighlighted) target = Math.max(target, PREVIEW_RISE);
 
     useEffect(() => {
@@ -121,12 +122,20 @@ function FanOfCards({
     rotationStep = 4,
     trumpGame = null,
     highlightTrumps = false,
+    confirmTap = false,
 }) {
+    // Phones: the first tap raises a card, a second tap on it plays it.
+    const [selectedId, setSelectedId] = useState(null);
+    useEffect(() => {
+        if (!isCurrentTurn) setSelectedId(null);
+    }, [isCurrentTurn]);
+
     if (!cards.length) return null;
 
-    // With a game hovered or chosen, trumps are sorted to the left (strongest
-    // first) and decorated. Taps still report the card's index in `cards`.
-    const shown = trumpGame ? sortHandForGame(cards, trumpGame) : cards;
+    // Trumps are sorted to the left (strongest first), by the hovered or chosen
+    // game, and by the Sheep Game order right after the deal. Only a hovered or
+    // chosen game decorates them. Taps still report the card's index in `cards`.
+    const shown = sortHandForGame(cards, trumpGame ?? "Sau Spiel");
 
     const cardWidth = cardHeight * CARD_RATIO;
     const width = fanWidth(cards.length, cardHeight, spacing);
@@ -171,8 +180,16 @@ function FanOfCards({
                         isFaded={isCurrentTurn && !isLegal}
                         isTrump={isTrump}
                         isHighlighted={highlightTrumps && isTrump}
+                        isSelected={confirmTap && selectedId === card.id}
                         accessibilityHint={!isLegal ? "Must follow suit" : undefined}
-                        onPress={() => onPlayCard?.(handIndex)}
+                        onPress={() => {
+                            if (confirmTap && selectedId !== card.id) {
+                                setSelectedId(card.id);
+                                return;
+                            }
+                            setSelectedId(null);
+                            onPlayCard?.(handIndex);
+                        }}
                     />
                 );
             })}

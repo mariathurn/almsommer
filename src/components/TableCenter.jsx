@@ -6,6 +6,8 @@ Deal button (and the result), and after the deal a round "Choose game" button. *
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
+import WinnerGlow from "./WinnerGlow";
+import { formatCoins } from "./PlayerName";
 import { isTrumpForGame } from "../ai/schafkopfAI";
 import { Image as PaintedImage } from "expo-image";
 import { cardTexture } from "../data/cardDesign";
@@ -64,19 +66,46 @@ function Gingham({ width, height }) {
     );
 }
 
-function RoundButton({ label, size, onPress }) {
+// Each player's coins for the round just played, and their session balance.
+function ResultRows({ rows }) {
+    return (
+        <View style={styles.resultRows}>
+            {rows.map((row) => (
+                <View key={row.seat} style={styles.resultRow}>
+                    <Text style={[styles.resultName, row.isWinner && styles.resultWinner]} numberOfLines={1}>
+                        {row.name}
+                    </Text>
+                    <Text style={[styles.resultDelta, row.delta > 0 ? styles.up : row.delta < 0 ? styles.down : null]}>
+                        {formatCoins(row.delta)}
+                    </Text>
+                    <Text style={styles.resultTotal}>{formatCoins(row.total)}</Text>
+                </View>
+            ))}
+            <View style={styles.resultRow}>
+                <View style={styles.resultSpacer} />
+                <Text style={styles.resultCaption}>round</Text>
+                <Text style={styles.resultCaption}>session</Text>
+            </View>
+        </View>
+    );
+}
+
+// Like the painted deal button: the painted circle, lettered "choose game".
+function ChooseGameButton({ size, onPress }) {
     return (
         <Pressable
             onPress={onPress}
             accessibilityRole="button"
+            accessibilityLabel="Choose game"
             style={({ pressed, hovered }) => [
-                styles.roundButton,
-                { width: size, height: size, borderRadius: size / 2 },
+                styles.paintedButton,
+                { width: size, height: size },
                 hovered && styles.roundButtonHovered,
                 pressed && styles.roundButtonPressed,
             ]}
         >
-            <Text style={[styles.roundButtonText, { fontSize: Math.max(size * 0.2, 15) }]}>{label}</Text>
+            <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} />
+            <Text style={[styles.paintedLabel, { fontSize: size * 0.2, lineHeight: size * 0.21 }]}>{"choose\ngame"}</Text>
         </Pressable>
     );
 }
@@ -102,6 +131,7 @@ function DealButton({ size, onPress }) {
 function TableCenter({
     blanket,
     playedCards,
+    trickWinner = null,
     trickWinnerName,
     isTrickComplete,
     gameResult,
@@ -131,8 +161,8 @@ function TableCenter({
                 },
             ]}
         >
-            {/* Portrait: before a deal the painted deal button takes the disc's place. */}
-            {blanket.round && canDeal ? null : blanket.round ? (
+            {/* Portrait: the painted deal / choose game button takes the disc's place. */}
+            {blanket.round && (canDeal || (needsGame && playedCards.length === 0)) ? null : blanket.round ? (
                 <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} pointerEvents="none" />
             ) : (
                 <Gingham width={blanket.width} height={blanket.height} />
@@ -146,6 +176,7 @@ function TableCenter({
                         pointerEvents="none"
                         style={[
                             styles.playedCard,
+                            isTrickComplete && player === trickWinner && styles.winningCard,
                             {
                                 transform: [
                                     { translateX: offset.x * cardHeight },
@@ -155,12 +186,19 @@ function TableCenter({
                             },
                         ]}
                     >
-                        <Card
-                            card={card}
-                            faceUp
-                            isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
-                            height={cardHeight}
-                        />
+                        <WinnerGlow
+                            active={isTrickComplete && player === trickWinner}
+                            radius={cardHeight * 0.045}
+                            spread={6}
+                            scaleTo={1.06}
+                        >
+                            <Card
+                                card={card}
+                                faceUp
+                                isTrump={Boolean(trumpGame) && isTrumpForGame(card, trumpGame)}
+                                height={cardHeight}
+                            />
+                        </WinnerGlow>
                     </View>
                 );
             })}
@@ -180,17 +218,20 @@ function TableCenter({
                             style={[
                                 styles.note,
                                 isSmall && { maxWidth: blanket.width - buttonSize - 40 },
-                                // Above the deal circle, which fills the whole disc area.
-                                blanket.round && canDeal && styles.noteAboveDisc,
+                                // Phones: below the deal button, where the (now empty) hand was.
+                                blanket.round && canDeal && styles.noteBelowDisc,
                             ]}
                             pointerEvents="none"
                         >
                             <Text style={styles.noteTitle}>{gameResult.message}</Text>
-                            <Text style={styles.noteText}>{gameResult.points}</Text>
+                            {gameResult.points ? <Text style={styles.noteText}>{gameResult.points}</Text> : null}
+                            {gameResult.rows ? <ResultRows rows={gameResult.rows} /> : null}
                         </View>
                     ) : null}
-                    {canDeal ? <DealButton size={blanket.round ? blanket.width : buttonSize * 1.15} onPress={onDeal} /> : null}
-                    {needsGame ? <RoundButton label="Choose game" size={buttonSize} onPress={onChooseGame} /> : null}
+                    {canDeal ? <DealButton size={blanket.round ? blanket.width * 0.6 : buttonSize} onPress={onDeal} /> : null}
+                    {needsGame ? (
+                        <ChooseGameButton size={blanket.round ? blanket.width * 0.6 : buttonSize} onPress={onChooseGame} />
+                    ) : null}
                 </View>
             ) : null}
         </View>
@@ -212,15 +253,80 @@ const styles = StyleSheet.create({
         shadowOpacity: 0,
         elevation: 0,
     },
+    winningCard: {
+        zIndex: 3,
+    },
     playedCard: {
         position: "absolute",
         ...softShadow,
     },
-    noteAboveDisc: {
+    resultRows: {
+        marginTop: 8,
+        gap: 2,
+        width: 230,
+    },
+    resultRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    resultName: {
+        flex: 1,
+        fontFamily: fonts.bodyMedium,
+        fontSize: 14,
+        color: colors.inkSoft,
+    },
+    resultWinner: {
+        fontFamily: fonts.bodyBold,
+        color: colors.ink,
+    },
+    resultDelta: {
+        width: 46,
+        textAlign: "right",
+        fontFamily: fonts.number,
+        fontSize: 15,
+        color: colors.inkSoft,
+    },
+    up: {
+        color: "#3d7a2a",
+    },
+    down: {
+        color: "#a8323d",
+    },
+    resultTotal: {
+        width: 52,
+        textAlign: "right",
+        fontFamily: fonts.number,
+        fontSize: 13,
+        color: colors.inkSoft,
+    },
+    resultSpacer: {
+        flex: 1,
+    },
+    resultCaption: {
+        width: 49,
+        textAlign: "right",
+        fontFamily: fonts.body,
+        fontSize: 11,
+        color: colors.inkSoft,
+    },
+    paintedButton: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    paintedLabel: {
+        fontFamily: fonts.hand,
+        textAlign: "center",
+        color: colors.ink,
+    },
+    noteBelowDisc: {
         position: "absolute",
-        bottom: "100%",
-        marginBottom: 12,
+        top: "100%",
+        marginTop: 16,
         zIndex: 2,
+        // Wider than the deal button it hangs from.
+        width: 300,
+        maxWidth: 300,
     },
     center: {
         alignItems: "center",
@@ -245,25 +351,11 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: colors.ink,
     },
-    roundButton: {
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.hay,
-        borderWidth: 3,
-        borderColor: colors.hayDeep,
-        padding: 8,
-        ...softShadow,
-    },
     roundButtonHovered: {
         transform: [{ scale: 1.04 }],
     },
     roundButtonPressed: {
         transform: [{ scale: 0.97 }],
-    },
-    roundButtonText: {
-        fontFamily: fonts.title,
-        textAlign: "center",
-        color: colors.ink,
     },
     note: {
         ...paper,
@@ -274,8 +366,9 @@ const styles = StyleSheet.create({
         maxWidth: "85%",
     },
     noteTitle: {
-        fontFamily: fonts.title,
-        fontSize: 17,
+        fontFamily: fonts.hand,
+        fontSize: 24,
+        lineHeight: 27,
         textAlign: "center",
         color: colors.ink,
     },

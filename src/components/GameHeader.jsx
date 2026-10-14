@@ -6,7 +6,8 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import PaperButton from "./PaperButton";
 import { useStage } from "./Stage";
-import { getGameType } from "../data/gameTypes";
+import { parseGame } from "../ai/schafkopfAI";
+import { getGameType, suitNamesEn } from "../data/gameTypes";
 import { colors, fonts, paper, suitTheme } from "../theme";
 
 function RibbonTail({ flip, height }) {
@@ -33,6 +34,8 @@ function getBannerTitle({ hasCards, selectedGame, calledAce, callerName }) {
     }
     if (game.value === "Ramsch") return "Cowards Game: nobody announced";
     if (game.value === "Marriage") return `${callerName} offers a Marriage`;
+    const { suit } = parseGame(selectedGame);
+    if (game.value === "Solo" && suit) return `${callerName} plays a ${suitNamesEn[suit]} Solo`;
     return `${callerName} plays a ${game.label}`;
 }
 
@@ -113,12 +116,14 @@ const styles = StyleSheet.create({
         flexShrink: 1,
     },
     bannerTitle: {
-        fontFamily: fonts.title,
-        fontSize: 19,
+        fontFamily: fonts.hand,
+        fontSize: 24,
+        lineHeight: 27,
         color: colors.ink,
     },
     bannerTitleCompact: {
-        fontSize: 15,
+        fontSize: 20,
+        lineHeight: 23,
     },
     bannerSubtitle: {
         fontFamily: fonts.bodyMedium,

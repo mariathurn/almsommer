@@ -4,11 +4,11 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { AlfaSlabOne_400Regular } from "@expo-google-fonts/alfa-slab-one";
 import { BarlowCondensed_700Bold } from "@expo-google-fonts/barlow-condensed";
-import { Fraunces_600SemiBold, Fraunces_700Bold, Fraunces_900Black } from "@expo-google-fonts/fraunces";
 import {
   AlegreyaSans_400Regular,
   AlegreyaSans_500Medium,
   AlegreyaSans_700Bold,
+  AlegreyaSans_800ExtraBold,
 } from "@expo-google-fonts/alegreya-sans";
 import { CaveatBrush_400Regular } from "@expo-google-fonts/caveat-brush";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -27,17 +27,21 @@ function App() {
     // Card faces
     AlfaSlabOne_400Regular,
     BarlowCondensed_700Bold,
-    // Interface: Fraunces for titles and numbers, Alegreya Sans for text
-    Fraunces_600SemiBold,
-    Fraunces_700Bold,
-    Fraunces_900Black,
+    // Interface: Caveat Brush for big moments, Alfa Slab One for numbers
+    // (also on the cards), Alegreya Sans for everything else
     AlegreyaSans_400Regular,
     AlegreyaSans_500Medium,
     AlegreyaSans_700Bold,
-    // Hand-drawn buttons on the title screen
+    AlegreyaSans_800ExtraBold,
     CaveatBrush_400Regular,
   });
   const cardArtLoaded = usePreloadedCardArt();
+  // Coins won or lost per player since the app was opened.
+  const [sessionScores, setSessionScores] = useState({ south: 0, west: 0, north: 0, east: 0 });
+  const addRoundToSession = (deltas) =>
+    setSessionScores((scores) =>
+      Object.fromEntries(Object.entries(scores).map(([player, total]) => [player, total + (deltas[player] ?? 0)]))
+    );
   const openMenu = () => setScreen("menu");
 
   return (
@@ -47,7 +51,7 @@ function App() {
         {!fontsLoaded || !cardArtLoaded ? null : (
           <Stage>
             {screen === "game" ? (
-              <GameScreen onOpenMenu={openMenu} />
+              <GameScreen onOpenMenu={openMenu} sessionScores={sessionScores} onRoundScored={addRoundToSession} />
             ) : screen === "deck" ? (
               <DeckScreen onBack={openMenu} />
             ) : (

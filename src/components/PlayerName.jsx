@@ -2,8 +2,16 @@
 hay-gold badge (the caller's game, or "Friend" once the partner is revealed). */
 
 import { StyleSheet, Text, View } from "react-native";
+import WinnerGlow from "./WinnerGlow";
 import { getGameType } from "../data/gameTypes";
 import { colors, fonts, paper } from "../theme";
+
+// Session balance: "+15", "−10" (with a real minus sign) or "0".
+export function formatCoins(value) {
+    if (value > 0) return `+${value}`;
+    if (value < 0) return `\u2212${Math.abs(value)}`;
+    return "0";
+}
 
 function PlayerName({
     name,
@@ -11,22 +19,34 @@ function PlayerName({
     status = null,
     showFriendBadge = false,
     isCurrentTurn = false,
+    isTrickWinner = false,
+    score = null,
     style,
 }) {
     const badgeLabel = showFriendBadge ? "Friend" : getGameType(gameType)?.label ?? gameType;
 
     return (
-        <View style={[styles.tag, isCurrentTurn && styles.tagActive, style]}>
-            <Text style={styles.name} numberOfLines={1}>
-                {name}
-            </Text>
-            {status ? (
-                <Text style={styles.status} numberOfLines={1}>
-                    {status}
+        <WinnerGlow active={isTrickWinner} radius={10} spread={4} scaleTo={1.08}>
+            <View style={[styles.tag, isCurrentTurn && styles.tagActive, isTrickWinner && styles.tagWinner, style]}>
+                <Text style={styles.name} numberOfLines={1}>
+                    {name}
                 </Text>
-            ) : null}
-            {badgeLabel ? <Text style={styles.badge}>{badgeLabel}</Text> : null}
-        </View>
+                {status ? (
+                    <Text style={styles.status} numberOfLines={1}>
+                        {status}
+                    </Text>
+                ) : null}
+                {badgeLabel ? <Text style={styles.badge}>{badgeLabel}</Text> : null}
+                {score === null ? null : (
+                    <Text
+                        style={[styles.score, score > 0 && styles.scoreUp, score < 0 && styles.scoreDown]}
+                        accessibilityLabel={`${score} coins this session`}
+                    >
+                        {formatCoins(score)}
+                    </Text>
+                )}
+            </View>
+        </WinnerGlow>
     );
 }
 
@@ -39,6 +59,35 @@ const styles = StyleSheet.create({
         gap: 7,
         paddingVertical: 3,
         paddingHorizontal: 10,
+    },
+    score: {
+        overflow: "hidden",
+        borderRadius: 999,
+        minWidth: 26,
+        paddingHorizontal: 7,
+        paddingVertical: 1,
+        textAlign: "center",
+        backgroundColor: colors.paperDeep,
+        borderWidth: 1,
+        borderColor: colors.keyline,
+        fontFamily: fonts.number,
+        fontSize: 12,
+        color: colors.inkSoft,
+    },
+    scoreUp: {
+        backgroundColor: "#e3eed7",
+        borderColor: colors.weide,
+        color: "#3d5a2a",
+    },
+    scoreDown: {
+        backgroundColor: "#f6dfe0",
+        borderColor: colors.alpenrose,
+        color: "#8a2e37",
+    },
+    tagWinner: {
+        backgroundColor: colors.hayLight,
+        borderColor: colors.hayDeep,
+        borderWidth: 2,
     },
     tagActive: {
         borderColor: colors.hay,

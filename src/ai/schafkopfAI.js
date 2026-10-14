@@ -14,17 +14,25 @@ const suitStrength = { acorn: 4, leaf: 3, heart: 2, bell: 1 };
 // Order of non-trump cards within a colour (a shepherd only appears here in the Dog Game).
 const plainRank = { A: 6, "10": 5, K: 4, O: 3, U: 2, "9": 1 };
 
+// A Solo carries its trump suit in the game value: "Solo:leaf".
+export function parseGame(gameName = "Pass") {
+    const [base, suit] = String(gameName).split(":");
+    return { base, suit: suit ?? null };
+}
+
 // How strong a trump is in the given game (higher wins), or 0 if the card is
-// not a trump. Dog Game: only the dogs. Every other game (Solo for now with
-// red as its trump colour): shepherds, then dogs, then the red cards.
+// not a trump. Dog Game: only the dogs. Solo: shepherds, dogs, then the chosen
+// suit. Every other game: shepherds, dogs, then the red cards.
 export function getTrumpStrength(card, gameName = "Pass") {
     if (!card) return 0;
-    if (gameName === "Wenz") {
+    const { base, suit } = parseGame(gameName);
+    if (base === "Wenz") {
         return card.rank === "U" ? 10 + suitStrength[card.suit] : 0;
     }
+    const trumpSuit = base === "Solo" && suit ? suit : "heart";
     if (card.rank === "O") return 20 + suitStrength[card.suit];
     if (card.rank === "U") return 10 + suitStrength[card.suit];
-    if (card.suit === "heart") return rankValue[card.rank];
+    if (card.suit === trumpSuit) return rankValue[card.rank];
     return 0;
 }
 
@@ -135,9 +143,10 @@ export function canPlayCard(card, hand, playedCards, gameName = "Pass") {
         return true;
     }
 
-    // If a regular suit was led, you must play that suit if you have it
+    // If a regular suit was led, you must play that suit if you have it.
+    // Shepherds and dogs of that colour are trumps and don't count as it.
     const ledSuit = ledCard.suit;
-    if (card.suit === ledSuit) {
+    if (card.suit === ledSuit && !isTrumpForGame(card, gameName)) {
         return true;
     }
 

@@ -9,6 +9,8 @@ import {
     getTeamForPlayer,
     getSauSpielStatus,
     sortHandForGame,
+    canPlayCard,
+    getTrumpStrength,
 } from "./schafkopfAI.js";
 import { getAvailableGames } from "../data/gameTypes.js";
 
@@ -125,4 +127,18 @@ test("Trumps are sorted strongest first, depending on the game", () => {
     assert.deepEqual(ids(sortHandForGame(hand, "Wenz")), [
         "acorn-U", "bell-U", "acorn-O", "leaf-A", "heart-A", "heart-9",
     ]);
+});
+
+test("A Solo makes its chosen suit the trump colour", () => {
+    assert.ok(getTrumpStrength({ suit: "leaf", rank: "9" }, "Solo:leaf") > 0);
+    assert.equal(getTrumpStrength({ suit: "heart", rank: "A" }, "Solo:leaf"), 0);
+    // Shepherds and dogs stay trumps above the suit
+    assert.ok(getTrumpStrength({ suit: "bell", rank: "U" }, "Solo:leaf") > getTrumpStrength({ suit: "leaf", rank: "A" }, "Solo:leaf"));
+});
+
+test("A dog of the led colour is a trump, not that colour", () => {
+    const led = [{ player: "west", card: { suit: "bell", rank: "A" } }];
+    const hand = [{ suit: "bell", rank: "U" }, { suit: "bell", rank: "9" }];
+    assert.equal(canPlayCard(hand[0], hand, led, "Sau Spiel"), false);
+    assert.equal(canPlayCard(hand[1], hand, led, "Sau Spiel"), true);
 });

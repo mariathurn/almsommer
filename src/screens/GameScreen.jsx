@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import GameHeader from "../components/GameHeader";
 import GamePicker from "../components/GamePicker";
@@ -6,15 +6,14 @@ import SceneBackground from "../components/SceneBackground";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
-import { canCallAce, getSauSpielStatus } from "../ai/schafkopfAI";
+import { getSauSpielStatus } from "../ai/schafkopfAI";
 import { getGameType } from "../data/gameTypes";
 import { colors, getTableLayout } from "../theme";
 
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
-const callableSuits = ["bell", "acorn", "leaf"];
 
-function GameScreen({ onOpenMenu }) {
+function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const {
     players,
     currentTurn,
@@ -29,10 +28,21 @@ function GameScreen({ onOpenMenu }) {
     dealHands,
     playCard,
     collectTrick,
+    roundResult,
   } = useSchafkopfGame();
+
+  // Add each finished round to the session balance exactly once.
+  const scoredRoundRef = useRef(null);
+  useEffect(() => {
+    if (roundResult && scoredRoundRef.current !== roundResult.id) {
+      scoredRoundRef.current = roundResult.id;
+      onRoundScored?.(roundResult.deltas);
+    }
+  }, [roundResult, onRoundScored]);
 
   const [tableSize, setTableSize] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
   // Game hovered in the picker; its trumps are previewed in your hand.
   const [previewGame, setPreviewGame] = useState(null);
 
@@ -61,7 +71,6 @@ function GameScreen({ onOpenMenu }) {
   const isTrickComplete = playedCards.length === seats.length;
   const canDeal = !hasCards;
   const needsGame = hasCards && !gameType && playedCards.length === 0;
-  const availableAces = callableSuits.filter((suit) => canCallAce(suit, players.south));
 
   const handleDeal = () => {
     dealHands();
@@ -83,8 +92,9 @@ function GameScreen({ onOpenMenu }) {
     setIsPickerOpen(false);
   };
   const showPicker = isPickerOpen && needsGame;
-  // Trumps shown on the cards: the hovered game while choosing, then the chosen one.
-  const trumpGame = (showPicker && previewGame) || (gameType ? selectedGame : null);
+  // Trumps shown on the cards: the hovered game while choosing, then the
+  // chosen one; before a game is chosen, the Sheep Game trumps.
+  const trumpGame = (showPicker && previewGame) || (gameType ? selectedGame : hasCards ? "Sau Spiel" : null);
 
   const isGameOver = () => {
     // Game is over when all players have played all their cards
@@ -98,35 +108,45 @@ function GameScreen({ onOpenMenu }) {
     );
   };
 
+  // Result panel after the last trick: who won with how many points, and
+  // each player's coins for this round and for the session.
   const getGameResult = () => {
-    if (!isGameOver()) return null;
+    if (!isGameOver() || !roundResult) return null;
+    const names = (keys) => keys.map(playerName).join(" & ");
+    const rows = ["south", "west", "north", "east"].map((seat) => ({
+        seat,
+        name: playerName(seat),
+        delta: roundResult.deltas[seat],
+        total: sessionScores?.[seat] ?? 0,
+        isWinner: roundResult.winners.includes(seat),
+      }));
 
-    // For Sau Spiel: show caller and revealed partner as winners
-    if (selectedGame === "Sau Spiel") {
-      const winnerKeys = [
-        "south", // caller is always Maria (south)
-        ...(revealedAceOwner && revealedAceOwner !== "south" ? [revealedAceOwner] : []),
-      ];
-
-      if (winnerKeys.length > 0) {
-        const winnerNames = winnerKeys.map(key => playerName(key)).join(" and ");
-
-        return {
-          message: `${winnerNames} win the ${gameType.label}`,
-          points: `+${gameType.coins} coins`,
-        };
-      }
+    if (roundResult.gameName === "Ramsch") {
+      return {
+        message: `${names(roundResult.losers)} ${roundResult.losers.length > 1 ? "lose" : "loses"} the ${gameType.label}`,
+        points: `${Math.max(...Object.values(roundResult.points))} points taken`,
+        rows,
+      };
     }
 
-    return { message: `The ${gameType.label} is over`, points: "" };
+    const callersWon = roundResult.winners.includes("south");
+    const callerPoints = roundResult.callerPoints;
+    return {
+      message: `${names(roundResult.winners)} ${roundResult.winners.length > 1 ? "win" : "wins"} the ${gameType.label}`,
+      points: `${callersWon ? callerPoints : 120 - callerPoints} : ${callersWon ? 120 - callerPoints : callerPoints} points`,
+      rows,
+    };
   };
 
-  const layout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
+  const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
+  const layout = tableLayout;
+  // Phones: the panel reaches up over the banner to the top of the screen.
+  const pickerTop = layout?.portrait ? 8 - headerHeight : 8;
 
   return (
     <View style={styles.shell}>
       <SceneBackground />
-      <View>
+      <View onLayout={({ nativeEvent }) => setHeaderHeight(nativeEvent.layout.height)}>
         <GameHeader
           hasCards={hasCards}
           currentTurn={currentTurn}
@@ -148,6 +168,7 @@ function GameScreen({ onOpenMenu }) {
             <TableCenter
               blanket={layout.blanket}
               playedCards={playedCards}
+              trickWinner={trickWinner}
               trickWinnerName={trickWinner ? playerName(trickWinner) : null}
               isTrickComplete={isTrickComplete}
               gameResult={getGameResult()}
@@ -171,6 +192,8 @@ function GameScreen({ onOpenMenu }) {
                 gameType={isCaller(seat) ? selectedGame : null}
                 status={getGameStatus(seat)}
                 showFriendBadge={revealedAceOwner === seat}
+                isTrickWinner={isTrickComplete && trickWinner === seat}
+                score={sessionScores?.[seat] ?? 0}
               />
             ))}
 
@@ -178,14 +201,11 @@ function GameScreen({ onOpenMenu }) {
             {showPicker ? (
               <>
                 <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" />
-                <View style={styles.pickerSlot} pointerEvents="box-none">
+                <View style={[styles.pickerSlot, { top: pickerTop }]} pointerEvents="box-none">
                   <GamePicker
                     width={Math.min(layout.width - 24, 900)}
-                    maxHeight={layout.southFanTop - (layout.compact ? 12 : layout.labelHeight) - 16}
+                    maxHeight={layout.southFanTop - pickerTop - (layout.portrait ? 12 : layout.compact ? 12 : layout.labelHeight + 16)}
                     hand={players.south}
-                    selectedGame={selectedGame}
-                    calledAce={calledAce}
-                    availableAces={availableAces}
                     onPick={handlePickGame}
                     onPass={handlePass}
                     onPreview={setPreviewGame}
@@ -205,6 +225,8 @@ function GameScreen({ onOpenMenu }) {
               gameType={isCaller("south") ? selectedGame : null}
               status={getGameStatus("south")}
               showFriendBadge={revealedAceOwner === "south"}
+              isTrickWinner={isTrickComplete && trickWinner === "south"}
+              score={sessionScores?.south ?? 0}
               trumpGame={trumpGame}
               highlightTrumps={Boolean(showPicker && previewGame)}
             />
@@ -240,6 +262,7 @@ const styles = StyleSheet.create({
   },
   pickerSlot: {
     position: "absolute",
+    zIndex: 10,
     top: 8,
     left: 0,
     right: 0,

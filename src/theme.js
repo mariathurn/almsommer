@@ -2,14 +2,15 @@
 // bright yellow accent, ink for lines and text. Shared table geometry too.
 
 export const colors = {
-    paper: "#f6efe1",
-    paperDeep: "#ebe0c9",
-    keyline: "#d6c6a5",
-    ink: "#2f2a24",
-    inkSoft: "#6b6152",
-    hay: "#ffe300",
-    hayLight: "#fff3a3",
-    hayDeep: "#cdb200",
+    // Paper, ink and gold come straight from the cards.
+    paper: "#f7f3e9",
+    paperDeep: "#ece5d5",
+    keyline: "#d9cfba",
+    ink: "#1f1c19",
+    inkSoft: "#5f574c",
+    hay: "#eec652",
+    hayLight: "#f8e7b0",
+    hayDeep: "#c9a43a",
     apricot: "#e09a62",
     alpenrose: "#c25a63",
     enzian: "#3f6ea6",
@@ -29,11 +30,12 @@ export const suitTheme = {
     leaf: { name: "Green", color: colors.weide },
 };
 
-// Loaded in App.jsx. Fraunces for titles and numbers, Alegreya Sans for the interface.
+// Loaded in App.jsx. Three fonts: Caveat Brush for big moments, Alfa Slab One
+// for all numbers, Alegreya Sans for everything else.
 export const fonts = {
-    title: "Fraunces_700Bold",
-    titleBlack: "Fraunces_900Black",
-    number: "Fraunces_600SemiBold",
+    title: "AlegreyaSans_800ExtraBold",
+    titleBlack: "CaveatBrush_400Regular",
+    number: "AlfaSlabOne_400Regular",
     body: "AlegreyaSans_400Regular",
     bodyMedium: "AlegreyaSans_500Medium",
     bodyBold: "AlegreyaSans_700Bold",
@@ -120,9 +122,13 @@ export function getTableLayout(width, height) {
 // paper disc in the middle where the trick is played, and a large hand at the
 // bottom running off the edge, with your name tag at the very bottom.
 const PORTRAIT_TAG_ROW = 64;
+// Height the compact game panel needs above the hand, measured from the top of the table.
+const PORTRAIT_PANEL_ROOM = 540;
 
 function getPortraitTableLayout(width, height) {
-    const southCardHeight = Math.min(height * 0.36, 300);
+    // On short phones the hand gets smaller, so the game panel (which reaches
+    // up to the top of the screen) still fits above it with the Solo row open.
+    const southCardHeight = Math.min(height * 0.36, 300, (height - PORTRAIT_PANEL_ROOM) / 0.84);
     const southFanTop = height - southCardHeight * 0.84;
     const opponentsBottom = EDGE + PORTRAIT_TAG_ROW;
     const gap = southFanTop - opponentsBottom;

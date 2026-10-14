@@ -30,7 +30,7 @@ src/
 │   ├── SceneBackground.jsx     # Painted Alm at dusk (assets/ui/bg-dark.jpg) behind every screen
 │   ├── HandDrawnButton.jsx     # Sketchy title-screen button: chalky wash, overshooting lines, Caveat Brush
 │   ├── PaperButton.jsx         # Linen-paper button
-│   ├── GamePicker.jsx          # Festival-banner game tiles with coins (rulebook games), then the sheep to call
+│   ├── GamePicker.jsx          # Game panel: tiles with card-art strips and coins (unavailable ones greyed with reason), Solo trump-suit row, sheep row, Pass / Play
 │   ├── Card.jsx                # Single card renderer (expo-image + cardArt.js)
 │   ├── FanOfCards.jsx          # Fanned hand; face-up hands are tappable, illegal cards dimmed
 │   ├── GameHeader.jsx          # Menu and the ribbon banner ("Maria calls the orange sheep")
@@ -43,6 +43,7 @@ src/
 │
 ├── ai/                          # AI decision-making
 │   ├── schafkopfAI.js          # canPlayCard(), getAIMove(), Sau Spiel teams
+│   ├── scoring.js              # Card points, 61-point rule, coin payouts per game (scoreRound)
 │   └── schafkopfAI.test.js     # Rule tests
 │
 ├── assets/
@@ -129,13 +130,19 @@ src/
 
 ### 5. **Look & Layout**
 - "Almsommer": warm linen paper with thin keylines and soft shadows on a watercolour meadow, with a bright yellow accent (`#ffe300`). Palette, suit colour names (orange, red, blue, green), fonts and the shared `paper` style live in `src/theme.js`
-- Interface type: Fraunces for titles and numbers, Alegreya Sans for text (card faces keep Alfa Slab One and Barlow Condensed)
+- Type: three fonts in the interface. Caveat Brush for big moments (headings, banner, results), Alfa Slab One for all numbers, Alegreya Sans for everything else (card name tags keep Barlow Condensed). Gold `#eec652`, ink `#1f1c19` and paper come from the cards
 - Round flow as in the rulebook: a round Deal button in the middle of the blanket (only when nobody holds cards), then the game picker. It sits above your hand and darkens only the table behind it, offers only the games your hand allows (`getAvailableGames`) plus Pass; passing plays the Cowards Game. Cards can be played once a game is declared
+- When a trick is complete, the winning card and the winner's name tag shine once with a gold halo (`WinnerGlow.jsx`)
+- Trump cards get a gold frame with ink dots (`#eec652`) as well as the crowned corner
 - A finished trick stays on the blanket until you tap anywhere; opponents take 0.9 s per card
+- Your hand is always sorted strongest trump first: by Sheep Game trumps right after the deal, then by the hovered or chosen game
+- Phones (portrait) use two taps: the first raises a card or highlights a game tile (showing its trumps) or a sheep, the second plays or confirms (`confirmTap`)
 - Your hand shows 70% of its height (`HAND_VISIBLE` in `theme.js`) and dips below the bottom edge, so the blanket gets more room; hovering lifts a card a little with a slow ease (`HOVER_RISE`, `RISE_DURATION` in `FanOfCards.jsx`)
 - On your turn, playable cards lift and the rest fade, so following suit needs no pop-up
-- Trumps per game (`getTrumpStrength` in `schafkopfAI.js`): Dog Game only dogs; all other games shepherds, dogs, then red (Solo has no colour choice yet). Shepherds and dogs rank blue > green > red > orange. Hovering a game in the picker sorts your hand with trumps strongest-first on the left (`sortHandForGame`) and gives trump cards a yellow corner with a crown; both stay once the game is chosen. While hovering, the trumps also rise a little (`PREVIEW_RISE`); re-sorting glides the cards and the crown corner fades in and out (`FanOfCards.jsx`)
-- Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). The other games can be chosen but still play with Sheep Game trumps; winning by 61 points is not implemented yet
+- Trumps per game (`getTrumpStrength` in `schafkopfAI.js`): Dog Game only dogs; all other games shepherds, dogs, then red (a Solo carries its trump suit in the game value, e.g. `Solo:leaf`). Shepherds and dogs rank blue > green > red > orange. Hovering a game in the picker sorts your hand with trumps strongest-first on the left (`sortHandForGame`) and gives trump cards a yellow corner with a crown; both stay once the game is chosen. While hovering, the trumps also rise a little (`PREVIEW_RISE`); re-sorting glides the cards and the crown corner fades in and out (`FanOfCards.jsx`)
+- Scoring (`src/ai/scoring.js`): card points from tricks decide the round; the announcing side needs 61 of 120. Sheep Game: each winner gets the reward from one loser (2 v 2). Solo, Dog Game and Marriage (for now): the soloist settles with each of the three opponents. Cowards Game: whoever took the most points pays the reward to each other player. Rounds are zero-sum
+- Session balance: `App.jsx` keeps each player's coin total since the app was opened (survives going to the menu); it shows on every name tag, and after a round the table shows each player's coins for the round and the session
+- Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). The other games can be chosen but still play with Sheep Game trumps; Schneider/Schwarz bonuses and running tariffs are not implemented yet
 - Everything is laid out on a fixed canvas (`Stage.jsx`), scaled like a browser game: 1280x800 in landscape (letterboxed over the dimmed painting) and 430 wide in portrait (height follows the phone). Screens read its size with `useStage()`; `getTableLayout()` has a portrait branch: opponents' name tags in a row at the top (no medallions), the hand-painted disc (`assets/ui/circular-table.png`, kept translucent) instead of the blanket with the trick fanning out over its top edge; before a deal the painted deal button (`assets/ui/deal-button.png`) takes the disc's place, a large hand running off the bottom, and your name tag at the very bottom
 - The native app is locked to portrait (`app.json`); the web version picks portrait or landscape from the window shape
 
@@ -211,5 +218,5 @@ Covers the Sau Spiel rules in `src/ai/schafkopfAI.js`.
 - **React 19**
 - **expo-image** - classic SVG card rendering
 - **react-native-svg** - illustrated card design
-- **expo-font** with Fraunces and Alegreya Sans (interface), Alfa Slab One and Barlow Condensed Bold (card faces)
+- **expo-font** with Caveat Brush and Alegreya Sans (interface), Alfa Slab One and Barlow Condensed Bold (card faces)
 - **react-native-safe-area-context** - keeps the table clear of notches
