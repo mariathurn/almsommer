@@ -37,7 +37,7 @@ const sheepSuits = ["acorn", "leaf", "bell"];
 
 function DottedPaper() {
     return (
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
             <Defs>
                 <Pattern id="picker-dots" width={14} height={14} patternUnits="userSpaceOnUse">
                     <Circle cx={7} cy={7} r={1.3} fill={colors.ink} opacity={0.09} />

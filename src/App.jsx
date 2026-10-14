@@ -13,6 +13,7 @@ import {
 import { CaveatBrush_400Regular } from "@expo-google-fonts/caveat-brush";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import Stage from "./components/Stage";
+import AchievementsScreen from "./screens/AchievementsScreen";
 import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
@@ -20,7 +21,8 @@ import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import { colors } from "./theme";
 import { sounds, startAmbience } from "./audio/sounds";
 
-// Three screens, switched with plain state: "menu", "game" and "deck".
+// Screens, switched with plain state: "menu", "game", "achievements" and
+// "deck" (the card deck, opened from the settings).
 // Leaving the game unmounts it, so Play always starts a fresh table.
 function App() {
   const [screen, setScreen] = useState("menu");
@@ -58,12 +60,15 @@ function App() {
               <GameScreen onOpenMenu={openMenu} sessionScores={sessionScores} onRoundScored={addRoundToSession} />
             ) : screen === "deck" ? (
               <DeckScreen onBack={openMenu} />
+            ) : screen === "achievements" ? (
+              <AchievementsScreen onBack={openMenu} />
             ) : (
               <MenuScreen
                 onPlay={() => {
                   sounds.sheep();
                   setScreen("game");
                 }}
+                onOpenAchievements={() => setScreen("achievements")}
                 onOpenDeck={() => setScreen("deck")}
               />
             )}
@@ -77,7 +82,7 @@ function App() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#1d2433",
+    backgroundColor: "#000000",
   },
 });
 

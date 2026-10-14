@@ -4,7 +4,9 @@
 // Files live in src/assets/audio. Effects are M4A (AAC), converted from the
 // OGG originals, since iPhones and Safari can't play OGG.
 
+import { useSyncExternalStore } from "react";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { Asset } from "expo-asset";
 
@@ -26,6 +28,49 @@ const SHUFFLE_RATE = 1.6;
 
 const players = {};
 
+// --- Settings: music and sound effects can be switched off separately. ------
+
+const SETTINGS_KEY = "almsommer.sound";
+let settings = { music: true, effects: true };
+const listeners = new Set();
+// Pauses or resumes whatever plays the music (set by startAmbience).
+let musicControl = null;
+
+function emit() {
+    listeners.forEach((listener) => listener());
+}
+
+export function getSoundSettings() {
+    return settings;
+}
+
+export function updateSoundSettings(change) {
+    settings = { ...settings, ...change };
+    AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)).catch(() => {});
+    if ("music" in change) musicControl?.(settings.music);
+    emit();
+}
+
+// React hook: the current settings, re-rendering when they change.
+export function useSoundSettings() {
+    return useSyncExternalStore(
+        (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+        getSoundSettings
+    );
+}
+
+// Saved choices from the last time the app was open.
+const settingsLoaded = AsyncStorage.getItem(SETTINGS_KEY)
+    .then((saved) => {
+        if (!saved) return;
+        settings = { ...settings, ...JSON.parse(saved) };
+        emit();
+    })
+    .catch(() => {});
+
 function getPlayer(name) {
     if (!players[name]) {
         const player = createAudioPlayer(sources[name]);
@@ -42,7 +87,7 @@ function webSoundAllowed() {
 }
 
 function play(name, configure) {
-    if (!webSoundAllowed()) return;
+    if (!settings.effects || !webSoundAllowed()) return;
     try {
         const player = getPlayer(name);
         configure?.(player);
@@ -64,15 +109,24 @@ export const sounds = {
 // Starts the looping meadow music as soon as the app opens. Browsers block sound until the first tap, click or key press:
 // on the web this tries straight away and, if blocked, starts with the first
 // interaction anywhere (also on the title screen).
+// Respects the music setting, also when it is changed later.
 export function startAmbience() {
     if (Platform.OS !== "web") {
         setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-        try {
-            getPlayer("meadow").play();
-        } catch {
-            // ignore
-        }
-        return () => {};
+        musicControl = (on) => {
+            try {
+                const meadow = getPlayer("meadow");
+                if (on) meadow.play();
+                else meadow.pause();
+            } catch {
+                // ignore
+            }
+        };
+        settingsLoaded.then(() => musicControl?.(settings.music));
+        return () => {
+            musicControl?.(false);
+            musicControl = null;
+        };
     }
 
     // Plain audio elements on the web, so a blocked attempt can be caught.
@@ -88,7 +142,7 @@ export function startAmbience() {
 
     // One click fires several of these events; only one attempt runs at a time.
     function tryStart() {
-        if (started || trying) return;
+        if (started || trying || !settings.music) return;
         trying = true;
         meadow
             .play()
@@ -105,10 +159,21 @@ export function startAmbience() {
     }
 
     events.forEach((type) => window.addEventListener(type, tryStart, true));
-    tryStart();
+    settingsLoaded.then(tryStart);
+
+    // Switching music on happens with a click, so the browser allows it.
+    musicControl = (on) => {
+        if (on) {
+            started = false;
+            tryStart();
+        } else {
+            meadow.pause();
+        }
+    };
 
     return () => {
         stopListening();
         meadow.pause();
+        musicControl = null;
     };
 }

@@ -1,34 +1,42 @@
-/* A fixed-size canvas the whole app is laid out on, scaled to fit the screen,
-like a browser game. Layouts only have to work at two sizes:
+/* The canvas the whole app is laid out on, scaled to the screen like a
+browser game. One side is fixed and the other flexes within limits, so the
+window is filled without the layout drifting:
 
-- landscape (desktop and web): 1280 x 800, scaled to fit and centred; the
-  painted background, dimmed, fills any space around it
-- portrait (phones): 430 wide, scaled to the screen width; the height follows
-  the phone, so there are no bars
+- landscape (desktop and web): 800 high, 1100 to 1700 wide
+- portrait (phones): 430 wide, 640 to 1000 high
 
-Screens read the canvas size with useStage() instead of the window size. */
+Outside those limits (very wide or almost square windows) the canvas is
+centred with black bars. Screens read the canvas size with useStage()
+instead of the window size. */
 
 import { createContext, useContext, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import SceneBackground from "./SceneBackground";
 
-const LANDSCAPE = { width: 1280, height: 800 };
+const LANDSCAPE_HEIGHT = 800;
+const LANDSCAPE_WIDTH = { min: 1100, max: 1700 };
 const PORTRAIT_WIDTH = 430;
+const PORTRAIT_HEIGHT = { min: 640, max: 1000 };
 
-const StageContext = createContext({ ...LANDSCAPE, isPortrait: false, scale: 1 });
+const StageContext = createContext({ width: 1280, height: LANDSCAPE_HEIGHT, isPortrait: false, scale: 1 });
 
 export function useStage() {
     return useContext(StageContext);
 }
 
+const clamp = (value, { min, max }) => Math.min(Math.max(value, min), max);
+
+// Fixed side scales to the window; the other side takes what is left, within
+// its limits. Then scale down if the clamped canvas doesn't fit.
 function getStage(available) {
     const isPortrait = available.height > available.width;
     if (isPortrait) {
-        const scale = available.width / PORTRAIT_WIDTH;
-        return { width: PORTRAIT_WIDTH, height: available.height / scale, scale, isPortrait };
+        const height = clamp((available.height * PORTRAIT_WIDTH) / available.width, PORTRAIT_HEIGHT);
+        const scale = Math.min(available.width / PORTRAIT_WIDTH, available.height / height);
+        return { width: PORTRAIT_WIDTH, height, scale, isPortrait };
     }
-    const scale = Math.min(available.width / LANDSCAPE.width, available.height / LANDSCAPE.height);
-    return { ...LANDSCAPE, scale, isPortrait };
+    const width = clamp((available.width * LANDSCAPE_HEIGHT) / available.height, LANDSCAPE_WIDTH);
+    const scale = Math.min(available.width / width, available.height / LANDSCAPE_HEIGHT);
+    return { width, height: LANDSCAPE_HEIGHT, scale, isPortrait };
 }
 
 function Stage({ children }) {
@@ -37,8 +45,6 @@ function Stage({ children }) {
 
     return (
         <View style={styles.window} onLayout={({ nativeEvent }) => setAvailable(nativeEvent.layout)}>
-            <SceneBackground />
-            <View style={styles.dim} pointerEvents="none" />
             {stage ? (
                 <StageContext.Provider value={stage}>
                     <View
@@ -65,10 +71,7 @@ const styles = StyleSheet.create({
     window: {
         flex: 1,
         overflow: "hidden",
-    },
-    dim: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "rgba(15, 18, 28, 0.55)",
+        backgroundColor: "#000000",
     },
     canvas: {
         position: "absolute",

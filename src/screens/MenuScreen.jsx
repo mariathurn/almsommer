@@ -6,10 +6,11 @@ pair, blue and orange or red and green. */
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import HandDrawnButton from "../components/HandDrawnButton";
+import PaintedButton from "../components/PaintedButton";
 import SceneBackground from "../components/SceneBackground";
+import SettingsPanel from "../components/SettingsPanel";
 import { useStage } from "../components/Stage";
-import { TITLE_RATIO, menuShepherds, titleLettering } from "../data/uiArt";
+import { TITLE_RATIO, menuButtons, menuShepherds, titleLettering } from "../data/uiArt";
 
 // Landscape: the inner figure of each pair overlaps the outer one by this
 // share of its width.
@@ -24,7 +25,9 @@ function getLandscapeFigures(width, height) {
     const { blue, red, green, orange } = menuShepherds;
     const leftPairWidth = blue.ratio + red.ratio * PAIR_OFFSET;
     const rightPairWidth = orange.ratio + green.ratio * PAIR_OFFSET;
-    const figureHeight = Math.min(height * 1.15, (width * 0.45) / Math.max(leftPairWidth, rightPairWidth));
+    // Capped, so on wide windows the figures keep their size (and stay clear of
+    // the title) and the extra width becomes space between them.
+    const figureHeight = Math.min(height * 0.8, (width * 0.45) / Math.max(leftPairWidth, rightPairWidth));
     const w = (figure) => figureHeight * figure.ratio;
     return [
         { key: "blue", side: "left", left: -w(blue) * 0.05 },
@@ -82,13 +85,16 @@ function SlidingFigure({ figure, stageWidth }) {
     );
 }
 
-function MenuScreen({ onPlay, onOpenDeck }) {
+function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
     const { width, height, isPortrait } = useStage();
     const [pair] = useState(() => portraitPairs[Math.floor(Math.random() * portraitPairs.length)]);
+    const [showSettings, setShowSettings] = useState(false);
 
     const figures = isPortrait ? getPortraitFigures(width, height, pair) : getLandscapeFigures(width, height);
     const titleWidth = isPortrait ? width * 0.9 : Math.min(width * 0.56, 760);
-    const playSize = isPortrait ? 84 : Math.max(Math.min(height * 0.09, 70), 34);
+    // Heights of the painted buttons: play is the big one.
+    const playHeight = isPortrait ? 120 : Math.max(Math.min(height * 0.15, 130), 70);
+    const smallHeight = playHeight * 0.52;
 
     return (
         <View style={styles.shell}>
@@ -110,16 +116,32 @@ function MenuScreen({ onPlay, onOpenDeck }) {
                         marginBottom: isPortrait ? height * 0.28 : height * 0.07,
                     }}
                 />
-                <View style={[styles.buttons, { gap: Math.max(height * (isPortrait ? 0.03 : 0.05), 26) }]}>
-                    <HandDrawnButton label="play" fontSize={playSize} onPress={onPlay} accessibilityLabel="Play" />
-                    <HandDrawnButton
-                        label="card deck"
-                        fontSize={playSize * (isPortrait ? 0.5 : 0.58)}
-                        onPress={onOpenDeck}
-                        accessibilityLabel="Card Deck"
+                <View style={[styles.buttons, { gap: Math.max(height * (isPortrait ? 0.02 : 0.03), 14) }]}>
+                    <PaintedButton art={menuButtons.play} height={playHeight} label="Play" onPress={onPlay} />
+                    <PaintedButton
+                        art={menuButtons.achievements}
+                        height={smallHeight}
+                        label="Achievements"
+                        onPress={onOpenAchievements}
+                    />
+                    <PaintedButton
+                        art={menuButtons.settings}
+                        height={smallHeight}
+                        label="Settings"
+                        onPress={() => setShowSettings(true)}
                     />
                 </View>
             </View>
+
+            {showSettings ? (
+                <SettingsPanel
+                    onClose={() => setShowSettings(false)}
+                    onViewDeck={() => {
+                        setShowSettings(false);
+                        onOpenDeck();
+                    }}
+                />
+            ) : null}
         </View>
     );
 }

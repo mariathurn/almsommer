@@ -20,16 +20,18 @@ metro.config.js                  # Adds .svg to the bundled asset types
 src/
 ├── App.jsx                      # Loads fonts and art, switches between the menu, game and deck screens inside the Stage
 ├── screens/
-│   ├── MenuScreen.jsx          # Title screen: lettering, shepherds sliding in (four in landscape, a random pair in portrait), hand-drawn buttons
+│   ├── MenuScreen.jsx          # Title screen: lettering, shepherds sliding in (four in landscape, a random pair in portrait), your painted play / achievements / settings buttons (PaintedButton)
 │   ├── GameScreen.jsx          # The card table, wires game state to the UI
+│   ├── AchievementsScreen.jsx  # Lists the achievements from data/achievements.js
 │   └── DeckScreen.jsx          # Overview of all 24 cards, tap one to enlarge it
 ├── audio/sounds.js             # Music and effects (expo-audio): meadow loop, sheep at start, shuffle, card place, trick pick-up
 ├── theme.js                     # Colours and table layout maths (card sizes, seat positions)
 │
 ├── components/                  # React Native UI components
-│   ├── Stage.jsx               # Fixed-size canvas scaled to the screen (1280x800 landscape, 430 wide portrait); useStage()
+│   ├── Stage.jsx               # Canvas scaled to the screen: 800 high x 1100-1700 wide (landscape), 430 wide x 640-1000 high (portrait), black bars beyond; useStage()
 │   ├── SceneBackground.jsx     # Painted Alm at dusk (assets/ui/bg-dark.jpg) behind every screen
-│   ├── HandDrawnButton.jsx     # Sketchy title-screen button: chalky wash, overshooting lines, Caveat Brush
+│   ├── SettingsPanel.jsx       # Title-screen settings: music and sound-effect switches (saved with AsyncStorage), card deck with "View all cards"
+│   ├── PaintedButton.jsx       # Button from a painted image (title screen)
 │   ├── PaperButton.jsx         # Linen-paper button
 │   ├── GamePicker.jsx          # Game panel: tiles with card-art strips and coins (unavailable ones greyed with reason), Solo trump-suit row, sheep row, Pass / Play
 │   ├── Card.jsx                # Single card renderer (expo-image + cardArt.js)
@@ -55,6 +57,8 @@ src/
 └── data/
     ├── cardMeta.js             # Card metadata (suit, rank, value) for all 24 cards
     ├── cardDesign.js           # Card face design data (see below)
+    ├── achievements.js         # Achievement definitions (empty for now; format documented in the file)
+    ├── cardDecks.js            # Card decks offered in the settings (only Almsommer for now)
     ├── uiArt.js                # Background, title lettering and menu shepherds (src/assets/ui)
     └── gameTypes.js            # Rulebook games: Sheep 5, Solo 20, Dog 20, Marriage 20, Cowards 5 coins
 ```
@@ -133,6 +137,7 @@ src/
 - "Almsommer": warm linen paper with thin keylines and soft shadows on a watercolour meadow, with a bright yellow accent (`#ffe300`). Palette, suit colour names (orange, red, blue, green), fonts and the shared `paper` style live in `src/theme.js`
 - Type: three fonts in the interface. Caveat Brush for big moments (headings, banner, results), Alfa Slab One for all numbers, Alegreya Sans for everything else (card name tags keep Barlow Condensed). Gold `#eec652`, ink `#1f1c19` and paper come from the cards
 - Round flow as in the rulebook: a round Deal button in the middle of the blanket (only when nobody holds cards), then the game picker. It sits above your hand and darkens only the table behind it, offers only the games your hand allows (`getAvailableGames`) plus Pass; passing plays the Cowards Game. Cards can be played once a game is declared
+- Settings (title screen → settings): music and sound effects switch off separately; `updateSoundSettings` / `useSoundSettings` in `sounds.js`, saved under `almsommer.sound` in AsyncStorage (localStorage on the web)
 - Sound (`src/audio/sounds.js`, files in `src/assets/audio/`): `sheep.mp3` plays when you tap play on the title screen; `meadow.mp3` loops from when the app opens (on the web straight away if the browser allows it, otherwise with the first tap or key press anywhere, since browsers block sound before that); `card-shuffle` on deal at 1.6x speed (`SHUFFLE_RATE`); a random `card-place-1..4` for every card played; `card-shove-1` when a trick is collected. Effects are M4A converted from the OGG originals (`afconvert -f m4af -d aac`), since iOS can't play OGG
 - When a trick is complete, the winning card and the winner's name tag shine once with a gold halo (`WinnerGlow.jsx`)
 - Trump cards get a gold frame with ink dots (`#eec652`) as well as the crowned corner
@@ -145,7 +150,7 @@ src/
 - Scoring (`src/ai/scoring.js`): card points from tricks decide the round; the announcing side needs 61 of 120. Sheep Game: each winner gets the reward from one loser (2 v 2). Solo, Dog Game and Marriage (for now): the soloist settles with each of the three opponents. Cowards Game: whoever took the most points pays the reward to each other player. Rounds are zero-sum
 - Session balance: `App.jsx` keeps each player's coin total since the app was opened (survives going to the menu); it shows on every name tag, and after a round the table shows each player's coins for the round and the session
 - Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). The other games can be chosen but still play with Sheep Game trumps; Schneider/Schwarz bonuses and running tariffs are not implemented yet
-- Everything is laid out on a fixed canvas (`Stage.jsx`), scaled like a browser game: 1280x800 in landscape (letterboxed over the dimmed painting) and 430 wide in portrait (height follows the phone). Screens read its size with `useStage()`; `getTableLayout()` has a portrait branch: opponents' name tags in a row at the top (no medallions), the hand-painted disc (`assets/ui/circular-table.png`, kept translucent) instead of the blanket with the trick fanning out over its top edge; before a deal the painted deal button (`assets/ui/deal-button.png`) takes the disc's place, a large hand running off the bottom, and your name tag at the very bottom
+- Everything is laid out on a canvas (`Stage.jsx`) scaled like a browser game: in landscape the height is fixed at 800 and the width follows the window between 1100 and 1700; in portrait the width is fixed at 430 and the height follows between 640 and 1000. Outside those limits the canvas is centred with black bars. Screens read its size with `useStage()`; `getTableLayout()` has a portrait branch: opponents' name tags in a row at the top (no medallions), the hand-painted disc (`assets/ui/circular-table.png`, kept translucent) instead of the blanket with the trick fanning out over its top edge; before a deal the painted deal button (`assets/ui/deal-button.png`) takes the disc's place, a large hand running off the bottom, and your name tag at the very bottom
 - The native app is locked to portrait (`app.json`); the web version picks portrait or landscape from the window shape
 
 ### 6. **Data** (`src/data/`)

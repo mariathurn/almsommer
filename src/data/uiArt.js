@@ -18,10 +18,19 @@ export const menuShepherds = {
 export const tableDisc = require("../assets/ui/circular-table.png");
 export const dealButton = require("../assets/ui/deal-button.png");
 
+// Hand-painted title-screen buttons (cropped from src/assets/Illus/buttons),
+// with width / height.
+export const menuButtons = {
+    play: { source: require("../assets/ui/button-play.png"), ratio: 520 / 265 },
+    achievements: { source: require("../assets/ui/button-achievements.png"), ratio: 520 / 157 },
+    settings: { source: require("../assets/ui/button-settings.png"), ratio: 520 / 182 },
+};
+
 export const uiImages = [
     sceneBackground,
     titleLettering,
     tableDisc,
     dealButton,
+    ...Object.values(menuButtons).map((b) => b.source),
     ...Object.values(menuShepherds).map((s) => s.source),
 ];
