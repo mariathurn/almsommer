@@ -168,22 +168,24 @@ test("The called sheep can't be thrown off, and its colour can't be led without 
     assert.equal(canPlayCard(hand[0], [hand[0]], acornLed, "Sau Spiel", "bell"), true);
 });
 
-test("Marriage: the first player from the left with four trumps accepts and swaps a card", () => {
+test("Marriage: the first player from the left with four good trumps accepts and swaps a card", () => {
     const players = {
         south: [{ suit: "heart", rank: "9" }, { suit: "bell", rank: "A" }],
         west: [{ suit: "acorn", rank: "O" }, { suit: "leaf", rank: "9" }],
+        // Four trumps, but the red staff isn't a good one
         north: [
             { suit: "acorn", rank: "U" }, { suit: "leaf", rank: "O" }, { suit: "heart", rank: "K" },
-            { suit: "bell", rank: "U" }, { suit: "leaf", rank: "10" }, { suit: "acorn", rank: "9" },
+            { suit: "bell", rank: "U" }, { suit: "leaf", rank: "10" },
         ],
         east: [
-            { suit: "bell", rank: "O" }, { suit: "heart", rank: "U" }, { suit: "heart", rank: "A" }, { suit: "leaf", rank: "U" },
+            { suit: "bell", rank: "O" }, { suit: "heart", rank: "U" }, { suit: "heart", rank: "A" },
+            { suit: "leaf", rank: "U" }, { suit: "acorn", rank: "9" },
         ],
     };
     const result = resolveMarriage(players);
-    assert.equal(result.partner, "north");
+    assert.equal(result.partner, "east");
     assert.deepEqual(result.given, { suit: "acorn", rank: "9" });
-    assert.ok(result.players.north.some((c) => c.suit === "heart" && c.rank === "9"));
+    assert.ok(result.players.east.some((c) => c.suit === "heart" && c.rank === "9"));
     assert.ok(result.players.south.some((c) => c.suit === "acorn" && c.rank === "9"));
 });
 

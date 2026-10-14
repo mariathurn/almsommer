@@ -17,6 +17,8 @@ export function getGameRank(gameName) {
 }
 
 const count = (cards, test) => cards.filter(test).length;
+// A Solo with five trumps needs this many shepherds and dogs among them.
+const SOLO_HIGH_TRUMPS = 3;
 
 // --- Announcing -------------------------------------------------------------
 
@@ -26,12 +28,14 @@ const count = (cards, test) => cards.filter(test).length;
 export function decideAnnouncement(hand, minRank = 0) {
     const options = [];
 
-    // Solo: five or more trumps in one suit, at least two of them shepherds or dogs.
+    // Solo: six trumps in one suit, or five high ones (at least three shepherds
+    // or dogs) with a sheep as the sixth card.
     for (const suit of suits) {
         const game = `Solo:${suit}`;
         const trumps = hand.filter((card) => isTrumpForGame(card, game));
         const high = count(trumps, (card) => card.rank === "O" || card.rank === "U");
-        if (trumps.length >= 6 || (trumps.length >= 5 && high >= 2)) {
+        const plainSheep = hand.some((card) => card.rank === "A" && !isTrumpForGame(card, game));
+        if (trumps.length === 6 || (trumps.length === 5 && high >= SOLO_HIGH_TRUMPS && plainSheep)) {
             options.push({ game, rank: 3, strength: trumps.length * 10 + high });
         }
     }

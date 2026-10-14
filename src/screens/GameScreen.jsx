@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import GameHeader from "../components/GameHeader";
-import GamePicker from "../components/GamePicker";
+import GamePicker, { ChoicePrompt } from "../components/GamePicker";
 import SceneBackground from "../components/SceneBackground";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
@@ -31,7 +31,9 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     collectTrick,
     roundResult,
     marriage,
-    canMarry,
+    marriageOffer,
+    humanMarriageOffer,
+    humanMarriageAnswer,
     caller,
     bidding,
     lastBid,
@@ -58,8 +60,6 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   const [tableSize, setTableSize] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  // Nobody accepted Maria's marriage this round.
-  const [marriageDeclined, setMarriageDeclined] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   // Game hovered in the picker; its trumps are previewed in your hand.
   const [previewGame, setPreviewGame] = useState(null);
@@ -108,7 +108,22 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
       : "Who will play?"
     : null;
   const lastBidText = lastBid
-    ? `${playerName(lastBid.seat)} ${lastBid.game ? `announces ${withArticle(lastBid.game)}` : "passes"}`
+    ? lastBid.marriageDeclined
+      ? `nobody married ${playerName(lastBid.seat)}`
+      : `${playerName(lastBid.seat)} ${lastBid.game ? `announces ${withArticle(lastBid.game)}` : "passes"}`
+    : null;
+
+  // Marriage offer, before announcing: who offers and who has to answer.
+  const marriageSeat = marriageOffer?.seat ?? null;
+  const marriageTitle = marriageOffer
+    ? marriageOffer.stage === "offer"
+      ? "You hold just one trump"
+      : `${playerName(marriageOffer.offerer)} offers a marriage`
+    : null;
+  const marriageAskNote = marriageOffer
+    ? marriageSeat === "south"
+      ? "your answer"
+      : `${playerName(marriageSeat)} is deciding…`
     : null;
   const biddingNote = bidding
     ? [lastBidText, biddingSeat === "south" ? "your say" : `${playerName(biddingSeat)} is deciding…`]
@@ -131,7 +146,6 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const needsGame = biddingSeat === "south";
 
   const handleDeal = () => {
-    setMarriageDeclined(false);
     sounds.shuffle();
     dealHands();
   };
@@ -143,12 +157,6 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   const handlePickGame = (game, ace) => {
     setPreviewGame(null);
-    if (game === "Marriage" && !canMarry()) {
-      // Nobody would accept: no marriage. The panel stays open with the
-      // Marriage tile greyed out, so Maria picks another game or passes.
-      setMarriageDeclined(true);
-      return;
-    }
     setIsPickerOpen(false);
     humanBid(game, game === "Sau Spiel" ? ace : null);
   };
@@ -170,7 +178,8 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
             .map((value) => [value, `${playerName(bestBid.seat)} wants ${withArticle(bestBid.game)}`])
         )
       : {}),
-    ...(marriageDeclined ? { Marriage: "Nobody accepted your marriage" } : {}),
+    // A marriage is offered right after the deal, before announcing.
+    Marriage: "Offered before announcing, with just one trump",
   };
 
   // Web shortcuts: D or Enter deals when dealing is possible.
@@ -251,8 +260,8 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
           coins={sessionScores?.south ?? 0}
           marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
           caller={caller}
-          title={biddingTitle}
-          note={biddingNote ?? marriageNote}
+          title={marriageTitle ?? biddingTitle}
+          note={marriageAskNote ?? biddingNote ?? marriageNote}
         />
         {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" /> : null}
       </View>
@@ -285,7 +294,9 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 layout={layout}
                 name={playerName(seat)}
                 cards={players[seat]}
-                isCurrentTurn={bidding ? biddingSeat === seat : currentTurn === seat && Boolean(gameType)}
+                isCurrentTurn={
+                  marriageOffer ? marriageSeat === seat : bidding ? biddingSeat === seat : currentTurn === seat && Boolean(gameType)
+                }
                 onPlayCard={(index) => playCard(seat, index)}
                 playedCards={playedCards}
                 gameType={isCaller(seat) ? selectedGame : null}
@@ -295,6 +306,34 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 score={sessionScores?.[seat] ?? 0}
               />
             ))}
+
+            {/* Marriage: Maria offers one, or answers someone else's offer. */}
+            {marriageOffer && marriageSeat === "south" ? (
+              <>
+                <View style={styles.scrim} />
+                <View style={[styles.pickerSlot, { top: layout.height * 0.2, paddingHorizontal: 16 }]} pointerEvents="box-none">
+                  {marriageOffer.stage === "offer" ? (
+                    <ChoicePrompt
+                      heading="A marriage?"
+                      text="You hold just one trump. Offer it face down and find a partner? Whoever accepts takes it and gives you a card."
+                      noLabel="No"
+                      yesLabel="Offer marriage"
+                      onNo={() => humanMarriageOffer(false)}
+                      onYes={() => humanMarriageOffer(true)}
+                    />
+                  ) : (
+                    <ChoicePrompt
+                      heading="Marriage!"
+                      text={`${playerName(marriageOffer.offerer)} holds just one trump and offers it to you. Accept, take the trump and give back your weakest card, and play together?`}
+                      noLabel="Decline"
+                      yesLabel="Accept"
+                      onNo={() => humanMarriageAnswer(false)}
+                      onYes={() => humanMarriageAnswer(true)}
+                    />
+                  )}
+                </View>
+              </>
+            ) : null}
 
             {/* Declaring a game: the table darkens, your hand stays visible above it. */}
             {showPicker ? (

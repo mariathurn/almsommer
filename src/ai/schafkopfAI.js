@@ -246,40 +246,59 @@ export function getAIMove(hand, playedCards, gameName = "Pass") {
     const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
     return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
 }
-// Marriage ("Hochzeit"): the announcer holds exactly one trump and offers it
-// face down. Starting with the player to their left, each is asked in turn;
-// a computer player accepts with four or more trumps. The partner takes the
-// trump and gives back a card (their weakest non-trump). If nobody accepts,
-// partner is null and nothing changes (this game has no forced marriage).
-// Returns { partner, trump, given, players }.
-export const MARRIAGE_ACCEPT_TRUMPS = 4;
+// Marriage ("Hochzeit"): a player holding exactly one trump may offer it face
+// down, before anyone announces a game. Starting with the player to their
+// left, each is asked in turn whether to accept. A computer player accepts
+// with four good trumps (shepherds, dogs, the red sheep or red grain). The
+// partner takes the trump and gives back a card (their weakest non-trump).
+// This game has no forced marriage: if nobody accepts, announcing goes on.
 const seatOrder = ["south", "west", "north", "east"];
+export const MARRIAGE_GOOD_TRUMPS = 4;
 
-export function resolveMarriage(players, callerName = "south", gameName = "Marriage") {
-    const hand = players[callerName];
+const countTrumps = (hand, gameName = "Marriage") => hand.filter((card) => isTrumpForGame(card, gameName)).length;
+
+export function canOfferMarriage(hand) {
+    return countTrumps(hand) === 1;
+}
+
+export function isGoodTrump(card) {
+    if (!isTrumpForGame(card, "Marriage")) return false;
+    return card.rank === "O" || card.rank === "U" || (card.suit === "heart" && (card.rank === "A" || card.rank === "10"));
+}
+
+export function wantsToAcceptMarriage(hand) {
+    return hand.filter(isGoodTrump).length >= MARRIAGE_GOOD_TRUMPS;
+}
+
+// The players asked, in order, when `offerer` offers a marriage.
+export function marriageAskOrder(offerer) {
+    const start = seatOrder.indexOf(offerer);
+    return [1, 2, 3].map((step) => seatOrder[(start + step) % seatOrder.length]);
+}
+
+// The card swap once `partner` accepted. Returns { trump, given, players }.
+export function swapMarriageCards(players, offerer, partner, gameName = "Marriage") {
+    const hand = players[offerer];
     const trump = hand.find((card) => isTrumpForGame(card, gameName));
-    const start = seatOrder.indexOf(callerName);
-    const askOrder = [1, 2, 3].map((step) => seatOrder[(start + step) % seatOrder.length]);
-    const partner = askOrder.find(
-        (seat) => players[seat].filter((card) => isTrumpForGame(card, gameName)).length >= MARRIAGE_ACCEPT_TRUMPS
-    );
-    if (!trump || !partner) return { partner: null, trump, given: null, players };
-
     const partnerHand = players[partner];
     const plain = partnerHand.filter((card) => !isTrumpForGame(card, gameName));
     const pool = plain.length ? plain : partnerHand;
-    const given = pool.reduce((low, card) =>
-        (plainRank[card.rank] ?? 0) < (plainRank[low.rank] ?? 0) ? card : low
-    );
-
+    const given = pool.reduce((low, card) => ((plainRank[card.rank] ?? 0) < (plainRank[low.rank] ?? 0) ? card : low));
     return {
-        partner,
         trump,
         given,
         players: {
             ...players,
-            [callerName]: [...hand.filter((card) => card !== trump), given],
+            [offerer]: [...hand.filter((card) => card !== trump), given],
             [partner]: [...partnerHand.filter((card) => card !== given), trump],
         },
     };
+}
+
+// Asks the computer players in turn (for tests and simple uses).
+// Returns { partner, trump, given, players }; partner is null if nobody accepts.
+export function resolveMarriage(players, offerer = "south") {
+    const partner = marriageAskOrder(offerer).find((seat) => wantsToAcceptMarriage(players[seat]));
+    if (!canOfferMarriage(players[offerer]) || !partner) return { partner: null, trump: null, given: null, players };
+    return { partner, ...swapMarriageCards(players, offerer, partner) };
 }

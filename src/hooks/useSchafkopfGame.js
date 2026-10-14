@@ -10,7 +10,10 @@ import {
     getTrumpStrength,
     isTrumpForGame,
     parseGame,
-    resolveMarriage,
+    canOfferMarriage,
+    marriageAskOrder,
+    swapMarriageCards,
+    wantsToAcceptMarriage,
 } from "../ai/schafkopfAI";
 
 // Timing constants - adjust these to change all delays at once
@@ -121,6 +124,9 @@ function useSchafkopfGame() {
     const [bidding, setBidding] = useState(null);
     // The latest decision while announcing, for the banner: { seat, game }.
     const [lastBid, setLastBid] = useState(null);
+    // A marriage offer being answered, before announcing:
+    // { offerer, stage: "offer" (Maria deciding to offer) | "ask", order, index, lead, declinedBy }
+    const [marriageOffer, setMarriageOffer] = useState(null);
     const aiTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
@@ -178,7 +184,24 @@ function useSchafkopfGame() {
         setForehand(lead);
         setCaller(null);
         setLastBid(null);
-        setBidding({ order: rotateFrom(lead), index: 0, best: null });
+        setBidding(null);
+        setMarriageOffer(null);
+        // Before anyone announces, a player with exactly one trump may offer a
+        // marriage (the first such player from the forehand). A computer player
+        // always offers; Maria is asked.
+        const offerer = rotateFrom(lead).find((seat) => canOfferMarriage(nextPlayers[seat]));
+        if (offerer) {
+            setMarriageOffer({
+                offerer,
+                stage: offerer === humanPlayer ? "offer" : "ask",
+                order: marriageAskOrder(offerer),
+                index: 0,
+                lead,
+                declinedBy: [],
+            });
+        } else {
+            setBidding({ order: rotateFrom(lead), index: 0, best: null });
+        }
 
         setPlayers(nextPlayers);
         setDealtHands(nextPlayers);
@@ -238,20 +261,70 @@ function useSchafkopfGame() {
         }
     }, [calledAce, revealedAceOwner, selectedGame]);
 
-    // Maria announces a Marriage. If someone accepts, the partner swaps a card
-    // for her one trump and the game starts. If nobody does, there is no
-    // marriage (no forced marriage): she chooses another game or passes.
-    const commitMarriage = useCallback((result, marriageCaller) => {
-        setPlayers(result.players);
-        setMarriage({ partner: result.partner, trump: result.trump, given: result.given });
-        const callerTeam = [marriageCaller, result.partner];
-        setTeams({ callerTeam, opposingTeam: playerOrder.filter((p) => !callerTeam.includes(p)) });
-        setSelectedGame("Marriage");
+    // --- Marriage, before announcing ----------------------------------------
+    // A partner accepted: they swap a card for the offerer's one trump, and
+    // the Marriage is played (two against two).
+    const commitMarriage = useCallback(
+        (offerer, partner) => {
+            const result = swapMarriageCards(players, offerer, partner);
+            setPlayers(result.players);
+            setMarriage({ partner, trump: result.trump, given: result.given });
+            const callerTeam = [offerer, partner];
+            setTeams({ callerTeam, opposingTeam: playerOrder.filter((p) => !callerTeam.includes(p)) });
+            setMarriageOffer(null);
+            setCaller(offerer);
+            setSelectedGame("Marriage");
+        },
+        [players]
+    );
+
+    // Nobody accepted (or Maria didn't offer): announcing goes on as usual.
+    const startBidding = useCallback((lead) => {
+        setMarriageOffer(null);
+        setBidding({ order: rotateFrom(lead), index: 0, best: null });
     }, []);
 
-    // Whether someone would accept Maria's marriage (checked before she
-    // announces it; the cards are only swapped if the Marriage is played).
-    const canMarry = useCallback(() => Boolean(resolveMarriage(players, humanPlayer).partner), [players, humanPlayer]);
+    // One answer to a marriage offer.
+    const answerMarriage = useCallback(
+        (seat, accepts) => {
+            if (!marriageOffer || marriageOffer.stage !== "ask" || marriageOffer.order[marriageOffer.index] !== seat) return;
+            if (accepts) {
+                commitMarriage(marriageOffer.offerer, seat);
+                return;
+            }
+            const index = marriageOffer.index + 1;
+            const declinedBy = [...marriageOffer.declinedBy, seat];
+            if (index >= marriageOffer.order.length) {
+                setLastBid({ seat: marriageOffer.offerer, game: null, marriageDeclined: true });
+                startBidding(marriageOffer.lead);
+            } else {
+                setMarriageOffer({ ...marriageOffer, index, declinedBy });
+            }
+        },
+        [marriageOffer, commitMarriage, startBidding]
+    );
+
+    // Maria, holding one trump: offer a marriage, or go straight to announcing.
+    const humanMarriageOffer = useCallback(
+        (offers) => {
+            if (!marriageOffer || marriageOffer.stage !== "offer") return;
+            if (offers) setMarriageOffer({ ...marriageOffer, stage: "ask" });
+            else startBidding(marriageOffer.lead);
+        },
+        [marriageOffer, startBidding]
+    );
+
+    // Maria, asked by someone else: accept the marriage or decline.
+    const humanMarriageAnswer = useCallback((accepts) => answerMarriage(humanPlayer, accepts), [answerMarriage, humanPlayer]);
+
+    // Computer players answer a marriage offer in turn.
+    useEffect(() => {
+        if (!marriageOffer || marriageOffer.stage !== "ask") return undefined;
+        const seat = marriageOffer.order[marriageOffer.index];
+        if (seat === humanPlayer) return undefined;
+        const timer = setTimeout(() => answerMarriage(seat, wantsToAcceptMarriage(players[seat])), AI_BID_DELAY);
+        return () => clearTimeout(timer);
+    }, [marriageOffer, players, humanPlayer, answerMarriage]);
 
     // The end of announcing: the best game is played, or the Cowards Game if
     // everybody passed.
@@ -264,14 +337,10 @@ function useSchafkopfGame() {
                 return;
             }
             setCaller(best.seat);
-            if (best.game === "Marriage") {
-                commitMarriage(resolveMarriage(players, best.seat), best.seat);
-                return;
-            }
             setCalledAce(best.game === "Sau Spiel" ? best.calledAce : null);
             setSelectedGame(best.game);
         },
-        [players, commitMarriage]
+        []
     );
 
     // One player's say: a game ({ game, calledAce }) or null to pass.
@@ -363,7 +432,7 @@ function useSchafkopfGame() {
 
     useEffect(() => {
         // Cards are only played once a game has been decided.
-        if (bidding || selectedGame === "Pass") return undefined;
+        if (bidding || marriageOffer || selectedGame === "Pass") return undefined;
         if (currentTurn && currentTurn !== humanPlayer && players[currentTurn].length > 0) {
             if (aiTimeoutRef.current || isProcessingRef.current) return; // Already pending or processing
 
@@ -418,7 +487,7 @@ function useSchafkopfGame() {
             };
         }
         return undefined;
-    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, revealCalledAceIfNeeded]);
+    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, marriageOffer, revealCalledAceIfNeeded]);
 
     return {
         players,
@@ -437,7 +506,14 @@ function useSchafkopfGame() {
         trickPoints,
         roundResult,
         marriage,
-        canMarry,
+        marriageOffer: marriageOffer && {
+            offerer: marriageOffer.offerer,
+            stage: marriageOffer.stage,
+            seat: marriageOffer.stage === "ask" ? marriageOffer.order[marriageOffer.index] : marriageOffer.offerer,
+            declinedBy: marriageOffer.declinedBy,
+        },
+        humanMarriageOffer,
+        humanMarriageAnswer,
         caller,
         forehand,
         bidding: bidding && { seat: bidding.order[bidding.index], best: bidding.best },

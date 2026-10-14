@@ -6,9 +6,15 @@ import { chooseCard, decideAnnouncement, getGameRank, getWinningIndex } from "./
 const c = (suit, rank) => ({ suit, rank });
 
 test("Strong hands announce, weak hands pass", () => {
-    // Six leaf cards incl. two shepherds: a Leaf Solo
+    // Six leaf trumps: a Leaf Solo
     const solo = [c("acorn", "O"), c("leaf", "O"), c("leaf", "A"), c("leaf", "10"), c("leaf", "K"), c("leaf", "9")];
     assert.equal(decideAnnouncement(solo).game, "Solo:leaf");
+    // Five high leaf trumps and a sheep: also a Solo
+    const highSolo = [c("acorn", "O"), c("leaf", "O"), c("bell", "U"), c("leaf", "10"), c("leaf", "K"), c("bell", "A")];
+    assert.equal(decideAnnouncement(highSolo).game, "Solo:leaf");
+    // Five trumps, but only two high ones: no Solo
+    const thin = [c("acorn", "O"), c("leaf", "O"), c("leaf", "A"), c("leaf", "10"), c("leaf", "K"), c("bell", "A")];
+    assert.notEqual(decideAnnouncement(thin)?.game, "Solo:leaf");
 
     // Four Sheep Game trumps and a bell card without the bell sheep
     const sheep = [c("acorn", "O"), c("heart", "U"), c("heart", "A"), c("heart", "9"), c("bell", "9"), c("leaf", "K")];

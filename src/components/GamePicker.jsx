@@ -127,6 +127,38 @@ function SuitChip({ suit, selected, disabled, onPress }) {
     );
 }
 
+// A yes/no question in the style of the game panel (used for the marriage:
+// offering one, or accepting someone else's).
+export function ChoicePrompt({ heading, text, noLabel, yesLabel, onNo, onYes }) {
+    return (
+        <View style={[styles.panel, styles.promptPanel]}>
+            <DottedPaper />
+            <View style={styles.content}>
+                <Text style={styles.heading}>{heading}</Text>
+                <Text style={styles.subheading}>{text}</Text>
+                <View style={styles.actions}>
+                    <Pressable
+                        onPress={onNo}
+                        accessibilityRole="button"
+                        accessibilityLabel={noLabel}
+                        style={({ hovered, pressed }) => [styles.passButton, (hovered || pressed) && styles.tileHovered]}
+                    >
+                        <Text style={styles.passLabel}>{noLabel}</Text>
+                    </Pressable>
+                    <Pressable
+                        onPress={onYes}
+                        accessibilityRole="button"
+                        accessibilityLabel={yesLabel}
+                        style={({ pressed }) => [styles.confirmButton, pressed && styles.confirmPressed]}
+                    >
+                        <Text style={styles.confirmLabel}>{yesLabel}</Text>
+                    </Pressable>
+                </View>
+            </View>
+        </View>
+    );
+}
+
 // declined: games tried and turned down this round, e.g. { Marriage: "Nobody accepted your marriage" }.
 function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, declined = null }) {
     const [selected, setSelected] = useState(null);
@@ -273,6 +305,10 @@ const styles = StyleSheet.create({
         overflow: "hidden",
         alignSelf: "center",
         ...softShadow,
+    },
+    promptPanel: {
+        width: "100%",
+        maxWidth: 420,
     },
     content: {
         padding: 18,
