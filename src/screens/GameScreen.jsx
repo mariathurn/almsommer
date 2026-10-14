@@ -9,6 +9,7 @@ import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { getSauSpielStatus } from "../ai/schafkopfAI";
 import { getGameType } from "../data/gameTypes";
 import { colors, getTableLayout } from "../theme";
+import { sounds } from "../audio/sounds";
 
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
@@ -30,6 +31,15 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     collectTrick,
     roundResult,
   } = useSchafkopfGame();
+
+  // A card landing on the table, and a finished trick being collected.
+  const previousTrickSizeRef = useRef(0);
+  useEffect(() => {
+    const previous = previousTrickSizeRef.current;
+    previousTrickSizeRef.current = playedCards.length;
+    if (playedCards.length > previous) sounds.placeCard();
+    else if (previous === 4 && playedCards.length === 0) sounds.collectTrick();
+  }, [playedCards.length]);
 
   // Add each finished round to the session balance exactly once.
   const scoredRoundRef = useRef(null);
@@ -73,6 +83,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const needsGame = hasCards && !gameType && playedCards.length === 0;
 
   const handleDeal = () => {
+    sounds.shuffle();
     dealHands();
     setIsPickerOpen(true);
   };

@@ -23,6 +23,7 @@ src/
 │   ├── MenuScreen.jsx          # Title screen: lettering, shepherds sliding in (four in landscape, a random pair in portrait), hand-drawn buttons
 │   ├── GameScreen.jsx          # The card table, wires game state to the UI
 │   └── DeckScreen.jsx          # Overview of all 24 cards, tap one to enlarge it
+├── audio/sounds.js             # Music and effects (expo-audio): meadow loop, sheep at start, shuffle, card place, trick pick-up
 ├── theme.js                     # Colours and table layout maths (card sizes, seat positions)
 │
 ├── components/                  # React Native UI components
@@ -132,6 +133,7 @@ src/
 - "Almsommer": warm linen paper with thin keylines and soft shadows on a watercolour meadow, with a bright yellow accent (`#ffe300`). Palette, suit colour names (orange, red, blue, green), fonts and the shared `paper` style live in `src/theme.js`
 - Type: three fonts in the interface. Caveat Brush for big moments (headings, banner, results), Alfa Slab One for all numbers, Alegreya Sans for everything else (card name tags keep Barlow Condensed). Gold `#eec652`, ink `#1f1c19` and paper come from the cards
 - Round flow as in the rulebook: a round Deal button in the middle of the blanket (only when nobody holds cards), then the game picker. It sits above your hand and darkens only the table behind it, offers only the games your hand allows (`getAvailableGames`) plus Pass; passing plays the Cowards Game. Cards can be played once a game is declared
+- Sound (`src/audio/sounds.js`, files in `src/assets/audio/`): `sheep.mp3` plays when you tap play on the title screen; `meadow.mp3` loops from when the app opens (on the web straight away if the browser allows it, otherwise with the first tap or key press anywhere, since browsers block sound before that); `card-shuffle` on deal at 1.6x speed (`SHUFFLE_RATE`); a random `card-place-1..4` for every card played; `card-shove-1` when a trick is collected. Effects are M4A converted from the OGG originals (`afconvert -f m4af -d aac`), since iOS can't play OGG
 - When a trick is complete, the winning card and the winner's name tag shine once with a gold halo (`WinnerGlow.jsx`)
 - Trump cards get a gold frame with ink dots (`#eec652`) as well as the crowned corner
 - A finished trick stays on the blanket until you tap anywhere; opponents take 0.9 s per card

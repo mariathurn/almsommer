@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -18,6 +18,7 @@ import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
 import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import { colors } from "./theme";
+import { sounds, startAmbience } from "./audio/sounds";
 
 // Three screens, switched with plain state: "menu", "game" and "deck".
 // Leaving the game unmounts it, so Play always starts a fresh table.
@@ -44,6 +45,9 @@ function App() {
     );
   const openMenu = () => setScreen("menu");
 
+  // Meadow music on loop from the moment the app opens.
+  useEffect(() => startAmbience(), []);
+
   return (
     <SafeAreaProvider>
       <StatusBar hidden />
@@ -55,7 +59,13 @@ function App() {
             ) : screen === "deck" ? (
               <DeckScreen onBack={openMenu} />
             ) : (
-              <MenuScreen onPlay={() => setScreen("game")} onOpenDeck={() => setScreen("deck")} />
+              <MenuScreen
+                onPlay={() => {
+                  sounds.sheep();
+                  setScreen("game");
+                }}
+                onOpenDeck={() => setScreen("deck")}
+              />
             )}
           </Stage>
         )}
