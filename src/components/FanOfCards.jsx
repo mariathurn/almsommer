@@ -96,7 +96,6 @@ function HandCard({
                 disabled={!isPlayable}
                 accessibilityRole="button"
                 accessibilityHint={accessibilityHint}
-                style={isFaded && styles.illegal}
             >
                 <Animated.View style={{ transform: [{ translateY: rise }] }}>
                     <Card card={card} faceUp height={cardHeight} />
@@ -104,6 +103,13 @@ function HandCard({
                         <Animated.View style={[StyleSheet.absoluteFill, { opacity: trumpOpacity }]} pointerEvents="none">
                             <Card card={card} faceUp isTrump height={cardHeight} />
                         </Animated.View>
+                    ) : null}
+                    {/* Cards you may not play stay solid but are greyed a little. */}
+                    {isFaded ? (
+                        <View
+                            pointerEvents="none"
+                            style={[StyleSheet.absoluteFill, styles.dim, { borderRadius: cardHeight * 0.045 }]}
+                        />
                     ) : null}
                 </Animated.View>
             </Pressable>
@@ -123,6 +129,7 @@ function FanOfCards({
     trumpGame = null,
     highlightTrumps = false,
     confirmTap = false,
+    calledAce = null,
 }) {
     // Phones: the first tap raises a card, a second tap on it plays it.
     const [selectedId, setSelectedId] = useState(null);
@@ -161,7 +168,7 @@ function FanOfCards({
                     );
                 }
 
-                const isLegal = canPlayCard(card, cards, playedCards, trumpGame ?? undefined);
+                const isLegal = canPlayCard(card, cards, playedCards, trumpGame ?? undefined, calledAce);
                 const handIndex = cards.indexOf(card);
                 const isPlayable = isCurrentTurn && isLegal;
 
@@ -203,8 +210,8 @@ const styles = StyleSheet.create({
         top: 0,
         transformOrigin: "50% 100%",
     },
-    illegal: {
-        opacity: 0.5,
+    dim: {
+        backgroundColor: "rgba(40, 36, 32, 0.32)",
     },
 });
 

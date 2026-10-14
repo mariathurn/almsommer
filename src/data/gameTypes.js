@@ -54,6 +54,12 @@ export function getAvailableGames(hand) {
 
 // English suit names, as in the Solo trump choice.
 export const suitNamesEn = { acorn: "Acorn", heart: "Heart", leaf: "Leaf", bell: "Bell" };
+const rankNamesEn = { "9": "hat", K: "staff", "10": "grain", A: "sheep", U: "dog", O: "shepherd" };
+
+// A card's name in the interface, e.g. "Leaf grain".
+export function getCardName(card) {
+    return `${suitNamesEn[card.suit]} ${rankNamesEn[card.rank]}`;
+}
 
 // Accepts full game values like "Solo:leaf" too.
 export function getGameType(value) {

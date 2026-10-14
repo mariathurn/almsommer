@@ -67,6 +67,11 @@ export const CARD_RATIO = 500 / 784;
 const EDGE = 10;
 const LABEL_HEIGHT = 30;
 const TAG_HEIGHT = 30;
+// Profiles and name tags are this much larger in the web (landscape) view.
+export const PROFILE_SCALE = 1.4;
+// Size of an opponent's profile there (portrait ring and name tag).
+const PROFILE_RING = 70 * PROFILE_SCALE + 10;
+const PROFILE_WIDTH = 150;
 // Share of your cards' height that shows above the bottom edge at rest.
 export const HAND_VISIBLE = 0.8;
 
@@ -87,17 +92,18 @@ export function getTableLayout(width, height) {
     // for the blanket.
     const compact = height < 460;
     const southCardHeight = Math.min(height * (compact ? 0.36 : 0.38), 280);
-    const medallionSize = compact ? 40 : Math.max(Math.min(height * 0.17, 84), 46);
 
     const southFanTop = height - southCardHeight * HAND_VISIBLE;
-    const northBottom = EDGE + medallionSize * 1.18 + (compact ? 0 : TAG_HEIGHT);
-    const southTop = southFanTop - (compact ? 12 : LABEL_HEIGHT);
+    // The player at the top has the name tag beside the portrait, so only the
+    // portrait ring's height counts.
+    const northBottom = EDGE + PROFILE_RING;
+    const southTop = southFanTop - 12;
     const gap = southTop - northBottom;
 
     // The trick is played onto a picnic blanket between the side seats.
-    const sideSeatWidth = medallionSize + 90;
-    const blanketHeight = Math.max(gap - 8, 90);
-    const blanketWidth = Math.max(Math.min(width - 2 * (EDGE + sideSeatWidth), blanketHeight * 1.8, 760), 140);
+    const sideSeatWidth = PROFILE_WIDTH;
+    // The trick is played on the painted table circle (as on phones).
+    const discSize = Math.max(Math.min((gap - 8) * 0.82, width - 2 * (EDGE + sideSeatWidth)), 140);
 
     return {
         width,
@@ -108,10 +114,10 @@ export function getTableLayout(width, height) {
         tagHeight: TAG_HEIGHT,
         southCardHeight,
         southFanTop,
-        medallionSize,
         blanket: {
-            width: blanketWidth,
-            height: blanketHeight,
+            round: true,
+            width: discSize,
+            height: discSize,
             centerX: width / 2,
             centerY: northBottom + gap / 2,
         },
@@ -121,7 +127,8 @@ export function getTableLayout(width, height) {
 // Phones in portrait: the opponents' name tags in a row along the top, a round
 // paper disc in the middle where the trick is played, and a large hand at the
 // bottom running off the edge, with your name tag at the very bottom.
-const PORTRAIT_TAG_ROW = 64;
+// Room for the opponents' profiles (portrait, name tag, stagger) at the top.
+const PORTRAIT_TAG_ROW = 160;
 // Height the compact game panel needs above the hand, measured from the top of the table.
 const PORTRAIT_PANEL_ROOM = 540;
 
@@ -132,11 +139,11 @@ function getPortraitTableLayout(width, height) {
     const southFanTop = height - southCardHeight * 0.84;
     const opponentsBottom = EDGE + PORTRAIT_TAG_ROW;
     const gap = southFanTop - opponentsBottom;
-    // The trick (cards fanning out above the disc, plus the disc) spans about
-    // 0.63 disc sizes above the disc centre and 0.5 below. It sits a little
-    // above the middle of the gap.
-    const discSize = Math.max(Math.min(width * 0.7, (gap - 24) / 1.13), 160);
-    const discCenterY = opponentsBottom + (gap - 1.13 * discSize) * 0.3 + 0.63 * discSize;
+    // The trick's cards fan out about 0.63 disc sizes above its centre, which
+    // limits how large the disc can be.
+    const discSize = Math.max(Math.min(width * 0.6, (gap - 24) / 1.13), 150);
+    // The disc itself sits in the middle between the opponents and your hand.
+    const discCenterY = opponentsBottom + gap / 2;
 
     return {
         width,
@@ -148,7 +155,6 @@ function getPortraitTableLayout(width, height) {
         tagHeight: TAG_HEIGHT,
         southCardHeight,
         southFanTop,
-        medallionSize: 0,
         blanket: {
             round: true,
             width: discSize,

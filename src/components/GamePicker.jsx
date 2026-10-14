@@ -127,7 +127,8 @@ function SuitChip({ suit, selected, disabled, onPress }) {
     );
 }
 
-function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview }) {
+// declined: games tried and turned down this round, e.g. { Marriage: "Nobody accepted your marriage" }.
+function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, declined = null }) {
     const [selected, setSelected] = useState(null);
     const [hovered, setHovered] = useState(null);
     const [soloSuit, setSoloSuit] = useState("heart");
@@ -135,6 +136,11 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview }) {
 
     const games = gameTypes.filter((game) => game.announceable !== false);
     const callable = sheepSuits.filter((suit) => canCallAce(suit, hand));
+
+    // A game turned down this round (e.g. a marriage nobody accepted) can't stay selected.
+    useEffect(() => {
+        if (selected && declined?.[selected]) setSelected(null);
+    }, [declined, selected]);
 
     // Fresh choice after every deal.
     useEffect(() => {
@@ -192,7 +198,7 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview }) {
                             width={tileWidth}
                             artHeight={artHeight}
                             selected={selected === game.value}
-                            reason={getUnavailableReason(game, hand)}
+                            reason={declined?.[game.value] ?? getUnavailableReason(game, hand)}
                             onSelect={() => setSelected(game.value)}
                             onHover={setHovered}
                         />

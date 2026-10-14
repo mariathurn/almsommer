@@ -10,6 +10,7 @@ import PaintedButton from "../components/PaintedButton";
 import SceneBackground from "../components/SceneBackground";
 import SettingsPanel from "../components/SettingsPanel";
 import { useStage } from "../components/Stage";
+import useHotkey from "../hooks/useHotkey";
 import { TITLE_RATIO, menuButtons, menuShepherds, titleLettering } from "../data/uiArt";
 
 // Landscape: the inner figure of each pair overlaps the outer one by this
@@ -89,6 +90,8 @@ function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
     const { width, height, isPortrait } = useStage();
     const [pair] = useState(() => portraitPairs[Math.floor(Math.random() * portraitPairs.length)]);
     const [showSettings, setShowSettings] = useState(false);
+    // Esc closes the settings (on other screens it goes back to the menu).
+    useHotkey("Escape", () => setShowSettings(false), showSettings);
 
     const figures = isPortrait ? getPortraitFigures(width, height, pair) : getLandscapeFigures(width, height);
     const titleWidth = isPortrait ? width * 0.9 : Math.min(width * 0.56, 760);

@@ -18,6 +18,7 @@ import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
 import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
+import useHotkey from "./hooks/useHotkey";
 import { colors } from "./theme";
 import { sounds, startAmbience } from "./audio/sounds";
 
@@ -46,6 +47,15 @@ function App() {
       Object.fromEntries(Object.entries(scores).map(([player, total]) => [player, total + (deltas[player] ?? 0)]))
     );
   const openMenu = () => setScreen("menu");
+  const startGame = () => {
+    sounds.sheep();
+    setScreen("game");
+  };
+
+  // Web shortcuts: Esc back to the menu, P to play (from the menu).
+  const ready = fontsLoaded && cardArtLoaded;
+  useHotkey("Escape", openMenu, ready && screen !== "menu");
+  useHotkey("p", startGame, ready && screen === "menu");
 
   // Meadow music on loop from the moment the app opens.
   useEffect(() => startAmbience(), []);
@@ -64,10 +74,7 @@ function App() {
               <AchievementsScreen onBack={openMenu} />
             ) : (
               <MenuScreen
-                onPlay={() => {
-                  sounds.sheep();
-                  setScreen("game");
-                }}
+                onPlay={startGame}
                 onOpenAchievements={() => setScreen("achievements")}
                 onOpenDeck={() => setScreen("deck")}
               />

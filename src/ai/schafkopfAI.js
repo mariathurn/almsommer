@@ -124,7 +124,35 @@ export function getSauSpielStatus(playerName, callerName, teams, revealedAceOwne
     return teams.callerTeam.includes(playerName) ? "Partner" : "Opponent";
 }
 
-export function canPlayCard(card, hand, playedCards, gameName = "Pass") {
+// Schafkopf rules for whoever holds the called sheep ("Rufsau") in a Sheep
+// Game. Returns true/false when one of them decides, or null otherwise.
+// - When the called colour is led ("gesucht"), the sheep must be played.
+// - Leading: the called colour may only be led with the sheep itself, unless
+//   the holder has four or more cards of that colour ("davonlaufen").
+// - The sheep may not be thrown off on another colour or on trumps, except
+//   in the last trick.
+function checkCalledSheep(card, hand, playedCards, gameName, calledAce) {
+    if (parseGame(gameName).base !== "Sau Spiel" || !calledAce) return null;
+    const isSheep = (c) => c.suit === calledAce && c.rank === "A";
+    if (!hand.some(isSheep)) return null;
+    const plainOfColour = (c) => c.suit === calledAce && !isTrumpForGame(c, gameName);
+
+    if (playedCards.length === 0) {
+        if (plainOfColour(card) && !isSheep(card)) return hand.filter(plainOfColour).length >= 4;
+        return null;
+    }
+
+    const led = playedCards[0].card;
+    if (plainOfColour(led)) return isSheep(card);
+    if (isSheep(card)) return hand.length === 1;
+    return null;
+}
+
+export function canPlayCard(card, hand, playedCards, gameName = "Pass", calledAce = null) {
+    // Sheep Game: the holder of the called sheep is bound by extra rules.
+    const calledRule = checkCalledSheep(card, hand, playedCards, gameName, calledAce);
+    if (calledRule !== null) return calledRule;
+
     // If this is the first card of the trick, any card is legal
     if (playedCards.length === 0) {
         return true;
@@ -217,4 +245,41 @@ export function getAIMove(hand, playedCards, gameName = "Pass") {
     // Must play trump, play lowest
     const lowestRank = Math.min(...hand.map((c) => rankValue[c.rank]));
     return hand.findIndex((c) => rankValue[c.rank] === lowestRank);
+}
+// Marriage ("Hochzeit"): the announcer holds exactly one trump and offers it
+// face down. Starting with the player to their left, each is asked in turn;
+// a computer player accepts with four or more trumps. The partner takes the
+// trump and gives back a card (their weakest non-trump). If nobody accepts,
+// partner is null and nothing changes (this game has no forced marriage).
+// Returns { partner, trump, given, players }.
+export const MARRIAGE_ACCEPT_TRUMPS = 4;
+const seatOrder = ["south", "west", "north", "east"];
+
+export function resolveMarriage(players, callerName = "south", gameName = "Marriage") {
+    const hand = players[callerName];
+    const trump = hand.find((card) => isTrumpForGame(card, gameName));
+    const start = seatOrder.indexOf(callerName);
+    const askOrder = [1, 2, 3].map((step) => seatOrder[(start + step) % seatOrder.length]);
+    const partner = askOrder.find(
+        (seat) => players[seat].filter((card) => isTrumpForGame(card, gameName)).length >= MARRIAGE_ACCEPT_TRUMPS
+    );
+    if (!trump || !partner) return { partner: null, trump, given: null, players };
+
+    const partnerHand = players[partner];
+    const plain = partnerHand.filter((card) => !isTrumpForGame(card, gameName));
+    const pool = plain.length ? plain : partnerHand;
+    const given = pool.reduce((low, card) =>
+        (plainRank[card.rank] ?? 0) < (plainRank[low.rank] ?? 0) ? card : low
+    );
+
+    return {
+        partner,
+        trump,
+        given,
+        players: {
+            ...players,
+            [callerName]: [...hand.filter((card) => card !== trump), given],
+            [partner]: [...partnerHand.filter((card) => card !== given), trump],
+        },
+    };
 }

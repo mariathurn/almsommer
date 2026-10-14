@@ -1,58 +1,31 @@
 /* PlayerPanel
 
-Owns one seat at the table. South is your fanned hand with a name tag above it.
-Opponents are portrait medallions with their name tag and how many cards they
-still hold; the medallion gets a gold ring while it is their turn. */
+Owns one seat at the table. South is your fanned hand, with your dark name
+tag (role, game and coins) at the bottom of the screen. Opponents are
+portrait profiles (see OpponentProfile). */
 
 import { StyleSheet, Text, View } from "react-native";
 import FanOfCards from "./FanOfCards";
-import PlayerName from "./PlayerName";
-import { CARD_RATIO, colors, fanWidth, fonts, paper } from "../theme";
+import OpponentProfile, { CoinBox, DarkNameTag } from "./OpponentProfile";
+import { getGameType } from "../data/gameTypes";
+import { CARD_RATIO, PROFILE_SCALE, fanWidth } from "../theme";
 
 const SOUTH_SPACING = 0.55;
 const SOUTH_ROTATION_STEP = 5;
-const seatColors = { west: colors.weide, north: colors.enzian, east: colors.alpenrose };
 
-function Medallion({ name, seat, size, isCurrentTurn, cardCount }) {
-    const ring = size * 0.09;
-    const outer = size + ring * 2;
-
-    return (
-        <View style={{ width: outer, height: outer, alignItems: "center", justifyContent: "center" }}>
-            {isCurrentTurn ? <View style={[styles.glow, { width: outer, height: outer, borderRadius: outer / 2 }]} /> : null}
-            <View
-                style={[
-                    styles.medallion,
-                    {
-                        width: size,
-                        height: size,
-                        borderRadius: size / 2,
-                        borderColor: isCurrentTurn ? colors.hay : seatColors[seat],
-                    },
-                ]}
-            >
-                <View style={[styles.wash, { backgroundColor: seatColors[seat] }]} />
-                <Text style={[styles.initial, { fontSize: size * 0.48 }]}>{name.charAt(0)}</Text>
-            </View>
-            {cardCount > 0 ? (
-                <View style={[styles.count, { minWidth: size * 0.38, height: size * 0.38 }]}>
-                    <Text style={[styles.countText, { fontSize: size * 0.2 }]}>{cardCount}</Text>
-                </View>
-            ) : null}
-        </View>
-    );
-}
-
-// Portrait: the three opponents share the top row, one column each.
+// Portrait: the three opponents share the top row, one column each, at
+// slightly different heights.
 const portraitColumn = { west: 0, north: 1, east: 2 };
+const portraitDrop = { west: 34, north: 0, east: 20 };
 
 function getOpponentPlacement(seat, layout) {
-    const { edge, blanket, medallionSize } = layout;
+    const { edge, blanket } = layout;
     if (layout.portrait) {
         const columnWidth = layout.width / 3;
         return { left: portraitColumn[seat] * columnWidth, width: columnWidth, top: edge, alignItems: "center" };
     }
-    const lift = { transform: [{ translateY: -medallionSize * 0.75 }] };
+    // Side profiles are centred on the blanket's middle (profile ≈ 175 high).
+    const lift = { transform: [{ translateY: -88 }] };
 
     switch (seat) {
         case "north":
@@ -62,13 +35,12 @@ function getOpponentPlacement(seat, layout) {
                 top: edge,
                 alignItems: "center",
                 justifyContent: "center",
-                ...(layout.compact && { flexDirection: "row", gap: 8 }),
             };
         case "west":
-            return { left: edge, top: blanket.centerY, alignItems: "flex-start", ...lift };
+            return { left: edge + 6, top: blanket.centerY, alignItems: "center", ...lift };
         case "east":
         default:
-            return { right: edge, top: blanket.centerY, alignItems: "flex-end", ...lift };
+            return { right: edge + 6, top: blanket.centerY, alignItems: "center", ...lift };
     }
 }
 
@@ -85,36 +57,49 @@ function PlayerPanel({
     showFriendBadge = false,
     trumpGame = null,
     highlightTrumps = false,
+    calledAce = null,
     isTrickWinner = false,
     score = 0,
 }) {
+    // Larger profiles and tags in the web (landscape) view.
+    const scale = layout.portrait ? 1 : PROFILE_SCALE;
+    // Your own tag looks like the opponents' and sits at the bottom, with your
+    // role and game ("Caller · Sheep Game") and your coins.
+    const badge = showFriendBadge ? "Friend" : getGameType(gameType)?.label;
     const tag = (
-        <PlayerName
-            style={layout.portrait && seat !== "south" && styles.portraitTag}
+        <DarkNameTag
             name={name}
-            gameType={gameType}
-            status={status}
-            showFriendBadge={showFriendBadge}
+            status={[status, badge].filter(Boolean).join(" · ") || null}
             isCurrentTurn={isCurrentTurn}
             isTrickWinner={isTrickWinner}
-            score={score}
-        />
+            scale={scale}
+        >
+            <CoinBox coins={score} scale={scale} />
+        </DarkNameTag>
     );
 
+    // Opponents: portrait profiles. On phones they stand in a staggered row at
+    // the top; in landscape at the top and on both sides of the blanket.
     if (seat !== "south") {
         return (
-            <View style={[styles.seat, getOpponentPlacement(seat, layout)]} pointerEvents="none">
-                {/* Portrait shows only the name tags, as in the phone sketch. */}
-                {layout.portrait ? null : (
-                    <Medallion
-                        name={name}
-                        seat={seat}
-                        size={layout.medallionSize}
-                        isCurrentTurn={isCurrentTurn}
-                        cardCount={cards.length}
-                    />
-                )}
-                {tag}
+            <View
+                style={[
+                    styles.seat,
+                    getOpponentPlacement(seat, layout),
+                    layout.portrait && { top: layout.edge + portraitDrop[seat] },
+                ]}
+                pointerEvents="none"
+            >
+                <OpponentProfile
+                    size={70 * scale}
+                    tagSide={!layout.portrait && seat === "north" ? "right" : "below"}
+                    seat={seat}
+                    name={name}
+                    status={status}
+                    coins={score}
+                    isCurrentTurn={isCurrentTurn}
+                    isTrickWinner={isTrickWinner}
+                />
             </View>
         );
     }
@@ -144,17 +129,14 @@ function PlayerPanel({
                     rotationStep={SOUTH_ROTATION_STEP}
                     trumpGame={trumpGame}
                     highlightTrumps={highlightTrumps}
+                    calledAce={calledAce}
                     confirmTap={Boolean(layout.portrait)}
                 />
             </View>
             <View
                 style={[
                     styles.label,
-                    layout.portrait
-                        ? styles.labelBottom
-                        : layout.compact
-                          ? { right: layout.width - left + 10, top: layout.southFanTop + layout.southCardHeight * 0.35 }
-                          : { left: cards.length ? left : layout.width / 2 - 80, top: layout.southFanTop - layout.labelHeight },
+                    styles.labelBottom,
                 ]}
                 pointerEvents="none"
             >
@@ -165,13 +147,6 @@ function PlayerPanel({
 }
 
 const styles = StyleSheet.create({
-    // Portrait opponents: name above status, like the phone sketch.
-    portraitTag: {
-        maxWidth: 136,
-        flexDirection: "column",
-        gap: 0,
-        paddingVertical: 4,
-    },
     labelBottom: {
         left: 0,
         right: 0,
@@ -188,45 +163,6 @@ const styles = StyleSheet.create({
     label: {
         position: "absolute",
         zIndex: 5,
-    },
-    glow: {
-        position: "absolute",
-        backgroundColor: colors.hayLight,
-        borderWidth: 2,
-        borderColor: colors.hay,
-        shadowColor: colors.hay,
-        shadowOpacity: 0.9,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 0 },
-    },
-    medallion: {
-        ...paper,
-        borderWidth: 3,
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-    },
-    wash: {
-        ...StyleSheet.absoluteFillObject,
-        opacity: 0.22,
-    },
-    initial: {
-        fontFamily: fonts.titleBlack,
-        color: colors.ink,
-    },
-    count: {
-        ...paper,
-        position: "absolute",
-        right: -2,
-        bottom: -2,
-        borderRadius: 999,
-        paddingHorizontal: 4,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    countText: {
-        fontFamily: fonts.number,
-        color: colors.ink,
     },
 });
 

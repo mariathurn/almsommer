@@ -2,7 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
 import { getTrickPoints, scoreRound } from "../ai/scoring";
 import { getGameType } from "../data/gameTypes";
-import { canPlayCard, getPlainRank, getSauSpielTeams, getTrumpStrength, isTrumpForGame } from "../ai/schafkopfAI";
+import {
+    canPlayCard,
+    getPlainRank,
+    getSauSpielTeams,
+    getTrumpStrength,
+    isTrumpForGame,
+    resolveMarriage,
+} from "../ai/schafkopfAI";
 
 // Timing constants - adjust these to change all delays at once
 // Milliseconds an opponent "thinks" before playing. A finished trick stays on
@@ -82,6 +89,14 @@ const getTrickWinner = (cards, gameName = "Pass") => {
     }, cards[0]);
 };
 
+// The AI's choice among the cards it may legally play (e.g. it must play the
+// called sheep when its colour is led). Returns an index into `hand`.
+const chooseLegalAIMove = (hand, playedCards, gameName, calledAce) => {
+    const legal = hand.filter((card) => canPlayCard(card, hand, playedCards, gameName, calledAce));
+    const options = legal.length ? legal : hand;
+    return hand.indexOf(options[getAIMove(options, playedCards, gameName)]);
+};
+
 const getAIMove = (hand, playedCards, gameName = "Pass") => {
     if (!hand || hand.length === 0) return 0;
 
@@ -157,6 +172,8 @@ function useSchafkopfGame() {
     const [trickPoints, setTrickPoints] = useState({ south: 0, west: 0, north: 0, east: 0 });
     // Set when the last trick is collected: winners, losers and coin changes.
     const [roundResult, setRoundResult] = useState(null);
+    // Marriage outcome: { partner, trump, given } (only set once someone accepted).
+    const [marriage, setMarriage] = useState(null);
     const [humanPlayer] = useState("south");
     const aiTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
@@ -173,7 +190,8 @@ function useSchafkopfGame() {
     useEffect(() => {
         if (selectedGame !== "Sau Spiel") {
             setCalledAce(null);
-            setTeams({ callerTeam: [], opposingTeam: [] });
+            // A Marriage sets its teams when it is announced.
+            if (selectedGame !== "Marriage") setTeams({ callerTeam: [], opposingTeam: [] });
             setRevealedAceOwner(null);
             return;
         }
@@ -211,6 +229,7 @@ function useSchafkopfGame() {
         setRevealedAceOwner(null);
         setTrickPoints({ south: 0, west: 0, north: 0, east: 0 });
         setRoundResult(null);
+        setMarriage(null);
         // Every round is declared anew after the deal.
         setSelectedGame("Pass");
         setCalledAce(null);
@@ -225,7 +244,7 @@ function useSchafkopfGame() {
         }
 
         // Validate suit following rule
-        if (!canPlayCard(card, currentPlayersState[playerName], currentPlayedCardsState, gameName)) {
+        if (!canPlayCard(card, currentPlayersState[playerName], currentPlayedCardsState, gameName, calledAce)) {
             return null;
         }
 
@@ -260,6 +279,23 @@ function useSchafkopfGame() {
         }
     }, [calledAce, revealedAceOwner, selectedGame]);
 
+    // Maria announces a Marriage. If someone accepts, the partner swaps a card
+    // for her one trump and the game starts. If nobody does, there is no
+    // marriage (no forced marriage): she chooses another game or passes.
+    const commitMarriage = useCallback((result) => {
+        setPlayers(result.players);
+        setMarriage({ partner: result.partner, trump: result.trump, given: result.given });
+        const callerTeam = result.partner ? [humanPlayer, result.partner] : [humanPlayer];
+        setTeams({ callerTeam, opposingTeam: playerOrder.filter((p) => !callerTeam.includes(p)) });
+        setSelectedGame("Marriage");
+    }, [humanPlayer]);
+
+    const announceMarriage = useCallback(() => {
+        const result = resolveMarriage(players, humanPlayer);
+        if (result.partner) commitMarriage(result);
+        return result;
+    }, [players, humanPlayer, commitMarriage]);
+
     // A full trick stays on the table: show the winner, and give the turn to
     // nobody until the trick is collected.
     const showCompletedTrick = (result) => {
@@ -284,7 +320,9 @@ function useSchafkopfGame() {
             // Maria announces every game except the Cowards Game; in a Sheep
             // Game her partner is whoever was dealt the called sheep.
             const callerTeam =
-                selectedGame === "Sau Spiel" && teams.callerTeam.length ? teams.callerTeam : [humanPlayer];
+                (selectedGame === "Sau Spiel" || selectedGame === "Marriage") && teams.callerTeam.length
+                    ? teams.callerTeam
+                    : [humanPlayer];
             setRoundResult({
                 id: Date.now(),
                 gameName: selectedGame,
@@ -315,7 +353,7 @@ function useSchafkopfGame() {
             setCurrentTurn(result.nextTurn);
             return true;
         },
-        [players, currentTurn, playedCards, selectedGame, revealCalledAceIfNeeded]
+        [players, currentTurn, playedCards, selectedGame, calledAce, revealCalledAceIfNeeded]
     );
 
     useEffect(() => {
@@ -332,7 +370,7 @@ function useSchafkopfGame() {
                     return;
                 }
 
-                const cardIndex = getAIMove(hand, currentPlayedCards, selectedGame);
+                const cardIndex = chooseLegalAIMove(hand, currentPlayedCards, selectedGame, calledAce);
                 const result = processCardPlay(aiTurn, cardIndex, currentPlayers, currentPlayedCards, aiTurn, selectedGame);
 
                 if (!result) {
@@ -381,6 +419,8 @@ function useSchafkopfGame() {
         collectTrick,
         trickPoints,
         roundResult,
+        marriage,
+        announceMarriage,
     };
 }
 

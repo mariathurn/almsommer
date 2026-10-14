@@ -10,6 +10,7 @@ import {
     getSauSpielStatus,
     sortHandForGame,
     canPlayCard,
+    resolveMarriage,
     getTrumpStrength,
 } from "./schafkopfAI.js";
 import { getAvailableGames } from "../data/gameTypes.js";
@@ -141,4 +142,59 @@ test("A dog of the led colour is a trump, not that colour", () => {
     const hand = [{ suit: "bell", rank: "U" }, { suit: "bell", rank: "9" }];
     assert.equal(canPlayCard(hand[0], hand, led, "Sau Spiel"), false);
     assert.equal(canPlayCard(hand[1], hand, led, "Sau Spiel"), true);
+});
+
+test("The called sheep must be played when its colour is led", () => {
+    const hand = [{ suit: "bell", rank: "A" }, { suit: "bell", rank: "9" }, { suit: "leaf", rank: "K" }];
+    const led = [{ player: "south", card: { suit: "bell", rank: "K" } }];
+    assert.equal(canPlayCard(hand[0], hand, led, "Sau Spiel", "bell"), true);
+    assert.equal(canPlayCard(hand[1], hand, led, "Sau Spiel", "bell"), false);
+    // Without a called sheep the normal rules allow any bell
+    assert.equal(canPlayCard(hand[1], hand, led, "Sau Spiel", "acorn"), true);
+});
+
+test("The called sheep can't be thrown off, and its colour can't be led without it", () => {
+    const hand = [{ suit: "bell", rank: "A" }, { suit: "bell", rank: "9" }, { suit: "leaf", rank: "K" }];
+    const acornLed = [{ player: "south", card: { suit: "acorn", rank: "K" } }];
+    assert.equal(canPlayCard(hand[0], hand, acornLed, "Sau Spiel", "bell"), false);
+    assert.equal(canPlayCard(hand[2], hand, acornLed, "Sau Spiel", "bell"), true);
+    // Leading: the bell 9 is not allowed, the sheep or another colour is
+    assert.equal(canPlayCard(hand[1], hand, [], "Sau Spiel", "bell"), false);
+    assert.equal(canPlayCard(hand[0], hand, [], "Sau Spiel", "bell"), true);
+    // Four of the colour: may run away with a low one
+    const four = [...hand, { suit: "bell", rank: "K" }, { suit: "bell", rank: "10" }];
+    assert.equal(canPlayCard(four[1], four, [], "Sau Spiel", "bell"), true);
+    // Last trick: the sheep may go anywhere
+    assert.equal(canPlayCard(hand[0], [hand[0]], acornLed, "Sau Spiel", "bell"), true);
+});
+
+test("Marriage: the first player from the left with four trumps accepts and swaps a card", () => {
+    const players = {
+        south: [{ suit: "heart", rank: "9" }, { suit: "bell", rank: "A" }],
+        west: [{ suit: "acorn", rank: "O" }, { suit: "leaf", rank: "9" }],
+        north: [
+            { suit: "acorn", rank: "U" }, { suit: "leaf", rank: "O" }, { suit: "heart", rank: "K" },
+            { suit: "bell", rank: "U" }, { suit: "leaf", rank: "10" }, { suit: "acorn", rank: "9" },
+        ],
+        east: [
+            { suit: "bell", rank: "O" }, { suit: "heart", rank: "U" }, { suit: "heart", rank: "A" }, { suit: "leaf", rank: "U" },
+        ],
+    };
+    const result = resolveMarriage(players);
+    assert.equal(result.partner, "north");
+    assert.deepEqual(result.given, { suit: "acorn", rank: "9" });
+    assert.ok(result.players.north.some((c) => c.suit === "heart" && c.rank === "9"));
+    assert.ok(result.players.south.some((c) => c.suit === "acorn" && c.rank === "9"));
+});
+
+test("Marriage: if nobody accepts, there is no partner and nothing is swapped", () => {
+    const players = {
+        south: [{ suit: "heart", rank: "9" }],
+        west: [{ suit: "acorn", rank: "O" }],
+        north: [{ suit: "leaf", rank: "9" }],
+        east: [{ suit: "bell", rank: "K" }],
+    };
+    const result = resolveMarriage(players);
+    assert.equal(result.partner, null);
+    assert.equal(result.players, players);
 });

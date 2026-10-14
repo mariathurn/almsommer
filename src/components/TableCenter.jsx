@@ -23,15 +23,6 @@ const seatOffsets = {
     east: { x: 0.62, y: 0, rotate: 11 },
 };
 
-// Portrait: the opponents sit in a row above the disc, so their cards fan out
-// over its top edge, each tilted towards its player; yours lands at the bottom.
-const discOffsets = {
-    west: { x: -0.5, y: -0.42, rotate: -38 },
-    north: { x: 0, y: -0.62, rotate: 0 },
-    east: { x: 0.5, y: -0.42, rotate: 38 },
-    south: { x: 0, y: 0.12, rotate: -3 },
-};
-
 function Gingham({ width, height }) {
     return (
         <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
@@ -130,6 +121,7 @@ function DealButton({ size, onPress }) {
 
 function TableCenter({
     blanket,
+    portrait = false,
     playedCards,
     trickWinner = null,
     trickWinnerName,
@@ -141,8 +133,11 @@ function TableCenter({
     onChooseGame,
     trumpGame = null,
 }) {
-    const cardHeight = blanket.round ? blanket.width * 0.56 : Math.min(blanket.height * 0.6, blanket.width * 0.4);
-    const offsets = blanket.round ? discOffsets : seatOffsets;
+    const fanAbove = blanket.round && portrait;
+    const cardHeight = fanAbove ? blanket.width * 0.68 : blanket.round ? blanket.width * 0.66 : Math.min(blanket.height * 0.6, blanket.width * 0.4);
+    // Every card lands on its player's side, on phones as in the web view;
+    // on phones the top player's card sits a little higher.
+    const offsets = portrait ? { ...seatOffsets, north: { ...seatOffsets.north, y: -0.45 } } : seatOffsets;
     const buttonSize = Math.min(blanket.height * 0.42, 112);
     // On a small (phone) blanket the result sits beside the Deal button.
     const isSmall = blanket.height < 200 && !blanket.round;
@@ -168,7 +163,7 @@ function TableCenter({
                 <Gingham width={blanket.width} height={blanket.height} />
             )}
 
-            {playedCards.map(({ player, card }) => {
+            {playedCards.map(({ player, card }, index) => {
                 const offset = offsets[player];
                 return (
                     <View
@@ -176,7 +171,8 @@ function TableCenter({
                         pointerEvents="none"
                         style={[
                             styles.playedCard,
-                            isTrickComplete && player === trickWinner && styles.winningCard,
+                            // Cards stack in the order they were played.
+                            { zIndex: index + 1 },
                             {
                                 transform: [
                                     { translateX: offset.x * cardHeight },
@@ -202,14 +198,6 @@ function TableCenter({
                     </View>
                 );
             })}
-
-            {isTrickComplete ? (
-                <View style={styles.collectNote} pointerEvents="none">
-                    <Text style={styles.collectText} numberOfLines={2}>
-                        {trickWinnerName} takes the trick · tap anywhere to continue
-                    </Text>
-                </View>
-            ) : null}
 
             {playedCards.length === 0 && (canDeal || needsGame) ? (
                 <View style={[styles.center, isSmall && styles.centerRow]}>
@@ -252,9 +240,6 @@ const styles = StyleSheet.create({
         transform: [],
         shadowOpacity: 0,
         elevation: 0,
-    },
-    winningCard: {
-        zIndex: 3,
     },
     playedCard: {
         position: "absolute",
@@ -335,21 +320,6 @@ const styles = StyleSheet.create({
     centerRow: {
         flexDirection: "row",
         paddingHorizontal: 10,
-    },
-    collectNote: {
-        ...paper,
-        position: "absolute",
-        bottom: -14,
-        paddingVertical: 4,
-        paddingHorizontal: 12,
-        borderRadius: 999,
-        maxWidth: "95%",
-        zIndex: 2,
-    },
-    collectText: {
-        fontFamily: fonts.bodyBold,
-        fontSize: 13,
-        color: colors.ink,
     },
     roundButtonHovered: {
         transform: [{ scale: 1.04 }],

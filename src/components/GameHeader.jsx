@@ -3,12 +3,13 @@ game ("Maria calls the orange sheep") and what happens next. Dealing and
 choosing the game happen in the middle of the table. */
 
 import { StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 import PaperButton from "./PaperButton";
+import { CoinBalance } from "./Coin";
 import { useStage } from "./Stage";
 import { parseGame } from "../ai/schafkopfAI";
 import { getGameType, suitNamesEn } from "../data/gameTypes";
-import { colors, fonts, paper, suitTheme } from "../theme";
+import { colors, fonts, suitTheme } from "../theme";
 
 function RibbonTail({ flip, height }) {
     const w = height * 0.45;
@@ -17,14 +18,15 @@ function RibbonTail({ flip, height }) {
             <Path
                 d={`M${w} ${height * 0.18} H0 L${w * 0.45} ${height * 0.55} L0 ${height * 0.92} H${w} Z`}
                 fill={colors.hay}
-                stroke={colors.hayDeep}
-                strokeWidth={1.5}
+                stroke={colors.ink}
+                strokeWidth={2.5}
+                strokeLinejoin="round"
             />
         </Svg>
     );
 }
 
-function getBannerTitle({ hasCards, selectedGame, calledAce, callerName }) {
+function getBannerTitle({ hasCards, selectedGame, calledAce, callerName, marriagePartnerName }) {
     const game = getGameType(selectedGame);
     if (!game) return hasCards ? "Declare your game" : "Almsommer";
     if (game.value === "Sau Spiel") {
@@ -33,25 +35,39 @@ function getBannerTitle({ hasCards, selectedGame, calledAce, callerName }) {
             : `${callerName} plays a Sheep Game`;
     }
     if (game.value === "Ramsch") return "Cowards Game: nobody announced";
-    if (game.value === "Marriage") return `${callerName} offers a Marriage`;
+    if (game.value === "Marriage") {
+        return `${callerName} marries ${marriagePartnerName}`;
+    }
     const { suit } = parseGame(selectedGame);
     if (game.value === "Solo" && suit) return `${callerName} plays a ${suitNamesEn[suit]} Solo`;
     return `${callerName} plays a ${game.label}`;
 }
 
-function getBannerSubtitle({ hasCards, selectedGame, currentTurn, trickWinner, playerName }) {
+function getBannerSubtitle({ hasCards, selectedGame, currentTurn, trickWinner, playerName, note }) {
     if (trickWinner) return `${playerName(trickWinner)} takes the trick`;
+    if (note) return note;
     if (!hasCards) return "Deal the cards to begin";
     if (!getGameType(selectedGame)) return "Choose what you want to play";
     if (currentTurn === "south") return "Your turn";
     return `${playerName(currentTurn)} is thinking…`;
 }
 
-function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAce, playerName, onOpenMenu }) {
+function GameHeader({
+    hasCards,
+    currentTurn,
+    trickWinner,
+    selectedGame,
+    calledAce,
+    playerName,
+    onOpenMenu,
+    coins = 0,
+    marriagePartnerName = null,
+    note = null,
+}) {
     const { width } = useStage();
     const compact = width < 900;
     const ribbonHeight = compact ? 46 : 58;
-    const state = { hasCards, selectedGame, calledAce, currentTurn, trickWinner, playerName };
+    const state = { hasCards, selectedGame, calledAce, currentTurn, trickWinner, playerName, marriagePartnerName, note };
 
     return (
         <View style={[styles.header, compact && styles.headerCompact]}>
@@ -61,7 +77,15 @@ function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAc
 
             <View style={styles.banner}>
                 <RibbonTail height={ribbonHeight} />
-                <View style={[styles.ribbon, { height: ribbonHeight }]}>
+                <View style={[styles.ribbon, !compact && styles.ribbonWide, { height: ribbonHeight }]}>
+                    <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+                        <Defs>
+                            <Pattern id="banner-dots" width={12} height={12} patternUnits="userSpaceOnUse">
+                                <Circle cx={6} cy={6} r={1.2} fill={colors.ink} opacity={0.1} />
+                            </Pattern>
+                        </Defs>
+                        <Rect width="100%" height="100%" fill="url(#banner-dots)" />
+                    </Svg>
                     <Text style={[styles.bannerTitle, compact && styles.bannerTitleCompact]} numberOfLines={1}>
                         {getBannerTitle({ ...state, callerName: playerName("south") })}
                     </Text>
@@ -72,8 +96,10 @@ function GameHeader({ hasCards, currentTurn, trickWinner, selectedGame, calledAc
                 <RibbonTail height={ribbonHeight} flip />
             </View>
 
-            {/* Keeps the banner centred opposite the Menu button */}
-            <View style={[styles.side, compact && styles.sideCompact]} />
+            {/* Your coins, opposite the Menu button so the banner stays centred */}
+            <View style={[styles.side, compact && styles.sideCompact]}>
+                <CoinBalance value={coins} compact={compact} />
+            </View>
         </View>
     );
 }
@@ -97,17 +123,20 @@ const styles = StyleSheet.create({
         width: 90,
     },
     sideCompact: {
-        width: 64,
+        width: 72,
     },
     banner: {
         flexShrink: 1,
         flexDirection: "row",
         alignItems: "center",
     },
+    // Dotted paper with an ink border, like the game panel.
     ribbon: {
-        ...paper,
-        borderRadius: 4,
-        borderColor: colors.hayDeep,
+        backgroundColor: colors.paper,
+        borderRadius: 14,
+        borderWidth: 2.5,
+        borderColor: colors.ink,
+        overflow: "hidden",
         justifyContent: "center",
         alignItems: "center",
         paddingHorizontal: 18,
@@ -126,9 +155,14 @@ const styles = StyleSheet.create({
         lineHeight: 23,
     },
     bannerSubtitle: {
-        fontFamily: fonts.bodyMedium,
-        fontSize: 13,
+        fontFamily: fonts.bodyBold,
+        fontSize: 12,
+        letterSpacing: 1.4,
+        textTransform: "uppercase",
         color: colors.inkSoft,
+    },
+    ribbonWide: {
+        minWidth: 520,
     },
 });
 

@@ -7,9 +7,10 @@ import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { getSauSpielStatus } from "../ai/schafkopfAI";
-import { getGameType } from "../data/gameTypes";
+import { getCardName, getGameType } from "../data/gameTypes";
 import { colors, getTableLayout } from "../theme";
 import { sounds } from "../audio/sounds";
+import useHotkey from "../hooks/useHotkey";
 
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
@@ -30,6 +31,8 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     playCard,
     collectTrick,
     roundResult,
+    marriage,
+    announceMarriage,
   } = useSchafkopfGame();
 
   // A card landing on the table, and a finished trick being collected.
@@ -52,6 +55,8 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   const [tableSize, setTableSize] = useState(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  // Nobody accepted Maria's marriage this round.
+  const [marriageDeclined, setMarriageDeclined] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   // Game hovered in the picker; its trumps are previewed in your hand.
   const [previewGame, setPreviewGame] = useState(null);
@@ -72,9 +77,20 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     if (selectedGame === "Sau Spiel") {
       return getSauSpielStatus(playerKey, "south", teams, revealedAceOwner);
     }
+    if (selectedGame === "Marriage") {
+      if (playerKey === "south") return "Caller";
+      return playerKey === marriage?.partner ? "Partner" : "Opponent";
+    }
     if (!gameType || gameType.value === "Ramsch") return null;
     return playerKey === "south" ? "Player" : "Opponent";
   };
+
+  // Until the first card is played, the banner tells how the marriage went.
+  const firstTrickNotStarted = playedCards.length === 0 && players.south.length === 6;
+  const marriageNote =
+    selectedGame === "Marriage" && marriage && firstTrickNotStarted
+      ? `Swapped: ${getCardName(marriage.trump)} → ${getCardName(marriage.given)}`
+      : null;
 
   // Round flow, as in the rulebook: deal, declare a game, then play.
   const hasCards = playedCards.length > 0 || seats.some((seat) => players[seat].length > 0);
@@ -83,6 +99,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const needsGame = hasCards && !gameType && playedCards.length === 0;
 
   const handleDeal = () => {
+    setMarriageDeclined(false);
     sounds.shuffle();
     dealHands();
     setIsPickerOpen(true);
@@ -90,14 +107,27 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   const handlePickGame = (game, ace) => {
     setPreviewGame(null);
+    setIsPickerOpen(false);
+    if (game === "Marriage") {
+      // Nobody accepted: no marriage. The panel stays open with the Marriage
+      // tile greyed out, so Maria picks another game or passes.
+      if (!announceMarriage().partner) {
+        setMarriageDeclined(true);
+        setIsPickerOpen(true);
+      }
+      return;
+    }
     setSelectedGame(game);
     setCalledAce(game === "Sau Spiel" ? ace : null);
-    setIsPickerOpen(false);
   };
 
   // The computer players never announce, so passing means everybody passed:
   // the Cowards Game is played.
   const handlePass = () => handlePickGame("Ramsch", null);
+
+  // Web shortcuts: D or Enter deals when dealing is possible.
+  useHotkey("d", handleDeal, canDeal);
+  useHotkey("Enter", handleDeal, canDeal);
   const closePicker = () => {
     setPreviewGame(null);
     setIsPickerOpen(false);
@@ -140,11 +170,15 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
       };
     }
 
-    const callersWon = roundResult.winners.includes("south");
+    // Always name the side that announced: "Maria loses the Solo Game".
+    const callers = roundResult.callerTeam;
+    const callersWon = callers.every((seat) => roundResult.winners.includes(seat));
+    const plural = callers.length > 1;
+    const verb = callersWon ? (plural ? "win" : "wins") : plural ? "lose" : "loses";
     const callerPoints = roundResult.callerPoints;
     return {
-      message: `${names(roundResult.winners)} ${roundResult.winners.length > 1 ? "win" : "wins"} the ${gameType.label}`,
-      points: `${callersWon ? callerPoints : 120 - callerPoints} : ${callersWon ? 120 - callerPoints : callerPoints} points`,
+      message: `${names(callers)} ${verb} the ${gameType.label}`,
+      points: `${callerPoints} : ${120 - callerPoints} points`,
       rows,
     };
   };
@@ -166,6 +200,9 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
           calledAce={calledAce}
           playerName={playerName}
           onOpenMenu={onOpenMenu}
+          coins={sessionScores?.south ?? 0}
+          marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
+          note={marriageNote}
         />
         {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" /> : null}
       </View>
@@ -178,6 +215,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
           <>
             <TableCenter
               blanket={layout.blanket}
+              portrait={Boolean(layout.portrait)}
               playedCards={playedCards}
               trickWinner={trickWinner}
               trickWinnerName={trickWinner ? playerName(trickWinner) : null}
@@ -202,7 +240,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 playedCards={playedCards}
                 gameType={isCaller(seat) ? selectedGame : null}
                 status={getGameStatus(seat)}
-                showFriendBadge={revealedAceOwner === seat}
+                showFriendBadge={revealedAceOwner === seat || (selectedGame === "Marriage" && marriage?.partner === seat)}
                 isTrickWinner={isTrickComplete && trickWinner === seat}
                 score={sessionScores?.[seat] ?? 0}
               />
@@ -220,6 +258,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                     onPick={handlePickGame}
                     onPass={handlePass}
                     onPreview={setPreviewGame}
+                    declined={marriageDeclined ? { Marriage: "Nobody accepted your marriage" } : null}
                   />
                 </View>
               </>
@@ -240,6 +279,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
               score={sessionScores?.south ?? 0}
               trumpGame={trumpGame}
               highlightTrumps={Boolean(showPicker && previewGame)}
+              calledAce={selectedGame === "Sau Spiel" ? calledAce : null}
             />
 
             {/* A finished trick stays until you tap anywhere on the table. */}
