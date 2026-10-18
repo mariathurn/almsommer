@@ -7,7 +7,7 @@ portrait profiles (see OpponentProfile). */
 import { StyleSheet, Text, View } from "react-native";
 import FanOfCards from "./FanOfCards";
 import OpponentProfile, { CoinBox, DarkNameTag } from "./OpponentProfile";
-import { getGameType } from "../data/gameTypes";
+import { gameName, statusName } from "../i18n/names";
 import { CARD_RATIO, PROFILE_SCALE, fanWidth } from "../theme";
 
 const SOUTH_SPACING = 0.55;
@@ -66,11 +66,11 @@ function PlayerPanel({
     const scale = layout.portrait ? 1 : PROFILE_SCALE;
     // Your own tag looks like the opponents' and sits at the bottom, with your
     // role and game ("Caller · Sheep Game") and your coins.
-    const badge = showFriendBadge ? "Friend" : getGameType(gameType)?.label;
+    const badge = showFriendBadge ? statusName("Friend") : gameType ? gameName(gameType) : null;
     const tag = (
         <DarkNameTag
             name={name}
-            status={[status, badge].filter(Boolean).join(" · ") || null}
+            status={[statusName(status), badge].filter(Boolean).join(" · ") || null}
             isCurrentTurn={isCurrentTurn}
             isTrickWinner={isTrickWinner}
             scale={scale}

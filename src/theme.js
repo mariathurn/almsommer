@@ -22,14 +22,6 @@ export const colors = {
     scrim: "rgba(47, 42, 36, 0.45)",
 };
 
-// Colour name (as in the rulebook) and interface colour for each suit.
-export const suitTheme = {
-    bell: { name: "Orange", color: colors.apricot },
-    heart: { name: "Red", color: colors.alpenrose },
-    acorn: { name: "Blue", color: colors.enzian },
-    leaf: { name: "Green", color: colors.weide },
-};
-
 // Loaded in App.jsx. Three fonts: Caveat Brush for big moments, Alfa Slab One
 // for all numbers, Alegreya Sans for everything else.
 export const fonts = {
@@ -59,6 +51,11 @@ export const paper = {
     borderRadius: 14,
     ...softShadow,
 };
+
+// Covers the parent edge to edge, for spreading into styles. React Native
+// 0.86 no longer has StyleSheet.absoluteFillObject (the web build still does,
+// which hid the problem there), so it lives here.
+export const fillParent = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 };
 
 // Width / height of a card, from the illustrated design (500 x 784).
 // The classic SVG art (349 x 610) is letterboxed into the same box.

@@ -8,8 +8,9 @@ import PaperButton from "./PaperButton";
 import { CoinBalance } from "./Coin";
 import { useStage } from "./Stage";
 import { parseGame } from "../ai/schafkopfAI";
-import { getGameType, suitNamesEn } from "../data/gameTypes";
-import { colors, fonts, suitTheme } from "../theme";
+import { getGameType } from "../data/gameTypes";
+import { t } from "../i18n";
+import { colors, fonts } from "../theme";
 
 function RibbonTail({ flip, height }) {
     const w = height * 0.45;
@@ -28,30 +29,25 @@ function RibbonTail({ flip, height }) {
 
 function getBannerTitle({ hasCards, selectedGame, calledAce, callerName, marriagePartnerName }) {
     const game = getGameType(selectedGame);
-    if (!game) return hasCards ? "Declare your game" : "Almsommer";
+    if (!game) return hasCards ? t("banner.declare") : "Almsommer";
     if (game.value === "Sau Spiel") {
         return calledAce
-            ? `${callerName} calls the ${suitTheme[calledAce].name.toLowerCase()} sheep`
-            : `${callerName} plays a Sheep Game`;
+            ? t("banner.callsSheep", { name: callerName, suit: calledAce })
+            : t("banner.plays", { name: callerName, game: game.value });
     }
-    if (game.value === "Ramsch") return "Cowards Game: nobody announced";
-    if (game.value === "Marriage") {
-        return `${callerName} marries ${marriagePartnerName}`;
-    }
+    if (game.value === "Ramsch") return t("banner.cowards");
+    if (game.value === "Marriage") return t("banner.marries", { name: callerName, partner: marriagePartnerName });
     const { suit } = parseGame(selectedGame);
-    if (game.value === "Solo" && suit) {
-        return `${callerName} plays ${suit === "acorn" ? "an" : "a"} ${suitNamesEn[suit]} Solo`;
-    }
-    return `${callerName} plays a ${game.label}`;
+    return t("banner.plays", { name: callerName, game: game.value, suit });
 }
 
 function getBannerSubtitle({ hasCards, selectedGame, currentTurn, trickWinner, playerName, note }) {
-    if (trickWinner) return `${playerName(trickWinner)} takes the trick`;
+    if (trickWinner) return t("banner.takesTrick", { name: playerName(trickWinner) });
     if (note) return note;
-    if (!hasCards) return "Deal the cards to begin";
-    if (!getGameType(selectedGame)) return "Choose what you want to play";
-    if (currentTurn === "south") return "Your turn";
-    return `${playerName(currentTurn)} is thinking…`;
+    if (!hasCards) return t("banner.dealToBegin");
+    if (!getGameType(selectedGame)) return t("banner.choose");
+    if (currentTurn === "south") return t("banner.yourTurn");
+    return t("banner.thinking", { name: playerName(currentTurn) });
 }
 
 function GameHeader({
@@ -76,7 +72,7 @@ function GameHeader({
     return (
         <View style={[styles.header, compact && styles.headerCompact]}>
             <View style={[styles.side, compact && styles.sideCompact]}>
-                <PaperButton label="Menu" compact={compact} onPress={onOpenMenu} />
+                <PaperButton label={t("common.menu")} accessibilityLabel={t("common.menu")} compact={compact} onPress={onOpenMenu} />
             </View>
 
             <View style={styles.banner}>

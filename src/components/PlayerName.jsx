@@ -3,7 +3,8 @@ hay-gold badge (the caller's game, or "Friend" once the partner is revealed). */
 
 import { StyleSheet, Text, View } from "react-native";
 import WinnerGlow from "./WinnerGlow";
-import { getGameType } from "../data/gameTypes";
+import { t } from "../i18n";
+import { gameName, statusName } from "../i18n/names";
 import { colors, fonts, paper } from "../theme";
 
 // Session balance: "+15", "−10" (with a real minus sign) or "0".
@@ -23,7 +24,7 @@ function PlayerName({
     score = null,
     style,
 }) {
-    const badgeLabel = showFriendBadge ? "Friend" : getGameType(gameType)?.label ?? gameType;
+    const badgeLabel = showFriendBadge ? statusName("Friend") : gameType ? gameName(gameType) : null;
 
     return (
         <WinnerGlow active={isTrickWinner} radius={10} spread={4} scaleTo={1.08}>
@@ -33,14 +34,14 @@ function PlayerName({
                 </Text>
                 {status ? (
                     <Text style={styles.status} numberOfLines={1}>
-                        {status}
+                        {statusName(status)}
                     </Text>
                 ) : null}
                 {badgeLabel ? <Text style={styles.badge}>{badgeLabel}</Text> : null}
                 {score === null ? null : (
                     <Text
                         style={[styles.score, score > 0 && styles.scoreUp, score < 0 && styles.scoreDown]}
-                        accessibilityLabel={`${score} coins this session`}
+                        accessibilityLabel={t("coins.session", { count: score })}
                     >
                         {formatCoins(score)}
                     </Text>

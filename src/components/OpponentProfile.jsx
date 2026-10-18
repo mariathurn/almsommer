@@ -5,25 +5,14 @@ a dark name tag (with their side once it's known). The ring turns gold on
 their turn; the tag lights up when they take a trick. */
 
 import { StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { CoinIcon } from "./Coin";
+import Portrait from "./Portrait";
 import WinnerGlow from "./WinnerGlow";
 import { formatCoins } from "./PlayerName";
-import { artSizes, cardTexture, suitColors } from "../data/cardDesign";
 import { opponentPortraits } from "../data/portraits";
+import { t } from "../i18n";
+import { statusName } from "../i18n/names";
 import { colors, fonts } from "../theme";
-
-// Image size and offset so the head's centre lands in the circle's centre.
-function getPortraitFrame({ file, centerX, centerY, span }, size) {
-    const scale = size / span;
-    const image = artSizes[file];
-    return {
-        width: image.width * scale,
-        height: image.height * scale,
-        left: size / 2 - centerX * scale,
-        top: size / 2 - centerY * scale,
-    };
-}
 
 // The dark name tag under a profile, also used for your own name at the
 // bottom. It shines when its player takes a trick; `children` go at its right
@@ -59,7 +48,7 @@ export function DarkNameTag({ name, status, isTrickWinner, isCurrentTurn = false
 // A small white box with the gold coin and a balance.
 export function CoinBox({ coins, scale = 1, style }) {
     return (
-        <View style={[styles.coinBox, style]} accessibilityLabel={`${coins} coins this session`}>
+        <View style={[styles.coinBox, style]} accessibilityLabel={t("coins.session", { count: coins })}>
             <CoinIcon size={14 * scale} />
             <Text style={[styles.coins, { fontSize: 12 * scale }]}>{formatCoins(coins)}</Text>
         </View>
@@ -83,26 +72,13 @@ function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinn
                     isCurrentTurn && styles.ringActive,
                 ]}
             >
-                <View
-                    style={[
-                        styles.portrait,
-                        { width: size, height: size, borderRadius: size / 2, backgroundColor: suitColors[portrait.suit].panel },
-                    ]}
-                >
-                    {/* The card's cloud texture over its panel colour, as on the cards. */}
-                    <Image source={cardTexture} contentFit="cover" style={[StyleSheet.absoluteFill, styles.texture]} />
-                    <Image
-                        source={portrait.source}
-                        contentFit="fill"
-                        style={[styles.portraitImage, getPortraitFrame(portrait, size)]}
-                    />
-                </View>
+                <Portrait portrait={portrait} size={size} />
                 <CoinBox coins={coins} scale={scale} style={[styles.coinBoxOnRing, beside ? styles.coinBoxLeft : styles.coinBoxRight]} />
             </View>
 
             <DarkNameTag
                 name={name}
-                status={known ? status : null}
+                status={known ? statusName(status) : null}
                 isTrickWinner={isTrickWinner}
                 scale={scale}
                 style={beside && styles.tagBeside}
@@ -125,17 +101,6 @@ const styles = StyleSheet.create({
     },
     ringActive: {
         backgroundColor: colors.hay,
-    },
-    texture: {
-        opacity: 0.5,
-    },
-    portraitImage: {
-        position: "absolute",
-    },
-    portrait: {
-        overflow: "hidden",
-        borderWidth: 4,
-        borderColor: colors.ink,
     },
     coinBoxOnRing: {
         position: "absolute",

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
 import Card from "./Card";
 import { canPlayCard, isTrumpForGame, sortHandForGame } from "../ai/schafkopfAI";
+import { t } from "../i18n";
 import { CARD_RATIO, fanWidth } from "../theme";
 
 // How far a card rises, as a share of its height: playable cards sit a little
@@ -273,7 +274,7 @@ function FanOfCards({
                         isHighlighted={highlightTrumps && isTrump}
                         isSelected={confirmTap && selectedId === card.id}
                         trumpGame={trumpGame}
-                        accessibilityHint={!isLegal ? "Must follow suit" : undefined}
+                        accessibilityHint={!isLegal ? t("hand.mustFollow") : undefined}
                         onPress={() => {
                             if (confirmTap && selectedId !== card.id) {
                                 setSelectedId(card.id);

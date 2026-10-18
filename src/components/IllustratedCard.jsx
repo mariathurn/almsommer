@@ -18,6 +18,7 @@ import {
     suitColors,
 } from "../data/cardDesign";
 import { SYMBOL_BOX, cardSymbols } from "../data/cardSymbols";
+import { cardLabel } from "../i18n/names";
 
 const panel = { x: 37, y: 92, width: 428, height: 585, rx: 20 };
 // Artwork is fitted inside this box, so wide motifs (hat) and tall ones (sheep) both fill it.
@@ -114,7 +115,8 @@ function IllustratedCard({ card, width, height, isTrump = false, gameName = null
     const number = formatCardNumber(cardNumber);
     const isTwoDigit = cardNumber >= 10;
     const points = String(cardPoints[card.rank]);
-    const labelWidth = design.label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;
+    const label = cardLabel(card.rank);
+    const labelWidth = label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;
     // Trumps get a gold frame with ink dots instead of the suit colour.
     const dotsId = isTrump ? "card-dots-trump" : `card-dots-${card.suit}`;
     const frameFill = isTrump ? TRUMP_FILL : colors.frame;
@@ -221,7 +223,7 @@ function IllustratedCard({ card, width, height, isTrump = false, gameName = null
                 fill="white"
                 textAnchor="middle"
             >
-                {design.label}
+                {label}
             </Text>
 
             {/* Mirrored number, bottom right */}

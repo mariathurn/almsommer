@@ -15,8 +15,10 @@ import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import { SuitIcon } from "./IllustratedCard";
 import { canCallAce } from "../ai/schafkopfAI";
 import { rankDesign, suitColors } from "../data/cardDesign";
-import { gameTypes, getUnavailableReason, suitNamesEn } from "../data/gameTypes";
-import { colors, fonts, softShadow } from "../theme";
+import { gameTypes } from "../data/gameTypes";
+import { t } from "../i18n";
+import { gameName, getUnavailableReason, suitName } from "../i18n/names";
+import { colors, fillParent, fonts, softShadow } from "../theme";
 
 // Picture strip for each tile: a card illustration, its panel colour, and
 // which part of the picture to show.
@@ -25,12 +27,6 @@ const tileArt = {
     Solo: { rank: "O", suit: "acorn", position: "top" },
     Wenz: { rank: "U", suit: "heart", position: { top: "20%", left: "50%" } },
     Marriage: { rank: "9", suit: "bell", position: "center" },
-};
-const tileBlurbs = {
-    "Sau Spiel": "Call a sheep. Whoever holds it is your secret partner.",
-    Solo: "Pick a trump suit. One against three.",
-    Wenz: "Only the dogs are trumps. You play alone.",
-    Marriage: "Offer your one trump and find a partner.",
 };
 const soloSuits = ["acorn", "heart", "leaf", "bell"];
 const sheepSuits = ["acorn", "leaf", "bell"];
@@ -71,7 +67,7 @@ function GameTile({ game, width, artHeight, selected, reason, onSelect, onHover 
             disabled={disabled}
             accessibilityRole="button"
             accessibilityState={{ selected, disabled }}
-            accessibilityLabel={`${game.label}, ${game.coins} coins`}
+            accessibilityLabel={t("picker.tileLabel", { game: gameName(game.value), coins: game.coins })}
             style={({ hovered }) => [
                 styles.tile,
                 { width },
@@ -94,10 +90,10 @@ function GameTile({ game, width, artHeight, selected, reason, onSelect, onHover 
             </View>
             <View style={styles.tileText}>
                 <Text style={[styles.tileTitle, disabled && styles.dimText]} numberOfLines={1}>
-                    {game.label}
+                    {gameName(game.value)}
                 </Text>
                 <Text style={[styles.tileBlurb, disabled && styles.dimText]} numberOfLines={2}>
-                    {reason ?? tileBlurbs[game.value]}
+                    {reason ?? t(`game.blurb.${game.value}`)}
                 </Text>
             </View>
         </Pressable>
@@ -111,7 +107,7 @@ function SuitChip({ suit, selected, disabled, onPress }) {
             disabled={disabled}
             accessibilityRole="button"
             accessibilityState={{ selected, disabled }}
-            accessibilityLabel={`${suitNamesEn[suit]}`}
+            accessibilityLabel={suitName(suit)}
             style={({ hovered }) => [
                 styles.chip,
                 selected && styles.chipSelected,
@@ -122,7 +118,7 @@ function SuitChip({ suit, selected, disabled, onPress }) {
             <Svg width={24} height={24} viewBox="0 0 40 40">
                 <SuitIcon suit={suit} x={20} y={20} size={36} />
             </Svg>
-            <Text style={[styles.chipLabel, disabled && styles.dimText]}>{suitNamesEn[suit]}</Text>
+            <Text style={[styles.chipLabel, disabled && styles.dimText]}>{suitName(suit)}</Text>
         </Pressable>
     );
 }
@@ -202,12 +198,12 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, decline
     const needsSheep = selected === "Sau Spiel";
     const canConfirm = Boolean(selected) && (!needsSheep || Boolean(sheepSuit));
     const confirmLabel = !selectedGame
-        ? "Choose a game"
+        ? t("picker.chooseGame")
         : needsSheep
             ? sheepSuit
-                ? `Call the ${suitNamesEn[sheepSuit]} sheep`
-                : "Choose a sheep"
-            : `Play ${selected === "Solo" ? "Solo" : selectedGame.label}`;
+                ? t("picker.callSheep", { suit: sheepSuit })
+                : t("picker.chooseSheep")
+            : t("picker.play", { game: selected });
     const confirmSuit = selected === "Solo" ? soloSuit : needsSheep ? sheepSuit : null;
 
     const confirm = () => {
@@ -219,8 +215,8 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, decline
         <View style={[styles.panel, { width, maxHeight }]}>
             <DottedPaper />
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <Text style={[styles.heading, tight && styles.headingTight]}>What will you play?</Text>
-                {tight ? null : <Text style={styles.subheading}>Choose a game for this round, or pass.</Text>}
+                <Text style={[styles.heading, tight && styles.headingTight]}>{t("picker.heading")}</Text>
+                {tight ? null : <Text style={styles.subheading}>{t("picker.subheading")}</Text>}
 
                 <View style={[styles.tiles, { gap }]}>
                     {games.map((game) => (
@@ -239,7 +235,7 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, decline
 
                 {selected === "Solo" ? (
                     <>
-                        <Text style={styles.rowLabel}>Solo · choose your trump suit</Text>
+                        <Text style={styles.rowLabel}>{t("picker.soloRow")}</Text>
                         <View style={styles.chips}>
                             {soloSuits.map((suit) => (
                                 <SuitChip key={suit} suit={suit} selected={soloSuit === suit} onPress={() => setSoloSuit(suit)} />
@@ -250,7 +246,7 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, decline
 
                 {needsSheep ? (
                     <>
-                        <Text style={styles.rowLabel}>Sheep Game · call a sheep</Text>
+                        <Text style={styles.rowLabel}>{t("picker.sheepRow")}</Text>
                         <View style={styles.chips}>
                             {sheepSuits.map((suit) => (
                                 <SuitChip
@@ -269,10 +265,10 @@ function GamePicker({ width, maxHeight, hand, onPick, onPass, onPreview, decline
                     <Pressable
                         onPress={onPass}
                         accessibilityRole="button"
-                        accessibilityLabel="Pass"
+                        accessibilityLabel={t("picker.pass")}
                         style={({ hovered: h, pressed }) => [styles.passButton, (h || pressed) && styles.tileHovered]}
                     >
-                        <Text style={styles.passLabel}>Pass</Text>
+                        <Text style={styles.passLabel}>{t("picker.pass")}</Text>
                     </Pressable>
                     <Pressable
                         onPress={confirm}
@@ -361,7 +357,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.ink,
     },
     tileArtFade: {
-        ...StyleSheet.absoluteFillObject,
+        ...fillParent,
         backgroundColor: "#d9d6cf",
         opacity: 0.82,
     },

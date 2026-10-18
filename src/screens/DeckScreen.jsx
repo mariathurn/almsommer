@@ -8,11 +8,12 @@ import SceneBackground from "../components/SceneBackground";
 import PaperButton from "../components/PaperButton";
 import { useStage } from "../components/Stage";
 import { cardMeta } from "../data/cardMeta";
-import { cardPoints, getCardNumber, rankDesign, suitColors, suitNames, suitOrder } from "../data/cardDesign";
+import { cardPoints, getCardNumber, suitColors, suitOrder } from "../data/cardDesign";
+import { t } from "../i18n";
+import { cardLabel, rankName, suitName } from "../i18n/names";
 import { CARD_RATIO, colors, fonts, paper, softShadow } from "../theme";
 
 const rankOrder = ["9", "K", "10", "A", "U", "O"];
-const rankNames = { "9": "Hat", K: "Staff", "10": "Grain", A: "Sheep", U: "Dog", O: "Shepherd" };
 const suitsStrongestFirst = [...suitOrder].reverse();
 
 const PADDING = 16;
@@ -40,11 +41,11 @@ function DeckScreen({ onBack }) {
             <SceneBackground />
 
             <View style={styles.header}>
-                <PaperButton label="‹ Menu" compact onPress={onBack} />
+                <PaperButton label={t("common.backToMenu")} compact onPress={onBack} />
                 <View style={styles.titleTag}>
-                    <Text style={styles.title}>The Deck</Text>
+                    <Text style={styles.title}>{t("deck.title")}</Text>
                 </View>
-                <Text style={styles.hint}>Tap a card to look closer</Text>
+                <Text style={styles.hint}>{t("deck.hint")}</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
@@ -54,7 +55,7 @@ function DeckScreen({ onBack }) {
                               <View key={suit} style={styles.section}>
                                   <View style={styles.sectionHeader}>
                                       <View style={[styles.swatch, { backgroundColor: suitColors[suit].frame }]} />
-                                      <Text style={styles.sectionTitle}>{suitNames[suit]}</Text>
+                                      <Text style={styles.sectionTitle}>{suitName(suit)}</Text>
                                   </View>
                                   <View style={styles.row}>
                                       {rankOrder.map((rank) => {
@@ -64,7 +65,7 @@ function DeckScreen({ onBack }) {
                                                   key={card.id}
                                                   onPress={() => setSelectedCard(card)}
                                                   accessibilityRole="button"
-                                                  accessibilityLabel={`${rankNames[rank]}, ${suitNames[suit]}`}
+                                                  accessibilityLabel={`${rankName(rank)}, ${suitName(suit)}`}
                                                   style={({ pressed, hovered }) => [
                                                       styles.cardSlot,
                                                       hovered && styles.cardHovered,
@@ -74,7 +75,7 @@ function DeckScreen({ onBack }) {
                                                   <View style={styles.cardShadow}>
                                                       <Card card={card} height={cardHeight} />
                                                   </View>
-                                                  <Text style={styles.cardCaption}>{rankNames[rank]}</Text>
+                                                  <Text style={styles.cardCaption}>{rankName(rank)}</Text>
                                               </Pressable>
                                           );
                                       })}
@@ -100,23 +101,23 @@ function DeckScreen({ onBack }) {
                             <View style={styles.detailPanel}>
                                 <View style={styles.sectionHeader}>
                                     <View style={[styles.swatch, { backgroundColor: suitColors[selectedCard.suit].frame }]} />
-                                    <Text style={styles.detailSuit}>{suitNames[selectedCard.suit]}</Text>
+                                    <Text style={styles.detailSuit}>{suitName(selectedCard.suit)}</Text>
                                 </View>
                                 <Text style={styles.detailTitle}>
-                                    {rankDesign[selectedCard.rank]?.label ?? rankNames[selectedCard.rank]}
+                                    {cardLabel(selectedCard.rank)}
                                 </Text>
-                                <Text style={styles.detailLine}>{rankNames[selectedCard.rank]}</Text>
+                                <Text style={styles.detailLine}>{rankName(selectedCard.rank)}</Text>
                                 <View style={styles.detailStats}>
                                     <View style={styles.stat}>
                                         <Text style={styles.statValue}>{getCardNumber(selectedCard)}</Text>
-                                        <Text style={styles.statLabel}>Rank</Text>
+                                        <Text style={styles.statLabel}>{t("deck.rank")}</Text>
                                     </View>
                                     <View style={styles.stat}>
                                         <Text style={styles.statValue}>{cardPoints[selectedCard.rank]}</Text>
-                                        <Text style={styles.statLabel}>Points</Text>
+                                        <Text style={styles.statLabel}>{t("deck.points")}</Text>
                                     </View>
                                 </View>
-                                <Text style={styles.detailHint}>Tap anywhere to close</Text>
+                                <Text style={styles.detailHint}>{t("deck.closeHint")}</Text>
                             </View>
                         </View>
                     ) : null}

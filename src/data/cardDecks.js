@@ -3,14 +3,14 @@
 //
 // Each entry:
 //   id:      unique key
-//   name:    shown in the settings
+//   name:    shown in the settings (a name, not translated); the description
+//            is the text "deck.<id>.description" in i18n/en.js and de.js
 //   preview: a few cards to show as a sample, as { rank, suit }
 
 export const cardDecks = [
     {
         id: "almsommer",
         name: "Almsommer",
-        description: "Hats, staffs, grain, sheep, dogs and shepherds",
         preview: [
             { rank: "O", suit: "acorn" },
             { rank: "A", suit: "leaf" },

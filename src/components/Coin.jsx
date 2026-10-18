@@ -2,6 +2,7 @@
 
 import { StyleSheet, Text, View } from "react-native";
 import { formatCoins } from "./PlayerName";
+import { t } from "../i18n";
 import { colors, fonts } from "../theme";
 
 export function CoinIcon({ size = 18 }) {
@@ -12,10 +13,10 @@ export function CoinIcon({ size = 18 }) {
     );
 }
 
-// Your session balance, top right of the table.
+// Your balance (your savings), top right of the table.
 export function CoinBalance({ value, compact = false }) {
     return (
-        <View style={[styles.balance, compact && styles.balanceCompact]} accessibilityLabel={`${value} coins this session`}>
+        <View style={[styles.balance, compact && styles.balanceCompact]} accessibilityLabel={t("coins.count", { count: value })}>
             <CoinIcon size={compact ? 20 : 24} />
             <Text style={[styles.balanceText, compact && styles.balanceTextCompact]}>{formatCoins(value)}</Text>
         </View>

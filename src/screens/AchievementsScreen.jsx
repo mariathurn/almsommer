@@ -1,39 +1,56 @@
-/* Achievements: a dotted paper panel listing the achievements defined in
-src/data/achievements.js. Until any are defined it says they're coming. */
+/* Achievements: a dotted paper panel listing every achievement from
+src/data/achievements.js with its trophy, gold once earned (with the date),
+pale while still locked. The heading counts how many you have. */
 
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
-import Card from "../components/Card";
 import PaperButton from "../components/PaperButton";
 import SceneBackground from "../components/SceneBackground";
+import Trophy from "../components/Trophy";
 import { achievements } from "../data/achievements";
+import { useUnlocked } from "../data/achievementStore";
+import { getLanguage, t } from "../i18n";
 import { colors, fonts, softShadow } from "../theme";
 
-function Achievement({ item, unlocked }) {
+function Achievement({ id, unlockedAt }) {
+    const unlocked = Boolean(unlockedAt);
+    const date = unlocked
+        ? new Date(unlockedAt).toLocaleDateString(getLanguage() === "de" ? "de-DE" : "en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+          })
+        : null;
+
     return (
-        <View style={[styles.item, !unlocked && styles.itemLocked]}>
-            {item.icon ? (
-                <View style={!unlocked && styles.iconLocked}>
-                    <Card card={{ id: item.id, ...item.icon }} height={70} />
-                </View>
-            ) : (
-                <View style={styles.medal} />
-            )}
+        <View
+            style={[styles.item, !unlocked && styles.itemLocked]}
+            accessibilityLabel={`${t(`achievement.${id}.title`)}: ${t(`achievement.${id}.description`)}${
+                unlocked ? "" : ` (${t("achievements.locked")})`
+            }`}
+        >
+            <Trophy size={52} unlocked={unlocked} />
             <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemDescription}>{item.description}</Text>
+                <Text style={[styles.itemTitle, !unlocked && styles.textLocked]}>{t(`achievement.${id}.title`)}</Text>
+                <Text style={styles.itemDescription}>{t(`achievement.${id}.description`)}</Text>
+                {date ? <Text style={styles.itemDate}>{t("achievements.unlockedOn", { date })}</Text> : null}
             </View>
         </View>
     );
 }
 
-function AchievementsScreen({ onBack, unlocked = [] }) {
+function AchievementsScreen({ onBack }) {
+    const unlocked = useUnlocked();
+    const earned = achievements.filter((item) => unlocked[item.id]).length;
+    // Earned ones first, newest on top; then the locked ones in list order.
+    const sorted = [...achievements].sort((a, b) => (unlocked[b.id] ?? 0) - (unlocked[a.id] ?? 0));
+
     return (
         <View style={styles.shell}>
             <SceneBackground />
 
             <View style={styles.header}>
-                <PaperButton label="‹ Menu" compact onPress={onBack} />
+                <PaperButton label={t("common.backToMenu")} compact onPress={onBack} />
             </View>
 
             <View style={styles.panelSlot}>
@@ -47,16 +64,15 @@ function AchievementsScreen({ onBack, unlocked = [] }) {
                         <Rect width="100%" height="100%" fill="url(#achievements-dots)" />
                     </Svg>
                     <ScrollView contentContainerStyle={styles.content}>
-                        <Text style={styles.heading}>achievements</Text>
-                        {achievements.length === 0 ? (
-                            <Text style={styles.empty}>
-                                No achievements yet. They will show up here once they're added.
+                        <View style={styles.headingRow}>
+                            <Text style={styles.heading}>{t("achievements.title")}</Text>
+                            <Text style={styles.count}>
+                                {t("achievements.count", { earned, total: achievements.length })}
                             </Text>
-                        ) : (
-                            achievements.map((item) => (
-                                <Achievement key={item.id} item={item} unlocked={unlocked.includes(item.id)} />
-                            ))
-                        )}
+                        </View>
+                        {sorted.map((item) => (
+                            <Achievement key={item.id} id={item.id} unlockedAt={unlocked[item.id]} />
+                        ))}
                     </ScrollView>
                 </View>
             </View>
@@ -101,11 +117,16 @@ const styles = StyleSheet.create({
         lineHeight: 48,
         color: colors.ink,
     },
-    empty: {
-        fontFamily: fonts.body,
-        fontSize: 17,
-        lineHeight: 22,
-        color: colors.inkSoft,
+    headingRow: {
+        flexDirection: "row",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        gap: 12,
+    },
+    count: {
+        fontFamily: fonts.number,
+        fontSize: 18,
+        color: colors.ink,
     },
     item: {
         flexDirection: "row",
@@ -120,17 +141,6 @@ const styles = StyleSheet.create({
     itemLocked: {
         borderColor: colors.keyline,
     },
-    iconLocked: {
-        opacity: 0.35,
-    },
-    medal: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.hay,
-        borderWidth: 2.5,
-        borderColor: colors.ink,
-    },
     itemText: {
         flex: 1,
         gap: 2,
@@ -139,6 +149,15 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bodyBold,
         fontSize: 18,
         color: colors.ink,
+    },
+    textLocked: {
+        color: colors.inkSoft,
+    },
+    itemDate: {
+        marginTop: 2,
+        fontFamily: fonts.bodyBold,
+        fontSize: 13,
+        color: colors.hayDeep,
     },
     itemDescription: {
         fontFamily: fonts.body,

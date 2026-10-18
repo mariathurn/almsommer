@@ -11,7 +11,8 @@ import { formatCoins } from "./PlayerName";
 import { isTrumpForGame } from "../ai/schafkopfAI";
 import { Image as PaintedImage } from "expo-image";
 import { cardTexture } from "../data/cardDesign";
-import { dealButton, tableDisc } from "../data/uiArt";
+import { tableDisc } from "../data/uiArt";
+import { t } from "../i18n";
 import { colors, fonts, paper, softShadow } from "../theme";
 
 // Where a played card sits relative to the blanket centre, as a share of the
@@ -74,8 +75,8 @@ function ResultRows({ rows }) {
             ))}
             <View style={styles.resultRow}>
                 <View style={styles.resultSpacer} />
-                <Text style={styles.resultCaption}>round</Text>
-                <Text style={styles.resultCaption}>session</Text>
+                <Text style={styles.resultCaption}>{t("result.round")}</Text>
+                <Text style={styles.resultCaption}>{t("result.session")}</Text>
             </View>
         </View>
     );
@@ -87,7 +88,7 @@ function ChooseGameButton({ size, onPress }) {
         <Pressable
             onPress={onPress}
             accessibilityRole="button"
-            accessibilityLabel="Choose game"
+            accessibilityLabel={t("table.chooseGameLabel")}
             style={({ pressed, hovered }) => [
                 styles.paintedButton,
                 { width: size, height: size },
@@ -96,25 +97,27 @@ function ChooseGameButton({ size, onPress }) {
             ]}
         >
             <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} />
-            <Text style={[styles.paintedLabel, { fontSize: size * 0.2, lineHeight: size * 0.21 }]}>{"choose\ngame"}</Text>
+            <Text style={[styles.paintedLabel, { fontSize: size * 0.2, lineHeight: size * 0.21 }]}>{t("table.chooseGame")}</Text>
         </Pressable>
     );
 }
 
-// The hand-painted "deal" button.
+// The "deal" button: the painted circle, lettered in the chosen language.
 function DealButton({ size, onPress }) {
     return (
         <Pressable
             onPress={onPress}
             accessibilityRole="button"
-            accessibilityLabel="Deal"
+            accessibilityLabel={t("table.dealLabel")}
             style={({ pressed, hovered }) => [
+                styles.paintedButton,
                 { width: size, height: size },
                 hovered && styles.roundButtonHovered,
                 pressed && styles.roundButtonPressed,
             ]}
         >
-            <PaintedImage source={dealButton} contentFit="contain" style={StyleSheet.absoluteFill} />
+            <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} />
+            <Text style={[styles.paintedLabel, { fontSize: size * 0.3, lineHeight: size * 0.34 }]}>{t("table.deal")}</Text>
         </Pressable>
     );
 }

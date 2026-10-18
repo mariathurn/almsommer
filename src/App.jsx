@@ -21,6 +21,9 @@ import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import useHotkey from "./hooks/useHotkey";
 import { colors } from "./theme";
 import { sounds, startAmbience } from "./audio/sounds";
+import { getProfile, recordRound, useProfile } from "./data/profile";
+import { unlockAchievements } from "./data/achievementStore";
+import { useLanguage } from "./i18n";
 
 // Screens, switched with plain state: "menu", "game", "achievements" and
 // "deck" (the card deck, opened from the settings).
@@ -40,21 +43,38 @@ function App() {
     CaveatBrush_400Regular,
   });
   const cardArtLoaded = usePreloadedCardArt();
-  // Coins won or lost per player since the app was opened.
+  // Texts are looked up while rendering (i18n/index.js), so a language change
+  // re-renders the whole app from here.
+  useLanguage();
+  // Coins won or lost per player since the app was opened. Your own coins
+  // are your savings instead, kept in your profile across app starts.
   const [sessionScores, setSessionScores] = useState({ south: 0, west: 0, north: 0, east: 0 });
-  const addRoundToSession = (deltas) =>
+  const profile = useProfile();
+  // A finished round: your savings and stats, the session scores, and any
+  // achievements it earned (returned, so the game can show them).
+  const addRoundToSession = (round) => {
+    const { deltas } = round;
+    recordRound(deltas.south ?? 0);
     setSessionScores((scores) =>
       Object.fromEntries(Object.entries(scores).map(([player, total]) => [player, total + (deltas[player] ?? 0)]))
     );
+    return unlockAchievements({ round, savings: getProfile().savings });
+  };
+  // Savings achievements also count savings from before they existed.
+  useEffect(() => {
+    unlockAchievements({ savings: profile.savings });
+  }, [profile.savings]);
+  const tableScores = { ...sessionScores, south: profile.savings };
   const openMenu = () => setScreen("menu");
   const startGame = () => {
     sounds.sheep();
     setScreen("game");
   };
 
-  // Web shortcuts: Esc back to the menu, P to play (from the menu).
+  // Web shortcuts: Esc back to the menu (in the game it opens the pause
+  // menu instead), P to play (from the menu).
   const ready = fontsLoaded && cardArtLoaded;
-  useHotkey("Escape", openMenu, ready && screen !== "menu");
+  useHotkey("Escape", openMenu, ready && screen !== "menu" && screen !== "game");
   useHotkey("p", startGame, ready && screen === "menu");
 
   // Meadow music on loop from the moment the app opens.
@@ -67,7 +87,12 @@ function App() {
         {!fontsLoaded || !cardArtLoaded ? null : (
           <Stage>
             {screen === "game" ? (
-              <GameScreen onOpenMenu={openMenu} sessionScores={sessionScores} onRoundScored={addRoundToSession} />
+              <GameScreen
+                onOpenMenu={openMenu}
+                playerName={profile.name}
+                sessionScores={tableScores}
+                onRoundScored={addRoundToSession}
+              />
             ) : screen === "deck" ? (
               <DeckScreen onBack={openMenu} />
             ) : screen === "achievements" ? (

@@ -93,7 +93,9 @@ const getTrickWinner = (cards, gameName = "Pass") => {
     }, cards[0]);
 };
 
-function useSchafkopfGame() {
+// paused: while true the computer players wait (the pause menu is open);
+// a pending move is cancelled and scheduled again on resume.
+function useSchafkopfGame({ paused = false } = {}) {
     const [players, setPlayers] = useState(initialPlayers);
     // Hands as dealt. Teams are derived from these, because the called ace
     // leaves its owner's hand once it is played.
@@ -107,6 +109,8 @@ function useSchafkopfGame() {
     const [revealedAceOwner, setRevealedAceOwner] = useState(null);
     // Card points each player has taken in tricks this round.
     const [trickPoints, setTrickPoints] = useState({ south: 0, west: 0, north: 0, east: 0 });
+    // Tricks each player has taken this round.
+    const [trickCounts, setTrickCounts] = useState({ south: 0, west: 0, north: 0, east: 0 });
     // Set when the last trick is collected: winners, losers and coin changes.
     const [roundResult, setRoundResult] = useState(null);
     // Marriage outcome: { partner, trump, given } (only set once someone accepted).
@@ -210,6 +214,7 @@ function useSchafkopfGame() {
         setTrickWinner(null);
         setRevealedAceOwner(null);
         setTrickPoints({ south: 0, west: 0, north: 0, east: 0 });
+        setTrickCounts({ south: 0, west: 0, north: 0, east: 0 });
         setRoundResult(null);
         setMarriage(null);
         // Every round is declared anew after the deal.
@@ -319,12 +324,12 @@ function useSchafkopfGame() {
 
     // Computer players answer a marriage offer in turn.
     useEffect(() => {
-        if (!marriageOffer || marriageOffer.stage !== "ask") return undefined;
+        if (paused || !marriageOffer || marriageOffer.stage !== "ask") return undefined;
         const seat = marriageOffer.order[marriageOffer.index];
         if (seat === humanPlayer) return undefined;
         const timer = setTimeout(() => answerMarriage(seat, wantsToAcceptMarriage(players[seat])), AI_BID_DELAY);
         return () => clearTimeout(timer);
-    }, [marriageOffer, players, humanPlayer, answerMarriage]);
+    }, [paused, marriageOffer, players, humanPlayer, answerMarriage]);
 
     // The end of announcing: the best game is played, or the Cowards Game if
     // everybody passed.
@@ -364,14 +369,14 @@ function useSchafkopfGame() {
 
     // Computer players decide in turn while announcing.
     useEffect(() => {
-        if (!bidding) return undefined;
+        if (paused || !bidding) return undefined;
         const seat = bidding.order[bidding.index];
         if (seat === humanPlayer) return undefined;
         const timer = setTimeout(() => {
             placeBid(seat, decideAnnouncement(players[seat], getGameRank(bidding.best?.game)));
         }, AI_BID_DELAY);
         return () => clearTimeout(timer);
-    }, [bidding, players, humanPlayer, placeBid]);
+    }, [paused, bidding, players, humanPlayer, placeBid]);
 
     // A full trick stays on the table: show the winner, and give the turn to
     // nobody until the trick is collected.
@@ -387,7 +392,9 @@ function useSchafkopfGame() {
         if (playedCards.length !== playerOrder.length || !trickWinner) return;
         const roundOver = playerOrder.every((player) => players[player].length === 0);
         const nextPoints = { ...trickPoints, [trickWinner]: trickPoints[trickWinner] + getTrickPoints(playedCards) };
+        const nextCounts = { ...trickCounts, [trickWinner]: trickCounts[trickWinner] + 1 };
         setTrickPoints(nextPoints);
+        setTrickCounts(nextCounts);
         setPlayedCards([]);
         setCurrentTurn(roundOver ? null : trickWinner);
         setTrickWinner(null);
@@ -401,11 +408,14 @@ function useSchafkopfGame() {
                 id: Date.now(),
                 gameName: selectedGame,
                 points: nextPoints,
+                // Tricks per player and the hands as dealt, for the achievements.
+                tricks: nextCounts,
+                hands: dealtHands,
                 callerTeam: selectedGame === "Ramsch" ? [] : callerTeam,
                 ...scoreRound({ gameName: selectedGame, coins: game?.coins ?? 0, callerTeam, points: nextPoints }),
             });
         }
-    }, [playedCards, trickWinner, players, trickPoints, selectedGame, teams, caller, humanPlayer]);
+    }, [playedCards, trickWinner, players, trickPoints, trickCounts, dealtHands, selectedGame, teams, caller, humanPlayer]);
 
     const playCard = useCallback(
         (playerName, cardIndex) => {
@@ -432,7 +442,7 @@ function useSchafkopfGame() {
 
     useEffect(() => {
         // Cards are only played once a game has been decided.
-        if (bidding || marriageOffer || selectedGame === "Pass") return undefined;
+        if (paused || bidding || marriageOffer || selectedGame === "Pass") return undefined;
         if (currentTurn && currentTurn !== humanPlayer && players[currentTurn].length > 0) {
             if (aiTimeoutRef.current || isProcessingRef.current) return; // Already pending or processing
 
@@ -487,7 +497,7 @@ function useSchafkopfGame() {
             };
         }
         return undefined;
-    }, [currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, marriageOffer, revealCalledAceIfNeeded]);
+    }, [paused, currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, marriageOffer, revealCalledAceIfNeeded]);
 
     return {
         players,

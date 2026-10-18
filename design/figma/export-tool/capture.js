@@ -49,7 +49,12 @@ async function reachPicker(page) {
       await clickLabel(page, "Decline");
       await clickLabel(page, "Choose game");
     }
+    // Esc opens the pause menu; leave the game (and confirm if a round is on).
     await page.keyboard.press("Escape");
+    await wait(300);
+    await clickLabel(page, "Leave game");
+    await wait(300);
+    await clickLabel(page, "Leave game");
     await wait(500);
   }
   return false;

@@ -3,20 +3,27 @@ import { Pressable, StyleSheet, View } from "react-native";
 import GameHeader from "../components/GameHeader";
 import GamePicker, { ChoicePrompt } from "../components/GamePicker";
 import SceneBackground from "../components/SceneBackground";
+import AchievementToast from "../components/AchievementToast";
+import PausePanel from "../components/PausePanel";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { getSauSpielStatus, parseGame } from "../ai/schafkopfAI";
-import { getCardName, getGameType, suitNamesEn } from "../data/gameTypes";
+import { getGameType } from "../data/gameTypes";
+import { t } from "../i18n";
+import { cardName } from "../i18n/names";
 import { getGameRank } from "../ai/players";
-import { colors, getTableLayout } from "../theme";
+import { colors, fillParent, getTableLayout } from "../theme";
 import { sounds } from "../audio/sounds";
 import useHotkey from "../hooks/useHotkey";
 
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
 
-function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
+function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores, onRoundScored }) {
+  // The pause menu (Menu button or Esc): the other players wait while it's open.
+  const [isPaused, setIsPaused] = useState(false);
+  useHotkey("Escape", () => setIsPaused((paused) => !paused));
   const {
     players,
     currentTurn,
@@ -38,7 +45,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     bidding,
     lastBid,
     humanBid,
-  } = useSchafkopfGame();
+  } = useSchafkopfGame({ paused: isPaused });
 
   // A card landing on the table, and a finished trick being collected.
   const previousTrickSizeRef = useRef(0);
@@ -51,10 +58,13 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   // Add each finished round to the session balance exactly once.
   const scoredRoundRef = useRef(null);
+  // Achievements earned by the last round, shown in a toast.
+  const [newAchievements, setNewAchievements] = useState([]);
   useEffect(() => {
     if (roundResult && scoredRoundRef.current !== roundResult.id) {
       scoredRoundRef.current = roundResult.id;
-      onRoundScored?.(roundResult.deltas);
+      const fresh = onRoundScored?.(roundResult) ?? [];
+      if (fresh.length) setNewAchievements(fresh);
     }
   }, [roundResult, onRoundScored]);
 
@@ -69,7 +79,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const [previewGame, setPreviewGame] = useState(null);
 
   const playerLabels = {
-    south: "Maria",
+    south: yourName,
     west: "Jonas",
     north: "Bernd",
     east: "Ernie",
@@ -97,40 +107,39 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   // Announcing: who has the say, and the best game so far.
   const biddingSeat = bidding?.seat ?? null;
   const bestBid = bidding?.best ?? null;
-  const gameLabel = (value) => {
+  // A game value split for the texts: { game: "Solo", suit: "leaf" }.
+  const gameParts = (value) => {
     const { base, suit } = parseGame(value);
-    return base === "Solo" ? `${suitNamesEn[suit]} Solo` : getGameType(base)?.label;
+    return { game: base, suit };
   };
-  // "a Sheep Game", "an Acorn Solo"
-  const withArticle = (value) => {
-    const label = gameLabel(value);
-    return `${/^[AEIOU]/.test(label) ? "an" : "a"} ${label}`;
+  // "Jonas wants a Sheep Game", with the game's suit for a Solo.
+  const wantsText = (seat, value) => {
+    const { base, suit } = parseGame(value);
+    return t("bid.wants", { name: playerName(seat), game: base, suit });
   };
-  const biddingTitle = bidding
-    ? bestBid
-      ? `${playerName(bestBid.seat)} wants ${withArticle(bestBid.game)}`
-      : "Who will play?"
-    : null;
+  const biddingTitle = bidding ? (bestBid ? wantsText(bestBid.seat, bestBid.game) : t("bid.whoPlays")) : null;
   const lastBidText = lastBid
     ? lastBid.marriageDeclined
-      ? `nobody married ${playerName(lastBid.seat)}`
-      : `${playerName(lastBid.seat)} ${lastBid.game ? `announces ${withArticle(lastBid.game)}` : "passes"}`
+      ? t("bid.nobodyMarried", { name: playerName(lastBid.seat) })
+      : lastBid.game
+        ? t("bid.announces", { name: playerName(lastBid.seat), ...gameParts(lastBid.game) })
+        : t("bid.passes", { name: playerName(lastBid.seat) })
     : null;
 
   // Marriage offer, before announcing: who offers and who has to answer.
   const marriageSeat = marriageOffer?.seat ?? null;
   const marriageTitle = marriageOffer
     ? marriageOffer.stage === "offer"
-      ? "You hold just one trump"
-      : `${playerName(marriageOffer.offerer)} offers a marriage`
+      ? t("marriage.oneTrump")
+      : t("marriage.offers", { name: playerName(marriageOffer.offerer) })
     : null;
   const marriageAskNote = marriageOffer
     ? marriageSeat === "south"
-      ? "your answer"
-      : `${playerName(marriageSeat)} is deciding…`
+      ? t("marriage.yourAnswer")
+      : t("bid.deciding", { name: playerName(marriageSeat) })
     : null;
   const biddingNote = bidding
-    ? [lastBidText, biddingSeat === "south" ? "your say" : `${playerName(biddingSeat)} is deciding…`]
+    ? [lastBidText, biddingSeat === "south" ? t("bid.yourSay") : t("bid.deciding", { name: playerName(biddingSeat) })]
         .filter(Boolean)
         .join(" · ")
     : null;
@@ -139,7 +148,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   const firstTrickNotStarted = playedCards.length === 0 && players.south.length === 6;
   const marriageNote =
     selectedGame === "Marriage" && marriage && firstTrickNotStarted
-      ? `Swapped: ${getCardName(marriage.trump)} → ${getCardName(marriage.given)}`
+      ? t("marriage.swapped", { from: cardName(marriage.trump), to: cardName(marriage.given) })
       : null;
 
   // Round flow, as in the rulebook: deal, declare a game, then play.
@@ -179,16 +188,16 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
       ? Object.fromEntries(
           ["Sau Spiel", "Marriage", "Wenz", "Solo"]
             .filter((value) => getGameRank(value) <= getGameRank(bestBid.game))
-            .map((value) => [value, `${playerName(bestBid.seat)} wants ${withArticle(bestBid.game)}`])
+            .map((value) => [value, wantsText(bestBid.seat, bestBid.game)])
         )
       : {}),
     // A marriage is offered right after the deal, before announcing.
-    Marriage: "Offered before announcing, with just one trump",
+    Marriage: t("marriage.offeredBefore"),
   };
 
   // Web shortcuts: D or Enter deals when dealing is possible.
-  useHotkey("d", handleDeal, canDeal);
-  useHotkey("Enter", handleDeal, canDeal);
+  useHotkey("d", handleDeal, canDeal && !isPaused);
+  useHotkey("Enter", handleDeal, canDeal && !isPaused);
   const closePicker = () => {
     setPreviewGame(null);
     setIsPickerOpen(false);
@@ -225,8 +234,12 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
     if (roundResult.gameName === "Ramsch") {
       return {
-        message: `${names(roundResult.losers)} ${roundResult.losers.length > 1 ? "lose" : "loses"} the ${gameType.label}`,
-        points: `${Math.max(...Object.values(roundResult.points))} points taken`,
+        message: t("result.loses", {
+          names: names(roundResult.losers),
+          plural: roundResult.losers.length > 1,
+          game: gameType.value,
+        }),
+        points: t("result.pointsTaken", { points: Math.max(...Object.values(roundResult.points)) }),
         rows,
       };
     }
@@ -235,11 +248,10 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
     const callers = roundResult.callerTeam;
     const callersWon = callers.every((seat) => roundResult.winners.includes(seat));
     const plural = callers.length > 1;
-    const verb = callersWon ? (plural ? "win" : "wins") : plural ? "lose" : "loses";
     const callerPoints = roundResult.callerPoints;
     return {
-      message: `${names(callers)} ${verb} the ${gameType.label}`,
-      points: `${callerPoints} : ${120 - callerPoints} points`,
+      message: t(callersWon ? "result.wins" : "result.loses", { names: names(callers), plural, game: gameType.value }),
+      points: t("result.score", { ours: callerPoints, theirs: 120 - callerPoints }),
       rows,
     };
   };
@@ -270,14 +282,14 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
           selectedGame={selectedGame}
           calledAce={calledAce}
           playerName={playerName}
-          onOpenMenu={onOpenMenu}
+          onOpenMenu={() => setIsPaused(true)}
           coins={sessionScores?.south ?? 0}
           marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
           caller={caller}
           title={marriageTitle ?? biddingTitle}
           note={marriageAskNote ?? biddingNote ?? marriageNote}
         />
-        {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" /> : null}
+        {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} /> : null}
       </View>
 
       <View
@@ -334,19 +346,19 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 <View style={[styles.pickerSlot, { top: layout.height * 0.2, paddingHorizontal: 16 }]} pointerEvents="box-none">
                   {marriageOffer.stage === "offer" ? (
                     <ChoicePrompt
-                      heading="A marriage?"
-                      text="You hold just one trump. Offer it face down and find a partner? Whoever accepts takes it and gives you a card."
-                      noLabel="No"
-                      yesLabel="Offer marriage"
+                      heading={t("marriage.offerHeading")}
+                      text={t("marriage.offerText")}
+                      noLabel={t("marriage.no")}
+                      yesLabel={t("marriage.offer")}
                       onNo={() => humanMarriageOffer(false)}
                       onYes={() => humanMarriageOffer(true)}
                     />
                   ) : (
                     <ChoicePrompt
-                      heading="Marriage!"
-                      text={`${playerName(marriageOffer.offerer)} holds just one trump and offers it to you. Accept, take the trump and give back your weakest card, and play together?`}
-                      noLabel="Decline"
-                      yesLabel="Accept"
+                      heading={t("marriage.askHeading")}
+                      text={t("marriage.askText", { name: playerName(marriageOffer.offerer) })}
+                      noLabel={t("marriage.decline")}
+                      yesLabel={t("marriage.accept")}
                       onNo={() => humanMarriageAnswer(false)}
                       onYes={() => humanMarriageAnswer(true)}
                     />
@@ -358,7 +370,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
             {/* Declaring a game: the table darkens, your hand stays visible above it. */}
             {showPicker ? (
               <>
-                <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel="Close" />
+                <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} />
                 <View style={[styles.pickerSlot, { top: pickerTop }]} pointerEvents="box-none">
                   <GamePicker
                     width={Math.min(layout.width - 24, 900)}
@@ -398,13 +410,18 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
                 style={StyleSheet.absoluteFill}
                 onPress={collectTrick}
                 accessibilityRole="button"
-                accessibilityLabel="Collect the trick"
+                accessibilityLabel={t("table.collectTrick")}
               />
             ) : null}
           </>
         ) : null}
       </View>
 
+      <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
+
+      {isPaused ? (
+        <PausePanel onResume={() => setIsPaused(false)} onLeave={onOpenMenu} isRoundInProgress={hasCards} />
+      ) : null}
     </View>
   );
 }
@@ -418,7 +435,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...fillParent,
     backgroundColor: colors.scrim,
   },
   pickerSlot: {

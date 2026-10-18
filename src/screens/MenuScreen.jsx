@@ -1,17 +1,22 @@
 /* Title screen, after the "Almsommer" sketches: the painted Alm at dusk, the
-brush-lettered title, shepherds that slide in from the sides, and hand-drawn
-buttons. Landscape shows all four shepherds; portrait (phones) shows a random
-pair, blue and orange or red and green. */
+brush-lettered title, shepherds that slide in from the sides, and buttons on
+torn scraps of paper. Your profile (portrait, name, savings) sits at the top
+left and opens the profile panel. Landscape shows all four shepherds;
+portrait (phones) shows a random pair, blue and orange or red and green. */
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Platform, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
-import PaintedButton from "../components/PaintedButton";
+import ProfileBadge from "../components/ProfileBadge";
+import ProfilePanel from "../components/ProfilePanel";
 import SceneBackground from "../components/SceneBackground";
 import SettingsPanel from "../components/SettingsPanel";
+import { TornButton } from "../components/TornPaper";
 import { useStage } from "../components/Stage";
 import useHotkey from "../hooks/useHotkey";
-import { TITLE_RATIO, menuButtons, menuShepherds, titleLettering } from "../data/uiArt";
+import { t } from "../i18n";
+import { TITLE_RATIO, menuShepherds, titleLettering } from "../data/uiArt";
+import { fillParent } from "../theme";
 
 // Landscape: the inner figure of each pair overlaps the outer one by this
 // share of its width.
@@ -89,15 +94,13 @@ function SlidingFigure({ figure, stageWidth }) {
 function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
     const { width, height, isPortrait } = useStage();
     const [pair] = useState(() => portraitPairs[Math.floor(Math.random() * portraitPairs.length)]);
-    const [showSettings, setShowSettings] = useState(false);
-    // Esc closes the settings (on other screens it goes back to the menu).
-    useHotkey("Escape", () => setShowSettings(false), showSettings);
+    // The open panel, if any: "settings" or "profile".
+    const [panel, setPanel] = useState(null);
+    // Esc closes a panel (on other screens it goes back to the menu).
+    useHotkey("Escape", () => setPanel(null), Boolean(panel));
 
     const figures = isPortrait ? getPortraitFigures(width, height, pair) : getLandscapeFigures(width, height);
     const titleWidth = isPortrait ? width * 0.9 : Math.min(width * 0.56, 760);
-    // Heights of the painted buttons: play is the big one.
-    const playHeight = isPortrait ? 120 : Math.max(Math.min(height * 0.15, 130), 70);
-    const smallHeight = playHeight * 0.52;
 
     return (
         <View style={styles.shell}>
@@ -120,31 +123,26 @@ function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
                     }}
                 />
                 <View style={[styles.buttons, { gap: Math.max(height * (isPortrait ? 0.02 : 0.03), 14) }]}>
-                    <PaintedButton art={menuButtons.play} height={playHeight} label="Play" onPress={onPlay} />
-                    <PaintedButton
-                        art={menuButtons.achievements}
-                        height={smallHeight}
-                        label="Achievements"
-                        onPress={onOpenAchievements}
-                    />
-                    <PaintedButton
-                        art={menuButtons.settings}
-                        height={smallHeight}
-                        label="Settings"
-                        onPress={() => setShowSettings(true)}
-                    />
+                    <TornButton label={t("menu.play")} accessibilityLabel={t("menu.playLabel")} fontSize={58} paddingHorizontal={60} paddingVertical={8} onPress={onPlay} />
+                    <TornButton label={t("menu.achievements")} accessibilityLabel={t("menu.achievementsLabel")} onPress={onOpenAchievements} />
+                    <TornButton label={t("menu.settings")} accessibilityLabel={t("menu.settingsLabel")} paddingHorizontal={34} onPress={() => setPanel("settings")} />
                 </View>
             </View>
 
-            {showSettings ? (
+            <View style={[styles.profile, isPortrait && styles.profilePortrait]} pointerEvents="box-none">
+                <ProfileBadge compact={isPortrait} onPress={() => setPanel("profile")} />
+            </View>
+
+            {panel === "settings" ? (
                 <SettingsPanel
-                    onClose={() => setShowSettings(false)}
+                    onClose={() => setPanel(null)}
                     onViewDeck={() => {
-                        setShowSettings(false);
+                        setPanel(null);
                         onOpenDeck();
                     }}
                 />
             ) : null}
+            {panel === "profile" ? <ProfilePanel onClose={() => setPanel(null)} /> : null}
         </View>
     );
 }
@@ -158,7 +156,7 @@ const styles = StyleSheet.create({
         position: "absolute",
     },
     centre: {
-        ...StyleSheet.absoluteFillObject,
+        ...fillParent,
         alignItems: "center",
         paddingTop: "4%",
     },
@@ -167,6 +165,15 @@ const styles = StyleSheet.create({
     },
     buttons: {
         alignItems: "center",
+    },
+    profile: {
+        position: "absolute",
+        top: 22,
+        left: 26,
+    },
+    profilePortrait: {
+        top: 16,
+        left: 16,
     },
 });
 

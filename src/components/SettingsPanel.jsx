@@ -1,14 +1,17 @@
 /* Settings over the title screen: switches for music and sound effects, and
 the card deck (only Almsommer so far) with a way to look at all its cards.
 In the style of the game panel (dotted paper, ink border, gold when on). The
-sound choices are saved, so they survive closing the app. */
+sound choices are saved, so they survive closing the app.
+The paper panel, the sound switches and the buttons are shared with the
+pause panel in the game. */
 
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import Card from "./Card";
 import { updateSoundSettings, useSoundSettings } from "../audio/sounds";
 import { DEFAULT_DECK, cardDecks } from "../data/cardDecks";
-import { colors, fonts, softShadow } from "../theme";
+import { languages, setLanguage, t, useLanguage } from "../i18n";
+import { colors, fillParent, fonts, softShadow } from "../theme";
 
 function Switch({ label, hint, value, onChange }) {
     return (
@@ -48,23 +51,23 @@ function DeckOption({ deck, selected, onView }) {
             <View style={styles.deckText}>
                 <Text style={styles.rowLabel}>{deck.name}</Text>
                 <Text style={styles.rowHint} numberOfLines={2}>
-                    {deck.description}
+                    {t(`deck.${deck.id}.description`)}
                 </Text>
-                <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={`View the ${deck.name} cards`}>
-                    {({ hovered }) => <Text style={[styles.link, hovered && styles.linkHovered]}>View all cards ›</Text>}
+                <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={t("settings.viewCardsLabel", { deck: deck.name })}>
+                    {({ hovered }) => <Text style={[styles.link, hovered && styles.linkHovered]}>{t("settings.viewCards")}</Text>}
                 </Pressable>
             </View>
         </View>
     );
 }
 
-function SettingsPanel({ onClose, onViewDeck }) {
-    const { music, effects } = useSoundSettings();
-
+// Dotted paper panel over a darkened screen, with a hand-lettered heading.
+// Tapping beside it calls onClose. maxWidth widens it for two columns.
+export function PaperPanel({ heading, onClose, closeLabel, maxWidth, children }) {
     return (
         <View style={styles.overlay}>
-            <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close settings" />
-            <View style={styles.panel}>
+            <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel={closeLabel} />
+            <View style={[styles.panel, maxWidth ? { maxWidth } : null]}>
                 <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
                     <Defs>
                         <Pattern id="settings-dots" width={14} height={14} patternUnits="userSpaceOnUse">
@@ -74,50 +77,105 @@ function SettingsPanel({ onClose, onViewDeck }) {
                     <Rect width="100%" height="100%" fill="url(#settings-dots)" />
                 </Svg>
 
-                <Text style={styles.heading}>settings</Text>
-
-                <Switch
-                    label="Music"
-                    hint="The meadow tune in the background"
-                    value={music}
-                    onChange={(on) => updateSoundSettings({ music: on })}
-                />
-                <View style={styles.divider} />
-                <Switch
-                    label="Sound effects"
-                    hint="Shuffling, cards, tricks and the sheep"
-                    value={effects}
-                    onChange={(on) => updateSoundSettings({ effects: on })}
-                />
-
-                <Text style={styles.sectionLabel}>Card deck</Text>
-                {cardDecks.map((deck) => (
-                    <DeckOption key={deck.id} deck={deck} selected={deck.id === DEFAULT_DECK} onView={onViewDeck} />
-                ))}
-
-                <Pressable
-                    onPress={onClose}
-                    accessibilityRole="button"
-                    accessibilityLabel="Done"
-                    style={({ pressed }) => [styles.done, pressed && styles.donePressed]}
-                >
-                    <Text style={styles.doneLabel}>Done</Text>
-                </Pressable>
+                <Text style={styles.heading}>{heading}</Text>
+                {children}
             </View>
         </View>
     );
 }
 
+// Music and sound effects, saved across app starts.
+export function SoundSwitches() {
+    const { music, effects } = useSoundSettings();
+    return (
+        <>
+            <Switch
+                label={t("settings.music")}
+                hint={t("settings.musicHint")}
+                value={music}
+                onChange={(on) => updateSoundSettings({ music: on })}
+            />
+            <View style={styles.divider} />
+            <Switch
+                label={t("settings.effects")}
+                hint={t("settings.effectsHint")}
+                value={effects}
+                onChange={(on) => updateSoundSettings({ effects: on })}
+            />
+        </>
+    );
+}
+
+// The panel's buttons: "primary" is ink with a gold edge, "secondary" is
+// outlined paper.
+export function PanelButton({ label, onPress, variant = "primary", style }) {
+    const primary = variant === "primary";
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            style={({ pressed }) => [primary ? styles.done : styles.secondary, pressed && styles.donePressed, style]}
+        >
+            <Text style={[styles.doneLabel, !primary && styles.secondaryLabel]}>{label}</Text>
+        </Pressable>
+    );
+}
+
+// English or German, as two halves of one switch; the gold half is chosen.
+function LanguageChoice() {
+    const language = useLanguage();
+    return (
+        <View style={styles.row}>
+            <Text style={[styles.rowLabel, styles.rowText]}>{t("settings.language")}</Text>
+            <View style={styles.segments} accessibilityRole="radiogroup">
+                {languages.map(({ id, name }) => {
+                    const selected = id === language;
+                    return (
+                        <Pressable
+                            key={id}
+                            onPress={() => setLanguage(id)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ checked: selected }}
+                            accessibilityLabel={name}
+                            style={[styles.segment, selected && styles.segmentSelected]}
+                        >
+                            <Text style={styles.segmentLabel}>{name}</Text>
+                        </Pressable>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
+function SettingsPanel({ onClose, onViewDeck }) {
+    return (
+        <PaperPanel heading={t("settings.heading")} onClose={onClose} closeLabel={t("settings.close")}>
+            <SoundSwitches />
+            <View style={styles.divider} />
+            <LanguageChoice />
+
+            <Text style={styles.sectionLabel}>{t("settings.cardDeck")}</Text>
+            {cardDecks.map((deck) => (
+                <DeckOption key={deck.id} deck={deck} selected={deck.id === DEFAULT_DECK} onView={onViewDeck} />
+            ))}
+
+            <PanelButton label={t("common.done")} onPress={onClose} />
+        </PaperPanel>
+    );
+}
+
 const styles = StyleSheet.create({
     overlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...fillParent,
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
         zIndex: 20,
     },
     scrim: {
-        ...StyleSheet.absoluteFillObject,
+        ...fillParent,
         backgroundColor: colors.scrim,
     },
     panel: {
@@ -241,6 +299,37 @@ const styles = StyleSheet.create({
         borderBottomWidth: 4,
         borderBottomColor: colors.hay,
     },
+    segments: {
+        flexDirection: "row",
+        borderRadius: 12,
+        borderWidth: 2.5,
+        borderColor: colors.ink,
+        overflow: "hidden",
+        backgroundColor: "#ffffff",
+    },
+    segment: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    segmentSelected: {
+        backgroundColor: colors.hay,
+    },
+    segmentLabel: {
+        fontFamily: fonts.bodyBold,
+        fontSize: 16,
+        color: colors.ink,
+    },
+    secondary: {
+        alignItems: "center",
+        paddingVertical: 11,
+        backgroundColor: "#ffffff",
+        borderRadius: 14,
+        borderWidth: 2.5,
+        borderColor: colors.ink,
+    },
+    secondaryLabel: {
+        color: colors.ink,
+    },
     donePressed: {
         transform: [{ translateY: 1 }],
     },
@@ -250,5 +339,8 @@ const styles = StyleSheet.create({
         color: "#ffffff",
     },
 });
+
+// Text and divider styles, for other panels in the same look.
+export const panelStyles = styles;
 
 export default SettingsPanel;
