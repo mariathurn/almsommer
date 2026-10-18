@@ -4,21 +4,81 @@
 //    areas become translucent black, lighter ones translucent white, and
 //    mid-tones transparent. Laid over a coloured panel it shifts only
 //    brightness, so the suit colour keeps its saturation instead of going grey.
-// 2. Every <motif>-<colour>.png -> src/assets/card-art/, downscaled so a full
-//    deck stays light on phone memory, plus card-art/sizes.json with their
-//    dimensions. The originals are left untouched.
+// 2. Every <motif>-<colour>.png -> src/assets/card-art/, converted to sRGB,
+//    cropped to its visible pixels and downscaled so a full deck stays light
+//    on phone memory, plus card-art/sizes.json with their dimensions.
+//    The originals are left untouched.
+//
+// Colour profiles: the output PNGs carry no profile, so apps read their
+// values as sRGB. Originals in another profile (Display P3 from Procreate or
+// Figma) are converted first with macOS `sips`, or their colours would come
+// out dull and shifted.
 //
 // Usage: npm run card-art
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const { execFileSync } = require("child_process");
 const { PNG } = require("pngjs");
 
 const dir = path.join(__dirname, "../src/assets/Illus");
 const artDir = path.join(__dirname, "../src/assets/card-art");
+const SRGB_PROFILE = "/System/Library/ColorSync/Profiles/sRGB Profile.icc";
 const ART_MAX_SIZE = 720;
 const TARGET_HEIGHT = 1000;
 const STRENGTH = 2; // how far a pixel's luminance distance from the mean is amplified
+
+// Reads a PNG with its colours converted to sRGB.
+function readAsSrgb(file) {
+    const profile = execFileSync("sips", ["-g", "profile", file], { encoding: "utf8" }).split("profile: ")[1]?.trim();
+    if (!profile || profile.startsWith("sRGB")) return PNG.sync.read(fs.readFileSync(file));
+    const converted = path.join(os.tmpdir(), `card-art-${path.basename(file)}`);
+    execFileSync("sips", ["--matchTo", SRGB_PROFILE, file, "--out", converted], { stdio: "ignore" });
+    console.log(`${path.basename(file)}: converted from ${profile} to sRGB`);
+    const png = PNG.sync.read(fs.readFileSync(converted));
+    fs.unlinkSync(converted);
+    return png;
+}
+
+// Bounds of the visible pixels along one axis, from per-row (or per-column)
+// counts of visible pixels. Small blocks separated from the motif by empty
+// space, like a stray speck in a corner, are left out.
+function visibleRange(counts) {
+    const total = counts.reduce((sum, n) => sum + n, 0);
+    const blocks = [];
+    counts.forEach((n, i) => {
+        if (!n) return;
+        const last = blocks[blocks.length - 1];
+        if (last && last.end === i - 1) {
+            last.end = i;
+            last.count += n;
+        } else {
+            blocks.push({ start: i, end: i, count: n });
+        }
+    });
+    const main = blocks.filter((block) => block.count >= total * 0.005);
+    return [main[0].start, main[main.length - 1].end];
+}
+
+// Crops a PNG to its visible pixels.
+function cropToContent(src) {
+    const rows = new Array(src.height).fill(0);
+    const cols = new Array(src.width).fill(0);
+    for (let y = 0; y < src.height; y++) {
+        for (let x = 0; x < src.width; x++) {
+            if (src.data[(y * src.width + x) * 4 + 3] > 8) {
+                rows[y]++;
+                cols[x]++;
+            }
+        }
+    }
+    const [x0, x1] = visibleRange(cols);
+    const [y0, y1] = visibleRange(rows);
+    const out = new PNG({ width: x1 - x0 + 1, height: y1 - y0 + 1 });
+    PNG.bitblt(src, out, x0, y0, out.width, out.height, 0, 0);
+    return out;
+}
 
 // Box-filter downscale with premultiplied alpha, so transparent edges stay clean.
 function downscale(src, width, height) {
@@ -52,8 +112,8 @@ function downscale(src, width, height) {
 fs.mkdirSync(artDir, { recursive: true });
 const sizes = {};
 for (const file of fs.readdirSync(dir)) {
-    if (!/^[a-z]+-[a-z]+\.png$/.test(file) || file === "bg-card.png") continue;
-    const art = PNG.sync.read(fs.readFileSync(path.join(dir, file)));
+    if (!/^[a-z]+-(blue|green|orange|red)\.png$/.test(file)) continue;
+    const art = cropToContent(readAsSrgb(path.join(dir, file)));
     const factor = Math.min(1, ART_MAX_SIZE / Math.max(art.width, art.height));
     const resized = downscale(art, Math.round(art.width * factor), Math.round(art.height * factor));
     fs.writeFileSync(path.join(artDir, file), PNG.sync.write(resized));
@@ -63,7 +123,7 @@ for (const file of fs.readdirSync(dir)) {
 // Image sizes for layouts that need the exact aspect ratio (the shepherd figures).
 fs.writeFileSync(path.join(artDir, "sizes.json"), JSON.stringify(sizes, null, 2) + "\n");
 
-const src = PNG.sync.read(fs.readFileSync(path.join(dir, "bg.png")));
+const src = readAsSrgb(path.join(dir, "bg.png"));
 const scale = src.height / TARGET_HEIGHT;
 const width = Math.round(src.width / scale);
 const height = TARGET_HEIGHT;

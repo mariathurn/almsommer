@@ -60,6 +60,7 @@ function PlayerPanel({
     calledAce = null,
     isTrickWinner = false,
     score = 0,
+    isOverTable = null,
 }) {
     // Larger profiles and tags in the web (landscape) view.
     const scale = layout.portrait ? 1 : PROFILE_SCALE;
@@ -131,6 +132,7 @@ function PlayerPanel({
                     highlightTrumps={highlightTrumps}
                     calledAce={calledAce}
                     confirmTap={Boolean(layout.portrait)}
+                    isOverTable={isOverTable}
                 />
             </View>
             <View

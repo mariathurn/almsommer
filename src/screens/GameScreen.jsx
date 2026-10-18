@@ -59,6 +59,10 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
   }, [roundResult, onRoundScored]);
 
   const [tableSize, setTableSize] = useState(null);
+  // Where the table sits in the window, so a card dragged from your hand
+  // can be checked against the table circle.
+  const tableRef = useRef(null);
+  const tableOrigin = useRef({ x: 0, y: 0 });
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   // Game hovered in the picker; its trumps are previewed in your hand.
@@ -242,6 +246,16 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
 
   const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
   const layout = tableLayout;
+
+  // Whether a point in the window (a dragged card's pointer) is over the
+  // table circle, with a little slack around its edge.
+  const isOverTable = (x, y) => {
+    if (!layout) return false;
+    const { blanket } = layout;
+    const dx = x - tableOrigin.current.x - blanket.centerX;
+    const dy = y - tableOrigin.current.y - blanket.centerY;
+    return Math.hypot(dx, dy) <= (blanket.width / 2) * 1.15;
+  };
   // Phones: the panel reaches up over the banner to the top of the screen.
   const pickerTop = layout?.portrait ? 8 - headerHeight : 8;
 
@@ -267,8 +281,14 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
       </View>
 
       <View
+        ref={tableRef}
         style={styles.table}
-        onLayout={({ nativeEvent }) => setTableSize(nativeEvent.layout)}
+        onLayout={({ nativeEvent }) => {
+          setTableSize(nativeEvent.layout);
+          tableRef.current?.measureInWindow((x, y) => {
+            tableOrigin.current = { x, y };
+          });
+        }}
       >
         {layout ? (
           <>
@@ -360,6 +380,7 @@ function GameScreen({ onOpenMenu, sessionScores, onRoundScored }) {
               cards={players.south}
               isCurrentTurn={currentTurn === "south" && Boolean(gameType)}
               onPlayCard={(index) => playCard("south", index)}
+              isOverTable={isOverTable}
               playedCards={playedCards}
               gameType={isCaller("south") ? selectedGame : null}
               status={getGameStatus("south")}

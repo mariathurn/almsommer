@@ -10,7 +10,14 @@ import { rankDesign } from "./cardDesign";
 const colourOfSuit = { heart: "red", leaf: "green", acorn: "blue", bell: "orange" };
 
 const crops = {
-    dog: { rank: "U", default: { centerX: 150, centerY: 215, span: 320 } },
+    dog: {
+        rank: "U",
+        // Each dog is a different breed, so each has its own crop.
+        heart: { centerX: 175, centerY: 135, span: 330 },
+        leaf: { centerX: 155, centerY: 165, span: 320 },
+        acorn: { centerX: 135, centerY: 155, span: 300 },
+        bell: { centerX: 185, centerY: 165, span: 340 },
+    },
     sheep: { rank: "A", default: { centerX: 295, centerY: 144, span: 465 } },
     shepherd: {
         rank: "O",

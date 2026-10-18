@@ -2,11 +2,14 @@
 // Ranks without an entry in `rankDesign` still use the classic SVG art.
 
 export const suitColors = {
-    bell: { frame: "#ff8234", dots: "#b06c37", panel: "#e77126", accent: "#d65500" },
+    bell: { frame: "#f7892f", dots: "#a9441e", panel: "#d76202", accent: "#c24e00" },
     heart: { frame: "#f2606a", dots: "#9e3a42", panel: "#d94452", accent: "#a52131" },
-    leaf: { frame: "#6fb393", dots: "#3d6b58", panel: "#4f9878", accent: "#3f695c" },
-    acorn: { frame: "#4aa0ea", dots: "#2a5f8f", panel: "#2f86d1", accent: "#0062ac" },
+    leaf: { frame: "#35b095", dots: "#154b4a", panel: "#2a7f6d", accent: "#1d6b5a" },
+    acorn: { frame: "#4783b9", dots: "#18466f", panel: "#295680", accent: "#1f5a94" },
 };
+
+// Fill of the points tab, top right.
+export const pointsFill = "#f9c900";
 
 export const ink = "#1f1c19";
 
@@ -71,32 +74,41 @@ export const rankDesign = {
             acorn: require("../assets/card-art/sheep-blue.png"),
         },
     },
+    // Dogs and shepherds are figures placed as in the card mockups: they may
+    // reach over the panel's top border. top, bottom: where the top and bottom
+    // of the image go, centerX: its horizontal centre (card units, the card
+    // is 500 x 784). clip: cut the figure off at the panel's sides and bottom.
+    // symbol: the figure symbol above the number (see cardSymbols.js).
     U: {
         label: "HUND",
+        symbol: "dog",
         art: {
             bell: require("../assets/card-art/dog-orange.png"),
             heart: require("../assets/card-art/dog-red.png"),
             leaf: require("../assets/card-art/dog-green.png"),
             acorn: require("../assets/card-art/dog-blue.png"),
         },
+        figure: {
+            bell: { file: "dog-orange.png", top: 105, bottom: 653, centerX: 256 },
+            heart: { file: "dog-red.png", top: 105, bottom: 661, centerX: 276 },
+            leaf: { file: "dog-green.png", top: 35, bottom: 688, centerX: 236 },
+            acorn: { file: "dog-blue.png", top: 51, bottom: 662, centerX: 265 },
+        },
     },
     O: {
-        label: "HIRTE",
+        label: "SCHÄFER",
+        symbol: "shepherd",
         art: {
             bell: require("../assets/card-art/shepard-orange.png"),
             heart: require("../assets/card-art/shepard-red.png"),
             leaf: require("../assets/card-art/shepard-green.png"),
             acorn: require("../assets/card-art/shepard-blue.png"),
         },
-        // Shepherds stand on the bottom of the panel and are scaled so the
-        // middle of their hat sits on the panel's top border, peeking over it.
-        // hatMiddle: how far down the image the middle of the hat is (0-1).
-        // offsetX: optional nudge to the right (card units, the card is 500 wide).
         figure: {
-            bell: { file: "shepard-orange.png", hatMiddle: 50 / 720, offsetX: 20 },
-            heart: { file: "shepard-red.png", hatMiddle: 55 / 720 },
-            leaf: { file: "shepard-green.png", hatMiddle: 38 / 720 },
-            acorn: { file: "shepard-blue.png", hatMiddle: 45 / 720 },
+            bell: { file: "shepard-orange.png", top: 40, bottom: 675, centerX: 279, clip: true },
+            heart: { file: "shepard-red.png", top: 59, bottom: 672, centerX: 258, clip: true },
+            leaf: { file: "shepard-green.png", top: 57, bottom: 676, centerX: 247, clip: true },
+            acorn: { file: "shepard-blue.png", top: 70, bottom: 672, centerX: 253, clip: true },
         },
     },
 };
@@ -115,7 +127,13 @@ export function getCardNumber(card, gameName = null) {
     return (card.rank === "U" ? 5 : 9) + suitIndex;
 }
 
-// Schafkopf points ("Augen") the card is worth, shown in the top-right circle.
+// The number as printed on the card: 6 and 9 get a dot, so they can be told
+// apart upside down.
+export function formatCardNumber(number) {
+    return number === 6 || number === 9 ? `${number}.` : String(number);
+}
+
+// Schafkopf points ("Augen") the card is worth, shown in the top-right tab.
 export const cardPoints = { "9": 0, K: 4, "10": 10, A: 11, U: 2, O: 3 };
 
 export function hasIllustratedDesign(card) {

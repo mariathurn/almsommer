@@ -1,34 +1,34 @@
 {
   "dog-blue.png": {
-    "width": 372,
+    "width": 316,
     "height": 720
   },
   "dog-green.png": {
-    "width": 359,
+    "width": 287,
     "height": 720
   },
   "dog-orange.png": {
-    "width": 359,
+    "width": 470,
     "height": 720
   },
   "dog-red.png": {
-    "width": 359,
+    "width": 409,
     "height": 720
   },
   "grain-blue.png": {
-    "width": 612,
+    "width": 606,
     "height": 720
   },
   "grain-green.png": {
-    "width": 612,
+    "width": 606,
     "height": 720
   },
   "grain-orange.png": {
-    "width": 612,
+    "width": 606,
     "height": 720
   },
   "grain-red.png": {
-    "width": 612,
+    "width": 606,
     "height": 720
   },
   "hat-blue.png": {
@@ -88,7 +88,7 @@
     "height": 720
   },
   "staff-orange.png": {
-    "width": 180,
+    "width": 181,
     "height": 720
   },
   "staff-red.png": {

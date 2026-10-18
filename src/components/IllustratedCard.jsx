@@ -1,19 +1,41 @@
 /* The illustrated card design: coloured frame with a dot pattern, a textured
-centre panel with the artwork, the card number (top left and mirrored bottom
-right), the card's points (top right) and its name (bottom left).
-Drawn in a 500 x 784 coordinate space that scales to any size. */
+centre panel with the artwork, the card number with a symbol above it (top
+left, mirrored bottom right), the card's points in a tab (top right) and its
+name (bottom left). Drawn in a 500 x 784 coordinate space that scales to any size. */
 
 import Svg, { Circle, ClipPath, Defs, G, Image, Line, Path, Pattern, Rect, Text } from "react-native-svg";
-import { artSizes, cardPoints, cardTexture, getCardNumber, ink, labelFont, numberFont, rankDesign, suitColors } from "../data/cardDesign";
+import {
+    artSizes,
+    cardPoints,
+    cardTexture,
+    formatCardNumber,
+    getCardNumber,
+    ink,
+    labelFont,
+    numberFont,
+    pointsFill,
+    rankDesign,
+    suitColors,
+} from "../data/cardDesign";
+import { SYMBOL_BOX, cardSymbols } from "../data/cardSymbols";
 
-const panel = { x: 37, y: 132, width: 428, height: 545, rx: 20 };
-// Artwork is fitted inside this box, so wide motifs (hat) and tall ones (dog) both fill it.
-const artBox = { x: 57, y: 156, width: 388, height: 497 };
+const panel = { x: 37, y: 92, width: 428, height: 585, rx: 20 };
+// Artwork is fitted inside this box, so wide motifs (hat) and tall ones (sheep) both fill it.
+const artBox = { x: 57, y: 116, width: 388, height: 537 };
 const PANEL_STROKE = 7;
+// Number box, top left: a symbol on top, the number below it.
+const numberBox = { x: 24, y: 20, width: 108, height: 168, rx: 20 };
+const SYMBOL_CENTER = { x: 78, y: 68 };
+// Points tab, top right: rounded on top, hanging over the panel's top border.
+const pointsTab = { left: 366, right: 448, top: 20, bottom: 124, radius: 36 };
+const POINTS_TAB_PATH = (({ left, right, top, bottom, radius: r }) =>
+    `M${left} ${bottom} V${top + r} A${r} ${r} 0 0 1 ${left + r} ${top} H${right - r} A${r} ${r} 0 0 1 ${right} ${top + r} V${bottom} Z`)(
+    pointsTab
+);
 // Approximate width of an uppercase Barlow Condensed Bold letter at 36px, plus tracking.
 const LABEL_CHAR_WIDTH = 18;
 const LABEL_TRACKING = 2.5;
-// Area a standing figure may cover: inside the panel's side and bottom
+// Area a clipped figure may cover: inside the panel's side and bottom
 // borders, but open at the top so the hat can overlap the top border.
 const figureClip = {
     x: panel.x + PANEL_STROKE / 2,
@@ -22,14 +44,24 @@ const figureClip = {
     height: panel.y + panel.height - PANEL_STROKE / 2,
 };
 
-// Scales a figure so its feet touch the inside of the bottom border and the
-// middle of its hat sits on the top border line.
-function getFigurePlacement({ file, hatMiddle, offsetX = 0 }) {
+// Places a figure between its top and bottom, centred on centerX.
+function getFigurePlacement({ file, top, bottom, centerX }) {
     const size = artSizes[file];
-    const feetY = figureClip.height;
-    const height = (feetY - panel.y) / (1 - hatMiddle);
+    const height = bottom - top;
     const width = height * (size.width / size.height);
-    return { x: panel.x + panel.width / 2 - width / 2 + offsetX, y: feetY - height, width, height };
+    return { x: centerX - width / 2, y: top, width, height };
+}
+
+// Dog or shepherd symbol, centred on (x, y): suit-coloured with ink lines.
+function FigureSymbol({ symbol, color, x, y, size }) {
+    const scale = size / SYMBOL_BOX;
+    return (
+        <G transform={`translate(${x - size / 2} ${y - size / 2}) scale(${scale})`}>
+            {cardSymbols[symbol].map((layer, i) => (
+                <Path key={i} d={layer.d} fill={layer.fill === "suit" ? color : ink} />
+            ))}
+        </G>
+    );
 }
 
 // Small suit symbols drawn in a 40 x 40 box.
@@ -71,21 +103,27 @@ export function SuitIcon({ suit, x, y, size }) {
     );
 }
 
-// Trump cards get yellow corner boxes and a crown above the rank.
+// Trump cards get a gold frame, yellow number boxes and a crown above the symbol.
 const TRUMP_FILL = "#eec652";
 
 function IllustratedCard({ card, width, height, isTrump = false, gameName = null }) {
     const colors = suitColors[card.suit];
     const design = rankDesign[card.rank];
     const figure = design.figure?.[card.suit];
-    const number = String(getCardNumber(card, gameName));
+    const cardNumber = getCardNumber(card, gameName);
+    const number = formatCardNumber(cardNumber);
+    const isTwoDigit = cardNumber >= 10;
     const points = String(cardPoints[card.rank]);
-    const isTwoDigit = number.length > 1;
     const labelWidth = design.label.length * (LABEL_CHAR_WIDTH + LABEL_TRACKING) + 44;
     // Trumps get a gold frame with ink dots instead of the suit colour.
     const dotsId = isTrump ? "card-dots-trump" : `card-dots-${card.suit}`;
     const frameFill = isTrump ? TRUMP_FILL : colors.frame;
     const dotFill = isTrump ? ink : colors.dots;
+    // With a crown on top, the symbol moves down and shrinks a little.
+    const symbolY = isTrump ? SYMBOL_CENTER.y + 12 : SYMBOL_CENTER.y;
+    const figureImage = figure ? (
+        <Image href={design.art[card.suit]} {...getFigurePlacement(figure)} preserveAspectRatio="none" />
+    ) : null;
 
     return (
         <Svg width={width} height={height} viewBox="0 0 500 784">
@@ -130,49 +168,46 @@ function IllustratedCard({ card, width, height, isTrump = false, gameName = null
                 />
             )}
             <Rect {...panel} fill="none" stroke={ink} strokeWidth={PANEL_STROKE} />
-            {figure ? (
-                <G clipPath="url(#card-figure-clip)">
-                    <Image href={design.art[card.suit]} {...getFigurePlacement(figure)} preserveAspectRatio="none" />
-                </G>
-            ) : null}
+            {figure?.clip ? <G clipPath="url(#card-figure-clip)">{figureImage}</G> : figureImage}
 
-            {/* Number and suit, top left (crowned and yellow for trumps) */}
-            <Rect
-                x={24}
-                y={17}
-                width={108}
-                height={142}
-                rx={20}
-                fill={isTrump ? TRUMP_FILL : "white"}
-                stroke={ink}
-                strokeWidth={7}
-            />
-            {isTrump ? (
-                <Path d="M60 50 L58 31 L69 40 L78 27 L87 40 L98 31 L96 50 Z" fill={ink} strokeLinejoin="round" />
-            ) : null}
+            {/* Points tab, top right */}
+            <Path d={POINTS_TAB_PATH} fill={pointsFill} stroke={ink} strokeWidth={7} strokeLinejoin="round" />
             <Text
-                x={78}
-                y={isTrump ? (isTwoDigit ? 107 : 112) : isTwoDigit ? 94 : 100}
-                fontSize={isTrump ? (isTwoDigit ? 50 : 64) : isTwoDigit ? 60 : 84}
-                fontFamily={numberFont}
-                fill={ink}
-                textAnchor="middle"
-            >
-                {number}
-            </Text>
-            <SuitIcon suit={card.suit} x={78} y={isTrump ? 135 : 128} size={isTrump ? 30 : 34} />
-
-            {/* Points, top right */}
-            <Circle cx={417} cy={67} r={47} fill="white" stroke={ink} strokeWidth={7} />
-            <Text
-                x={417}
-                y={points.length > 1 ? 83 : 86}
+                x={(pointsTab.left + pointsTab.right) / 2}
+                y={points.length > 1 ? 91 : 95}
                 fontSize={points.length > 1 ? 44 : 54}
                 fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"
             >
                 {points}
+            </Text>
+
+            {/* Symbol and number, top left (crowned and yellow for trumps) */}
+            <Rect {...numberBox} fill={isTrump ? TRUMP_FILL : "white"} stroke={ink} strokeWidth={7} />
+            {isTrump ? (
+                <Path d="M62 46 L60 30 L70 38 L78 27 L86 38 L96 30 L94 46 Z" fill={ink} strokeLinejoin="round" />
+            ) : null}
+            {design.symbol ? (
+                <FigureSymbol
+                    symbol={design.symbol}
+                    color={colors.frame}
+                    x={SYMBOL_CENTER.x}
+                    y={symbolY}
+                    size={isTrump ? 84 : 112}
+                />
+            ) : (
+                <SuitIcon suit={card.suit} x={SYMBOL_CENTER.x} y={symbolY} size={isTrump ? 56 : 76} />
+            )}
+            <Text
+                x={78}
+                y={170}
+                fontSize={isTwoDigit ? 60 : 62}
+                fontFamily={numberFont}
+                fill={ink}
+                textAnchor="middle"
+            >
+                {number}
             </Text>
 
             {/* Name, bottom left */}
@@ -202,8 +237,8 @@ function IllustratedCard({ card, width, height, isTrump = false, gameName = null
             />
             <Text
                 x={424.5}
-                y={isTwoDigit ? 746 : 752}
-                fontSize={isTwoDigit ? 44 : 60}
+                y={isTwoDigit ? 748 : 752}
+                fontSize={isTwoDigit ? 50 : 60}
                 fontFamily={numberFont}
                 fill={ink}
                 textAnchor="middle"

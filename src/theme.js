@@ -131,11 +131,19 @@ export function getTableLayout(width, height) {
 const PORTRAIT_TAG_ROW = 160;
 // Height the compact game panel needs above the hand, measured from the top of the table.
 const PORTRAIT_PANEL_ROOM = 540;
+// Smallest share of the height your hand gets, however short the screen.
+const PORTRAIT_MIN_HAND = 0.28;
 
 function getPortraitTableLayout(width, height) {
     // On short phones the hand gets smaller, so the game panel (which reaches
     // up to the top of the screen) still fits above it with the Solo row open.
-    const southCardHeight = Math.min(height * 0.36, 300, (height - PORTRAIT_PANEL_ROOM) / 0.84);
+    // It never shrinks below PORTRAIT_MIN_HAND though: on very short screens
+    // the panel scrolls instead, so the cards stay readable.
+    const southCardHeight = Math.min(
+        height * 0.36,
+        300,
+        Math.max((height - PORTRAIT_PANEL_ROOM) / 0.84, height * PORTRAIT_MIN_HAND)
+    );
     const southFanTop = height - southCardHeight * 0.84;
     const opponentsBottom = EDGE + PORTRAIT_TAG_ROW;
     const gap = southFanTop - opponentsBottom;

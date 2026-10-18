@@ -1,10 +1,12 @@
 /* A layout component for a player's cards fanned out in a fan
 Handles rotation and spacing for each player's hand.
 Face-up hands are tappable. On your turn the cards you may play lift and the
-others fade, so "follow suit" needs no pop-up. */
+others fade, so "follow suit" needs no pop-up. Playable cards can also be
+dragged onto the table: letting go over it plays the card, anywhere else the
+card springs back into the hand. */
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Easing, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
 import Card from "./Card";
 import { canPlayCard, isTrumpForGame, sortHandForGame } from "../ai/schafkopfAI";
 import { CARD_RATIO, fanWidth } from "../theme";
@@ -19,6 +21,11 @@ const RISE_DURATION = 320;
 // Re-sorting glides cards to their new place; the trump corner fades in and out.
 const MOVE_DURATION = 380;
 const FADE_DURATION = 300;
+// A press becomes a drag once the pointer moves this far (pixels).
+const DRAG_THRESHOLD = 6;
+// A dragged card grows a little, and a little more while it is over the table.
+const DRAG_SCALE = 1.05;
+const DROP_SCALE = 1.12;
 
 const useNativeDriver = Platform.OS !== "web";
 const ease = Easing.out(Easing.cubic);
@@ -41,8 +48,16 @@ function HandCard({
     trumpGame = null,
     accessibilityHint,
     onPress,
+    isOverTable,
+    onDropPlay,
 }) {
     const [isHovered, setIsHovered] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const drag = useRef(new Animated.ValueXY()).current;
+    const dragScale = useRef(new Animated.Value(1)).current;
+    const overTable = useRef(false);
+    // Set when a press turns into a drag, so letting go doesn't also count as a tap.
+    const wasDragged = useRef(false);
     const [showTrumpLayer, setShowTrumpLayer] = useState(isTrump);
     const rise = useRef(new Animated.Value(0)).current;
     const position = useRef(new Animated.Value(slot)).current;
@@ -69,6 +84,54 @@ function HandCard({
         );
     }, [isTrump, trumpOpacity]);
 
+    // The pan responder is created once, so it reads the latest props from here.
+    const latest = useRef({});
+    latest.current = { isPlayable, isOverTable, onDropPlay };
+    const panResponder = useRef(
+        PanResponder.create({
+            // Taps and hovers stay with the Pressable; only a real move becomes a drag.
+            onMoveShouldSetPanResponderCapture: (_, gesture) =>
+                Boolean(latest.current.isPlayable && latest.current.onDropPlay) &&
+                Math.hypot(gesture.dx, gesture.dy) > DRAG_THRESHOLD,
+            onPanResponderGrant: () => {
+                wasDragged.current = true;
+                overTable.current = false;
+                setIsDragging(true);
+                Animated.timing(dragScale, { toValue: DRAG_SCALE, duration: 120, easing: ease, useNativeDriver }).start();
+            },
+            onPanResponderMove: (_, gesture) => {
+                drag.setValue({ x: gesture.dx, y: gesture.dy });
+                const isOver = Boolean(latest.current.isOverTable?.(gesture.moveX, gesture.moveY));
+                if (isOver !== overTable.current) {
+                    overTable.current = isOver;
+                    Animated.timing(dragScale, {
+                        toValue: isOver ? DROP_SCALE : DRAG_SCALE,
+                        duration: 120,
+                        easing: ease,
+                        useNativeDriver,
+                    }).start();
+                }
+            },
+            onPanResponderRelease: (_, gesture) => {
+                const isOver = Boolean(latest.current.isOverTable?.(gesture.moveX, gesture.moveY));
+                if (isOver) latest.current.onDropPlay?.();
+                // A played card leaves the hand; any other card glides back.
+                endDrag();
+            },
+            onPanResponderTerminate: () => endDrag(),
+            onPanResponderTerminationRequest: () => false,
+        })
+    ).current;
+
+    function endDrag() {
+        overTable.current = false;
+        setIsHovered(false);
+        Animated.parallel([
+            Animated.spring(drag, { toValue: { x: 0, y: 0 }, friction: 7, tension: 70, useNativeDriver }),
+            Animated.timing(dragScale, { toValue: 1, duration: 200, easing: ease, useNativeDriver }),
+        ]).start(() => setIsDragging(false));
+    }
+
     // Fan geometry as a function of the (animated) slot: shift, arc and tilt.
     const cardWidth = cardHeight * CARD_RATIO;
     const middle = (slotCount - 1) / 2;
@@ -85,14 +148,33 @@ function HandCard({
 
     return (
         <Animated.View
-            style={[styles.card, { transform: [{ translateX }, { translateY: arc }, { rotate }] }]}
+            style={[
+                styles.card,
+                isDragging && styles.dragging,
+                {
+                    transform: [
+                        { translateX: drag.x },
+                        { translateY: drag.y },
+                        { translateX },
+                        { translateY: arc },
+                        { rotate },
+                        { scale: dragScale },
+                    ],
+                },
+            ]}
             pointerEvents="box-none"
+            {...panResponder.panHandlers}
         >
             <Pressable
-                onPress={onPress}
+                onPress={() => {
+                    if (!wasDragged.current) onPress();
+                }}
                 onHoverIn={() => setIsHovered(true)}
                 onHoverOut={() => setIsHovered(false)}
-                onPressIn={() => setIsHovered(true)}
+                onPressIn={() => {
+                    wasDragged.current = false;
+                    setIsHovered(true);
+                }}
                 onPressOut={() => setIsHovered(false)}
                 disabled={!isPlayable}
                 accessibilityRole="button"
@@ -131,6 +213,7 @@ function FanOfCards({
     highlightTrumps = false,
     confirmTap = false,
     calledAce = null,
+    isOverTable = null,
 }) {
     // Phones: the first tap raises a card, a second tap on it plays it.
     const [selectedId, setSelectedId] = useState(null);
@@ -199,6 +282,15 @@ function FanOfCards({
                             setSelectedId(null);
                             onPlayCard?.(handIndex);
                         }}
+                        isOverTable={isOverTable}
+                        onDropPlay={
+                            isOverTable
+                                ? () => {
+                                      setSelectedId(null);
+                                      onPlayCard?.(handIndex);
+                                  }
+                                : null
+                        }
                     />
                 );
             })}
@@ -211,6 +303,12 @@ const styles = StyleSheet.create({
         position: "absolute",
         top: 0,
         transformOrigin: "50% 100%",
+        // Web: dragging a card must not select text on the page.
+        userSelect: "none",
+    },
+    // The dragged card is drawn above the rest of the hand.
+    dragging: {
+        zIndex: 10,
     },
     dim: {
         backgroundColor: "rgba(40, 36, 32, 0.32)",
