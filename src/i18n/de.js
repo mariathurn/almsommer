@@ -3,6 +3,14 @@
 // "Marriage" = Hochzeit, "Ramsch".
 
 const suits = { acorn: "Eichel", heart: "Herz", leaf: "Gras", bell: "Schellen" };
+// Farben ohne Artikel, nach dem Geschlecht der Karte: "blauer Hut", "blaues Korn".
+const colourAdjectives = {
+    acorn: { m: "blauer", n: "blaues" },
+    heart: { m: "roter", n: "rotes" },
+    leaf: { m: "grüner", n: "grünes" },
+    bell: { m: "oranger", n: "oranges" },
+};
+const rankGender = { "9": "m", K: "m", "10": "n", A: "n", U: "m", O: "m" };
 // Farbe jeder Karte wie im Regelheft, gebeugt für "das blaue Schaf".
 const colours = { acorn: "blaue", heart: "rote", leaf: "grüne", bell: "orange" };
 const ranks = { "9": "Hut", K: "Stab", "10": "Korn", A: "Schaf", U: "Hund", O: "Schäfer" };
@@ -18,9 +26,10 @@ const games = {
 const indefinite = { "Sau Spiel": "ein", Solo: "ein", Wenz: "ein", Marriage: "eine", Ramsch: "einen" };
 const definite = { "Sau Spiel": "das", Solo: "das", Wenz: "das", Marriage: "die", Ramsch: "den" };
 
-// "Schafspiel", "Eichel-Solo"
-const gameName = ({ game, suit }) => (game === "Solo" && suit ? `${suits[suit]}-Solo` : games[game]);
-const withA = ({ game, suit }) => `${indefinite[game]} ${gameName({ game, suit })}`;
+// "Schafspiel", "Eichel-Solo", "Hundespiel Tout"
+const gameName = ({ game, suit, tout }) =>
+    `${game === "Solo" && suit ? `${suits[suit]}-Solo` : games[game]}${tout ? " Tout" : ""}`;
+const withA = (params) => `${indefinite[params.game]} ${gameName(params)}`;
 
 export default {
     // Startmenü
@@ -57,9 +66,6 @@ export default {
     "pause.heading": "Pause",
     "pause.resume": "Weiterspielen",
     "pause.leave": "Spiel verlassen",
-    "pause.leaveHeading": "Spiel verlassen?",
-    "pause.leaveText": "Diese Runde ist noch nicht vorbei. Wenn du jetzt gehst, zählt sie nicht.",
-    "pause.stay": "Bleiben",
 
     // Profil
     "profile.heading": "Dein Schäfer",
@@ -88,17 +94,17 @@ export default {
     "achievements.unlockedOn": "Erreicht am {date}",
     "achievements.toast": "Erfolg freigeschaltet",
     "achievement.first-win.title": "Neuling",
-    "achievement.first-win.description": "Gewinne deine erste Runde.",
+    "achievement.first-win.description": "Gewinne deine erstes Spiel.",
     "achievement.first-loss.title": "Stolperer",
-    "achievement.first-loss.description": "Verliere eine Runde. Das passiert jedem Schäfer.",
+    "achievement.first-loss.description": "Verliere eine Spiel. Das passiert jedem Schäfer.",
     "achievement.first-solo.title": "Einsamer Schäfer",
     "achievement.first-solo.description": "Sag ein Solo an und gewinne es.",
     "achievement.first-dog-game.title": "Leithund",
     "achievement.first-dog-game.description": "Sag ein Hundespiel an und gewinne es.",
     "achievement.solo-tout.title": "Solo Tout",
-    "achievement.solo-tout.description": "Gewinne ein Solo und mach jeden Stich.",
+    "achievement.solo-tout.description": "Sag ein Solo Tout an und gewinne es.",
     "achievement.dog-tout.title": "Hundespiel Tout",
-    "achievement.dog-tout.description": "Gewinne ein Hundespiel und mach jeden Stich.",
+    "achievement.dog-tout.description": "Sag ein Hundespiel Tout an und gewinne es.",
     "achievement.two-trumps.title": "Dünnes Eis",
     "achievement.two-trumps.description": "Gewinne eine Runde mit höchstens zwei Trümpfen auf der Hand.",
     "achievement.first-ramsch.title": "Glück im Ramsch",
@@ -120,8 +126,8 @@ export default {
     "suit.name": ({ suit }) => suits[suit],
     "rank.name": ({ rank }) => ranks[rank],
     "rank.cardLabel": ({ rank }) => ranks[rank].toUpperCase(),
-    // "Gras-Korn"
-    "card.name": ({ suit, rank }) => `${suits[suit]}-${ranks[rank]}`,
+    // Nach Farbe, wie auf den Karten: "blauer Schäfer", "oranges Korn".
+    "card.name": ({ suit, rank }) => `${colourAdjectives[suit][rankGender[rank]]} ${ranks[rank]}`,
 
     // Spiele
     "game.name": gameName,
@@ -146,7 +152,7 @@ export default {
     // Banner oben am Tisch
     "banner.declare": "Sag dein Spiel an",
     "banner.callsSheep": ({ name, suit }) => `${name} ruft das ${colours[suit]} Schaf`,
-    "banner.plays": ({ name, game, suit }) => `${name} spielt ${withA({ game, suit })}`,
+    "banner.plays": (params) => `${params.name} spielt ${withA(params)}`,
     "banner.cowards": "Ramsch: Keiner hat angesagt",
     "banner.marries": "{name} heiratet {partner}",
     "banner.takesTrick": "{name} macht den Stich",
@@ -157,8 +163,8 @@ export default {
 
     // Ansagen
     "bid.whoPlays": "Wer spielt?",
-    "bid.wants": ({ name, game, suit }) => `${name} will ${withA({ game, suit })} spielen`,
-    "bid.announces": ({ name, game, suit }) => `${name} sagt ${withA({ game, suit })} an`,
+    "bid.wants": (params) => `${params.name} will ${withA(params)} spielen`,
+    "bid.announces": (params) => `${params.name} sagt ${withA(params)} an`,
     "bid.passes": "{name} passt",
     "bid.nobodyMarried": "niemand heiratet {name}",
     "bid.yourSay": "du bist dran",
@@ -177,7 +183,17 @@ export default {
     "marriage.offer": "Hochzeit anbieten",
     "marriage.askHeading": "Hochzeit!",
     "marriage.askText":
-        "{name} hat nur einen Trumpf und bietet ihn dir an. Annehmen, den Trumpf nehmen, deine schwächste Karte zurückgeben und zusammen spielen?",
+        "{name} hat nur einen Trumpf und bietet ihn dir an. Annehmen, den Trumpf nehmen, eine Karte zurückgeben, die kein Trumpf ist, und zusammen spielen?",
+    "marriage.exchangeTitle": "Tausch mit {name}: eine Karte für den Trumpf",
+    "marriage.exchangePick": "Wähle eine Karte, die kein Trumpf ist",
+    "marriage.exchangeGive": "Du gibst",
+    "marriage.exchangeGet": "Du bekommst",
+    "marriage.exchangeConfirm": "Tippe auf die neue Karte zum Tauschen",
+    "marriage.exchangeConfirmLabel": "{give} geben, {get} bekommen",
+    "marriage.revealTitle": "{name} nimmt deine Hochzeit an",
+    "marriage.revealHint": "Tippe auf die neue Karte zum Weiterspielen",
+    "marriage.placeHint": "Leg deinen Trumpf auf das Tauschfeld",
+    "marriage.together": "ihr spielt zusammen",
     "marriage.decline": "Ablehnen",
     "marriage.accept": "Annehmen",
 
@@ -186,6 +202,10 @@ export default {
     "result.loses": ({ names, plural, game }) => `${names} ${plural ? "verlieren" : "verliert"} ${definite[game]} ${games[game]}`,
     "result.pointsTaken": "{points} Augen gemacht",
     "result.score": "{ours} : {theirs} Augen",
+    // Schafkopf terms, the same in both languages.
+    "result.schneider": "Schneider",
+    "result.schwarz": "Schwarz",
+    "result.tout": "Tout",
     "result.round": "Runde",
     "result.session": "Sitzung",
 
@@ -198,7 +218,9 @@ export default {
     "picker.chooseGame": "Wähle ein Spiel",
     "picker.chooseSheep": "Wähle ein Schaf",
     "picker.callSheep": ({ suit }) => `${suits[suit]}-Schaf rufen`,
-    "picker.play": ({ game }) => `${games[game]} spielen`,
+    "picker.play": ({ game, tout }) => `${games[game]}${tout ? " Tout" : ""} spielen`,
+    "picker.tout": "Tout",
+    "picker.toutHint": "Jeden Stich machen: doppelter Wert, aber ein Stich für die anderen und es ist verloren",
     "picker.tileLabel": "{game}, {coins} Münzen",
 
     // Tisch
@@ -207,5 +229,92 @@ export default {
     "table.chooseGame": "Spiel\nwählen",
     "table.chooseGameLabel": "Spiel wählen",
     "table.collectTrick": "Stich einsammeln",
+    "lastTrick.show": "Letzten Stich ansehen",
+    "lastTrick.heading": "Letzter Stich",
+    "lastTrick.summary": "{name} hat ihn gemacht · {points} Augen",
+    // Rules, guided first game and practice
+    "menu.practice": "Üben",
+    "menu.practiceLabel": "Üben",
+    "rules.heading": "So geht Almsommer",
+    "rules.page1.title": "Willkommen auf der Alm",
+    "rules.page1.text": "Almsommer ist Schafkopf mit Almtieren. Ihr seid zu viert, jeder bekommt 6 Karten. Wer am Ende die meisten Augen sammelt, gewinnt die Runde – und Münzen.",
+    "rules.page2.title": "Die Karten",
+    "rules.page2.text": "Es gibt vier Farben: Eichel (blau), Gras (grün), Herz (rot) und Schellen (orange). Jede Farbe hat einen Hut, einen Stab, ein Korn, ein Schaf, einen Hund und einen Schäfer.",
+    "rules.page3.title": "Augen zählen",
+    "rules.page3.text": "Jede Karte ist Augen wert, oben rechts steht wie viele: Schaf 11, Korn 10, Stab 4, Schäfer 3, Hund 2, Hut 0. Zusammen sind es 120 Augen – wer 61 schafft, gewinnt.",
+    "rules.page4.title": "Trümpfe",
+    "rules.page4.text": "Alle Schäfer, alle Hunde und alle roten Karten sind Trumpf. Ein Trumpf schlägt jede andere Karte. Die Zahl oben links zeigt, wie stark eine Karte ist: Höher schlägt niedriger.",
+    "rules.page5.title": "Ein Stich",
+    "rules.page5.text": "Einer spielt eine Karte aus, die anderen legen reihum eine dazu. Die stärkste Karte gewinnt alle vier – das ist ein Stich. Wer ihn macht, spielt als Nächstes aus.",
+    "rules.page6.title": "Farbe bedienen",
+    "rules.page6.text": "Du musst die ausgespielte Farbe dazulegen, wenn du sie hast; wird Trumpf ausgespielt, musst du Trumpf legen. Nur wenn du nicht kannst, darfst du eine beliebige Karte legen – auch einen Trumpf, der sticht.",
+    "rules.page7.title": "Ansagen",
+    "rules.page7.text": "Nach dem Geben sagt jeder an, ob er spielen will. Im Schafspiel rufst du ein Schaf: Wer es hat, ist heimlich dein Partner. Wie das geht, zeigen wir dir jetzt an einer Übungsrunde.",
+    "rules.next": "Weiter",
+    "rules.back": "Zurück",
+    "rules.skip": "Überspringen",
+    "rules.start": "Los geht's",
+    "rules.done": "Fertig",
+    "tutorial.coach": "Tipp",
+    "tutorial.deal": "Willkommen am Tisch! Wir spielen eine Übungsrunde, sie zählt nicht für deine Münzen. Tippe auf „Geben“.",
+    "tutorial.announce": "Du hast vier Trümpfe: den blauen Schäfer, den roten Hund, das rote Schaf und das rote Korn. Das reicht für ein Schafspiel. Wähle „Schafspiel“ und ruf das grüne Schaf – wer es hat, spielt heimlich mit dir.",
+    "tutorial.wait": "Die anderen sind dran. Schau zu, welche Karten sie legen.",
+    "tutorial.collect": "Der Stich ist voll: Die stärkste Karte gewinnt alle vier. Tippe auf den Tisch, um ihn einzusammeln.",
+    "tutorial.turn1": "Du spielst aus. Als Ansager holst du zuerst die Trümpfe der Gegner heraus: Spiel deinen stärksten Trumpf, den blauen Schäfer (12).",
+    "tutorial.turn2": "Noch einmal Trumpf! Mit dem roten Hund ziehst du weitere Trümpfe heraus – auch wenn ihn ein höherer Schäfer sticht, haben die Gegner danach weniger Trümpfe.",
+    "tutorial.turn3": "Bernd hat das grüne Schaf gelegt – er ist dein Partner! Gras wurde ausgespielt und du hast noch Gras: Du musst Farbe bedienen. Leg den grünen Hut, er ist 0 Augen wert.",
+    "tutorial.turn4": "Schellen wurde ausgespielt. Dein oranges Schaf ist die höchste Schellen-Karte: Es gewinnt den Stich und holt 25 Augen.",
+    "tutorial.turn5": "Du spielst aus. Spiel das rote Schaf: Bernd legt nach dir und hat noch einen hohen Trumpf. Sticht er drüber, bleiben die 11 Augen bei euch.",
+    "tutorial.turn6": "Eichel wurde ausgespielt, aber du hast keine Eichel mehr. Dann darfst du stechen: Dein rotes Korn ist Trumpf und holt den letzten Stich – mit 35 Augen!",
+    "tutorial.done": "Gewonnen! Ihr habt 113 Augen, die Gegner nur 7. Unter 30 Augen heißt „Schneider“ – im echten Spiel bringt das 5 Münzen extra. Jetzt kennst du das Schafspiel!",
+    "tutorial.continue": "Weiterspielen",
+    "tutorial.practice": "Mehr üben",
+    "tutorial.skip": "Überspringen",
+    "practice.title": "Üben",
+    "practice.intro": "Hier lernst du alle Spiele kennen. Übungsrunden zählen nicht für deine Münzen und Erfolge.",
+    "practice.rules": "Grundregeln",
+    "practice.rulesText": "Karten, Augen, Trümpfe und Stiche – alles Wichtige auf einen Blick.",
+    "practice.guided": "Geführtes Schafspiel",
+    "practice.guidedText": "Eine Runde Schritt für Schritt, mit einem Tipp für jeden Zug.",
+    "practice.open": "Ansehen",
+    "practice.play": "Üben",
+    "practice.techniques": "Techniken",
+    "practice.again": "Nochmal",
+    "practice.back": "Zurück zu Üben",
+    "lesson.sheep.title": "Schafspiel",
+    "lesson.sheep.goal": "Sag ein Schafspiel an und ruf das orange Schaf.",
+    "lesson.sheep.tip1": "Ansagen kannst du mit etwa vier Trümpfen. Ruf ein Schaf einer Farbe, von der du selbst eine Karte hast, aber nicht das Schaf.",
+    "lesson.sheep.tip2": "Als Ansager ziehst du früh Trümpfe, damit die Gegner deine Schafe nicht stechen können.",
+    "lesson.sheep.tip3": "Wird die gerufene Farbe ausgespielt, muss dein Partner das Schaf legen – dann wisst ihr, wer zusammenspielt.",
+    "lesson.solo.title": "Solo",
+    "lesson.solo.goal": "Sag ein Solo an und wähle Eichel als Trumpf.",
+    "lesson.solo.tip1": "Im Solo spielst du allein gegen drei. Du wählst die Trumpffarbe: Statt Herz sind dann alle Karten dieser Farbe Trumpf.",
+    "lesson.solo.tip2": "Ein Solo lohnt sich mit fünf oder sechs Trümpfen, darunter Schäfer und Hunde.",
+    "lesson.solo.tip3": "Zieh zuerst alle Trümpfe heraus, dann holen deine Schafe ungestört die Augen.",
+    "lesson.dog.title": "Hundespiel",
+    "lesson.dog.goal": "Sag ein Hundespiel an.",
+    "lesson.dog.tip1": "Im Hundespiel sind nur die vier Hunde Trumpf. Schäfer und Herz sind normale Farbkarten.",
+    "lesson.dog.tip2": "Gut ist es mit drei Hunden, oder zwei Hunden samt dem blauen und zwei Schafen.",
+    "lesson.dog.tip3": "Die Schafe sind die höchsten Farbkarten. Spiel sie aus, sobald die Hunde der Gegner draußen sind.",
+    "lesson.marriage.title": "Hochzeit",
+    "lesson.marriage.goal": "Du hast nur einen Trumpf: Biete eine Hochzeit an.",
+    "lesson.marriage.tip1": "Mit nur einem Trumpf kannst du eine Hochzeit anbieten. Wer annimmt, bekommt deinen Trumpf und gibt dir eine Karte, die kein Trumpf ist.",
+    "lesson.marriage.tip2": "Ihr spielt dann zu zweit gegen die anderen zwei – wie im Schafspiel, nur dass ihr euch von Anfang an kennt.",
+    "lesson.marriage.tip3": "Annehmen sollte nur, wer selbst viele gute Trümpfe hat.",
+    "lesson.ramsch.title": "Ramsch",
+    "lesson.ramsch.goal": "Passe, wenn du gefragt wirst: Keiner sagt an, also wird Ramsch gespielt.",
+    "lesson.ramsch.tip1": "Will keiner spielen, wird Ramsch gespielt: Jeder spielt für sich, und wer die meisten Augen sammelt, verliert.",
+    "lesson.ramsch.tip2": "Wirf deine wertvollen Karten wie Schafe und Korn ab, wenn ein anderer den Stich sicher bekommt.",
+    "lesson.ramsch.tip3": "Behalte niedrige Karten, um Stiche abzugeben. Hohe Trümpfe sind im Ramsch eher eine Last.",
+    "technique.trumps.title": "Trumpf ziehen",
+    "technique.trumps.text": "Als Ansager spielst du früh hohe Trümpfe aus. So verlieren die Gegner ihre Trümpfe und können deine Schafe später nicht mehr stechen.",
+    "technique.smear.title": "Schmieren",
+    "technique.smear.text": "Gewinnt dein Partner den Stich sicher, legst du ihm eine wertvolle Karte dazu – ein Schaf oder ein Korn. So landen viele Augen bei euch.",
+    "technique.follow.title": "Farbe bedienen",
+    "technique.follow.text": "Merk dir, welche Farben schon gelaufen sind. Hast du eine Farbe nicht mehr, darfst du stechen – ein kleiner Trumpf reicht oft.",
+    "technique.search.title": "Das Schaf suchen",
+    "technique.search.text": "Als Gegner im Schafspiel spielst du die gerufene Farbe aus. Dann muss der Partner das Schaf legen, und alle wissen, wer zusammenspielt.",
+    "tutorial.onlySheep": "Im ersten Spiel lernst du das Schafspiel",
+    "practice.done": "Gut gemacht! Willst du nochmal üben oder zurück zur Übersicht?",
     "hand.mustFollow": "Farbe bedienen",
 };

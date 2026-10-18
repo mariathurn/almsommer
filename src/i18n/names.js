@@ -8,14 +8,14 @@ import { t } from "./index";
 // Game names, from a game value like "Sau Spiel" or "Solo:leaf".
 // "Sheep Game", "Acorn Solo"
 export function gameName(value) {
-    const { base, suit } = parseGame(value);
-    return t("game.name", { game: base, suit });
+    const { base, suit, tout } = parseGame(value);
+    return t("game.name", { game: base, suit, tout });
 }
 
 // With an article: "a Sheep Game", "ein Eichel-Solo".
 export function gameWithArticle(value) {
-    const { base, suit } = parseGame(value);
-    return t("game.a", { game: base, suit });
+    const { base, suit, tout } = parseGame(value);
+    return t("game.a", { game: base, suit, tout });
 }
 
 export function suitName(suit) {
@@ -31,7 +31,7 @@ export function cardLabel(rank) {
     return t("rank.cardLabel", { rank });
 }
 
-// "Leaf grain", "Gras-Korn"
+// By colour: "blue shepherd", "blauer Schäfer".
 export function cardName(card) {
     return t("card.name", { suit: card.suit, rank: card.rank });
 }

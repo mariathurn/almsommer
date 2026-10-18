@@ -17,10 +17,13 @@ import AchievementsScreen from "./screens/AchievementsScreen";
 import DeckScreen from "./screens/DeckScreen";
 import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
+import PracticeScreen from "./screens/PracticeScreen";
+import RulesScreen from "./screens/RulesScreen";
+import { markRulesSeen, markTutorialDone, useOnboarding } from "./data/onboarding";
 import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import useHotkey from "./hooks/useHotkey";
 import { colors } from "./theme";
-import { sounds, startAmbience } from "./audio/sounds";
+import { startAmbience } from "./audio/sounds";
 import { getProfile, recordRound, useProfile } from "./data/profile";
 import { unlockAchievements } from "./data/achievementStore";
 import { useLanguage } from "./i18n";
@@ -66,16 +69,50 @@ function App() {
   }, [profile.savings]);
   const tableScores = { ...sessionScores, south: profile.savings };
   const openMenu = () => setScreen("menu");
-  const startGame = () => {
-    sounds.sheep();
+  // The game being played: null for a normal game, or a lesson (guided first
+  // game, practice round). gameKey restarts the table for a fresh game. The
+  // menu plays its exit (shepherds out, sheep sound) before starting one.
+  const [lesson, setLesson] = useState(null);
+  const [gameKey, setGameKey] = useState(0);
+  const startGame = (nextLesson = null) => {
+    setLesson(nextLesson);
+    setGameKey((key) => key + 1);
     setScreen("game");
   };
+  // Rules: on the first start they lead into the guided game; from Practice
+  // they go back there.
+  const [rulesFirst, setRulesFirst] = useState(false);
+  const onboarding = useOnboarding();
+  useEffect(() => {
+    if (onboarding.loaded && !onboarding.rulesSeen && screen === "menu") {
+      setRulesFirst(true);
+      setScreen("rules");
+    }
+  }, [onboarding.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  const finishRules = (skipped) => {
+    if (!rulesFirst) return setScreen("practice");
+    markRulesSeen();
+    setRulesFirst(false);
+    // Skipping on the first start skips the guided game too.
+    if (skipped) {
+      markTutorialDone();
+      openMenu();
+    } else {
+      startGame({ type: "guided" });
+    }
+  };
+  // The end of a lesson: play on for real, more practice, or the same again.
+  const onLessonAction = (action) => {
+    if (lesson?.type === "guided") markTutorialDone();
+    if (action === "continue") startGame(null);
+    else if (action === "again") startGame(lesson);
+    else setScreen("practice");
+  };
 
-  // Web shortcuts: Esc back to the menu (in the game it opens the pause
-  // menu instead), P to play (from the menu).
+  // Web shortcut: Esc back to the menu (in the game it opens the pause menu
+  // instead). P to play is handled by the menu, so it gets its exit too.
   const ready = fontsLoaded && cardArtLoaded;
-  useHotkey("Escape", openMenu, ready && screen !== "menu" && screen !== "game");
-  useHotkey("p", startGame, ready && screen === "menu");
+  useHotkey("Escape", openMenu, ready && screen !== "menu" && screen !== "game" && !(screen === "rules" && rulesFirst));
 
   // Meadow music on loop from the moment the app opens.
   useEffect(() => startAmbience(), []);
@@ -88,6 +125,9 @@ function App() {
           <Stage>
             {screen === "game" ? (
               <GameScreen
+                key={gameKey}
+                lesson={lesson}
+                onLessonAction={onLessonAction}
                 onOpenMenu={openMenu}
                 playerName={profile.name}
                 sessionScores={tableScores}
@@ -97,9 +137,19 @@ function App() {
               <DeckScreen onBack={openMenu} />
             ) : screen === "achievements" ? (
               <AchievementsScreen onBack={openMenu} />
+            ) : screen === "rules" ? (
+              <RulesScreen first={rulesFirst} onDone={finishRules} />
+            ) : screen === "practice" ? (
+              <PracticeScreen
+                onBack={openMenu}
+                onRules={() => setScreen("rules")}
+                onGuided={() => startGame({ type: "guided" })}
+                onPractice={(practice) => startGame({ type: "practice", lesson: practice })}
+              />
             ) : (
               <MenuScreen
-                onPlay={startGame}
+                onPlay={() => startGame(null)}
+                onOpenPractice={() => setScreen("practice")}
                 onOpenAchievements={() => setScreen("achievements")}
                 onOpenDeck={() => setScreen("deck")}
               />

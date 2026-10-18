@@ -11,7 +11,7 @@ import {
     isTrumpForGame,
     parseGame,
     canOfferMarriage,
-    marriageAskOrder,
+    marriageCandidates,
     swapMarriageCards,
     wantsToAcceptMarriage,
 } from "../ai/schafkopfAI";
@@ -109,6 +109,8 @@ function useSchafkopfGame({ paused = false } = {}) {
     const [revealedAceOwner, setRevealedAceOwner] = useState(null);
     // Card points each player has taken in tricks this round.
     const [trickPoints, setTrickPoints] = useState({ south: 0, west: 0, north: 0, east: 0 });
+    // The last trick collected this round, to look at again: { cards, winner }.
+    const [lastTrick, setLastTrick] = useState(null);
     // Tricks each player has taken this round.
     const [trickCounts, setTrickCounts] = useState({ south: 0, west: 0, north: 0, east: 0 });
     // Set when the last trick is collected: winners, losers and coin changes.
@@ -163,27 +165,30 @@ function useSchafkopfGame({ paused = false } = {}) {
         }
     }, [selectedGame, calledAce, dealtHands, caller]);
 
-    const dealHands = () => {
+    // preset (developer menu): fixed hands { south: [cards], ... } and lead.
+    const dealHands = (preset = null) => {
         // Clean up a pending AI move
         if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
         aiTimeoutRef.current = null;
         isProcessingRef.current = false;
 
-        const shuffledDeck = shuffleDeck(combinations);
         const nextPlayers = {
             south: [],
             west: [],
             north: [],
             east: [],
         };
-
-        shuffledDeck.forEach((card, index) => {
-            const player = playerOrder[index % playerOrder.length];
-            nextPlayers[player].push(card);
-        });
+        if (preset) {
+            for (const seat of playerOrder) nextPlayers[seat] = [...preset.hands[seat]];
+        } else {
+            shuffleDeck(combinations).forEach((card, index) => {
+                const player = playerOrder[index % playerOrder.length];
+                nextPlayers[player].push(card);
+            });
+        }
 
         // The forehand leads the first trick and has the first say.
-        const lead = playerOrder[roundNumber % playerOrder.length];
+        const lead = preset?.lead ?? playerOrder[roundNumber % playerOrder.length];
         setRoundNumber(roundNumber + 1);
         setForehand(lead);
         setCaller(null);
@@ -193,12 +198,15 @@ function useSchafkopfGame({ paused = false } = {}) {
         // Before anyone announces, a player with exactly one trump may offer a
         // marriage (the first such player from the forehand). A computer player
         // always offers; Maria is asked.
+        // Only players who can give back a card that is no trump are asked;
+        // if nobody can, there is no marriage to offer.
         const offerer = rotateFrom(lead).find((seat) => canOfferMarriage(nextPlayers[seat]));
-        if (offerer) {
+        const candidates = offerer ? marriageCandidates(nextPlayers, offerer) : [];
+        if (offerer && candidates.length) {
             setMarriageOffer({
                 offerer,
                 stage: offerer === humanPlayer ? "offer" : "ask",
-                order: marriageAskOrder(offerer),
+                order: candidates,
                 index: 0,
                 lead,
                 declinedBy: [],
@@ -215,6 +223,7 @@ function useSchafkopfGame({ paused = false } = {}) {
         setRevealedAceOwner(null);
         setTrickPoints({ south: 0, west: 0, north: 0, east: 0 });
         setTrickCounts({ south: 0, west: 0, north: 0, east: 0 });
+        setLastTrick(null);
         setRoundResult(null);
         setMarriage(null);
         // Every round is declared anew after the deal.
@@ -270,18 +279,25 @@ function useSchafkopfGame({ paused = false } = {}) {
     // A partner accepted: they swap a card for the offerer's one trump, and
     // the Marriage is played (two against two).
     const commitMarriage = useCallback(
-        (offerer, partner) => {
-            const result = swapMarriageCards(players, offerer, partner);
+        (offerer, partner, chosen = null) => {
+            const result = swapMarriageCards(players, offerer, partner, "Marriage", chosen);
             setPlayers(result.players);
             setMarriage({ partner, trump: result.trump, given: result.given });
             const callerTeam = [offerer, partner];
             setTeams({ callerTeam, opposingTeam: playerOrder.filter((p) => !callerTeam.includes(p)) });
-            setMarriageOffer(null);
+            // Maria offered: the swap is shown on the table until she goes on
+            // (humanMarriageContinue); the others wait until then.
+            setMarriageOffer(offerer === humanPlayer ? { offerer, stage: "reveal", order: [], index: 0, declinedBy: [] } : null);
             setCaller(offerer);
             setSelectedGame("Marriage");
         },
-        [players]
+        [players, humanPlayer]
     );
+
+    // Maria has seen the swap after her offer was accepted: play on.
+    const humanMarriageContinue = useCallback(() => {
+        if (marriageOffer?.stage === "reveal") setMarriageOffer(null);
+    }, [marriageOffer]);
 
     // Nobody accepted (or Maria didn't offer): announcing goes on as usual.
     const startBidding = useCallback((lead) => {
@@ -294,7 +310,11 @@ function useSchafkopfGame({ paused = false } = {}) {
         (seat, accepts) => {
             if (!marriageOffer || marriageOffer.stage !== "ask" || marriageOffer.order[marriageOffer.index] !== seat) return;
             if (accepts) {
-                commitMarriage(marriageOffer.offerer, seat);
+                // Maria accepts: she picks the card she gives back (humanMarriageExchange).
+                if (seat === humanPlayer) setMarriageOffer({ ...marriageOffer, stage: "exchange" });
+                // Maria's offer was accepted: she lays her trump on the swap field (humanMarriagePlace).
+                else if (marriageOffer.offerer === humanPlayer) setMarriageOffer({ ...marriageOffer, stage: "place", partner: seat });
+                else commitMarriage(marriageOffer.offerer, seat);
                 return;
             }
             const index = marriageOffer.index + 1;
@@ -306,17 +326,40 @@ function useSchafkopfGame({ paused = false } = {}) {
                 setMarriageOffer({ ...marriageOffer, index, declinedBy });
             }
         },
-        [marriageOffer, commitMarriage, startBidding]
+        [marriageOffer, commitMarriage, startBidding, humanPlayer]
+    );
+
+    // Maria accepted: the card she gives back for the offered trump.
+    const humanMarriageExchange = useCallback(
+        (card) => {
+            if (marriageOffer?.stage !== "exchange" || !players[humanPlayer].some((c) => c.id === card.id)) return;
+            // Only a card that is no trump can be given back.
+            if (isTrumpForGame(card, "Marriage")) return;
+            commitMarriage(marriageOffer.offerer, humanPlayer, card);
+        },
+        [marriageOffer, players, humanPlayer, commitMarriage]
     );
 
     // Maria, holding one trump: offer a marriage, or go straight to announcing.
     const humanMarriageOffer = useCallback(
         (offers) => {
             if (!marriageOffer || marriageOffer.stage !== "offer") return;
+            // Offering: the others are asked in turn; the swap comes once someone accepts.
             if (offers) setMarriageOffer({ ...marriageOffer, stage: "ask" });
             else startBidding(marriageOffer.lead);
         },
         [marriageOffer, startBidding]
+    );
+
+    // Maria's offer was accepted and she laid her trump on the swap field:
+    // the cards are swapped and shown (reveal) until she plays on.
+    const humanMarriagePlace = useCallback(
+        (card) => {
+            if (marriageOffer?.stage !== "place" || !isTrumpForGame(card, "Marriage")) return;
+            if (!players[humanPlayer].some((c) => c.id === card.id)) return;
+            commitMarriage(humanPlayer, marriageOffer.partner);
+        },
+        [marriageOffer, players, humanPlayer, commitMarriage]
     );
 
     // Maria, asked by someone else: accept the marriage or decline.
@@ -390,20 +433,25 @@ function useSchafkopfGame({ paused = false } = {}) {
     // last trick nobody has the turn until the next deal.
     const collectTrick = useCallback(() => {
         if (playedCards.length !== playerOrder.length || !trickWinner) return;
-        const roundOver = playerOrder.every((player) => players[player].length === 0);
+        // The announcing side: the caller, plus in a Sheep Game whoever was
+        // dealt the called sheep, or in a Marriage the partner.
+        const callerTeam = teams.callerTeam.length ? teams.callerTeam : [caller ?? humanPlayer];
+        // A Tout is lost the moment the opponents take a trick; no need to play on.
+        const toutLost = parseGame(selectedGame).tout && !callerTeam.includes(trickWinner);
+        const roundOver = toutLost || playerOrder.every((player) => players[player].length === 0);
         const nextPoints = { ...trickPoints, [trickWinner]: trickPoints[trickWinner] + getTrickPoints(playedCards) };
         const nextCounts = { ...trickCounts, [trickWinner]: trickCounts[trickWinner] + 1 };
         setTrickPoints(nextPoints);
         setTrickCounts(nextCounts);
+        setLastTrick({ cards: playedCards, winner: trickWinner });
         setPlayedCards([]);
         setCurrentTurn(roundOver ? null : trickWinner);
         setTrickWinner(null);
 
         if (roundOver) {
             const game = getGameType(selectedGame);
-            // The announcing side: the caller, plus in a Sheep Game whoever was
-            // dealt the called sheep, or in a Marriage the partner.
-            const callerTeam = teams.callerTeam.length ? teams.callerTeam : [caller ?? humanPlayer];
+            // Cards still in hand after a lost Tout go back to the deck.
+            if (toutLost) setPlayers(Object.fromEntries(playerOrder.map((player) => [player, []])));
             setRoundResult({
                 id: Date.now(),
                 gameName: selectedGame,
@@ -412,7 +460,13 @@ function useSchafkopfGame({ paused = false } = {}) {
                 tricks: nextCounts,
                 hands: dealtHands,
                 callerTeam: selectedGame === "Ramsch" ? [] : callerTeam,
-                ...scoreRound({ gameName: selectedGame, coins: game?.coins ?? 0, callerTeam, points: nextPoints }),
+                ...scoreRound({
+                    gameName: selectedGame,
+                    coins: game?.coins ?? 0,
+                    callerTeam,
+                    points: nextPoints,
+                    tricks: nextCounts,
+                }),
             });
         }
     }, [playedCards, trickWinner, players, trickPoints, trickCounts, dealtHands, selectedGame, teams, caller, humanPlayer]);
@@ -513,15 +567,38 @@ function useSchafkopfGame({ paused = false } = {}) {
         dealHands,
         playCard,
         collectTrick,
+        lastTrick,
         trickPoints,
         roundResult,
         marriage,
         marriageOffer: marriageOffer && {
             offerer: marriageOffer.offerer,
             stage: marriageOffer.stage,
-            seat: marriageOffer.stage === "ask" ? marriageOffer.order[marriageOffer.index] : marriageOffer.offerer,
+            seat:
+                marriageOffer.stage === "ask" || marriageOffer.stage === "exchange"
+                    ? marriageOffer.order[marriageOffer.index]
+                    : marriageOffer.offerer,
             declinedBy: marriageOffer.declinedBy,
+            // While exchanging: the trump on offer, shown face up on the table.
+            // After the swap (reveal): the trump Maria gave and the card she got.
+            trump:
+                marriageOffer.stage === "exchange"
+                    ? players[marriageOffer.offerer].find((card) => isTrumpForGame(card, "Marriage"))
+                    : marriageOffer.stage === "reveal"
+                      ? marriage?.trump ?? null
+                      : null,
+            received: marriageOffer.stage === "reveal" ? marriage?.given ?? null : null,
+            // Who accepted Maria's offer, while she lays her trump down.
+            partner: marriageOffer.partner ?? null,
+            // Maria's own trump, to lay on the swap field once someone accepted.
+            offered:
+                marriageOffer.offerer === humanPlayer && marriageOffer.stage === "place"
+                    ? players[humanPlayer].find((card) => isTrumpForGame(card, "Marriage")) ?? null
+                    : null,
         },
+        humanMarriageExchange,
+        humanMarriagePlace,
+        humanMarriageContinue,
         humanMarriageOffer,
         humanMarriageAnswer,
         caller,

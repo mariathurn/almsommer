@@ -142,6 +142,9 @@ function TableCenter({
     // on phones the top player's card sits a little higher.
     const offsets = portrait ? { ...seatOffsets, north: { ...seatOffsets.north, y: -0.45 } } : seatOffsets;
     const buttonSize = Math.min(blanket.height * 0.42, 112);
+    // The round deal / choose game button replaces the table circle: on phones
+    // it is exactly the circle's size, on the web a little smaller.
+    const roundButtonSize = portrait ? blanket.width : blanket.width * 0.6;
     // On a small (phone) blanket the result sits beside the Deal button.
     const isSmall = blanket.height < 200 && !blanket.round;
 
@@ -220,9 +223,9 @@ function TableCenter({
                             {gameResult.rows ? <ResultRows rows={gameResult.rows} /> : null}
                         </View>
                     ) : null}
-                    {canDeal ? <DealButton size={blanket.round ? blanket.width * 0.6 : buttonSize} onPress={onDeal} /> : null}
+                    {canDeal ? <DealButton size={blanket.round ? roundButtonSize : buttonSize} onPress={onDeal} /> : null}
                     {needsGame ? (
-                        <ChooseGameButton size={blanket.round ? blanket.width * 0.6 : buttonSize} onPress={onChooseGame} />
+                        <ChooseGameButton size={blanket.round ? roundButtonSize : buttonSize} onPress={onChooseGame} />
                     ) : null}
                 </View>
             ) : null}

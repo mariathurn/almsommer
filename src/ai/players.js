@@ -9,16 +9,21 @@ import { getCardPoints } from "./scoring.js";
 
 const suits = ["acorn", "leaf", "heart", "bell"];
 
-// How games outrank each other when several players want to play.
+// How games outrank each other when several players want to play. A Tout
+// beats every game without one: Dog Game Tout 4, Solo Tout 5.
 export const GAME_RANK = { "Sau Spiel": 1, Marriage: 1, Wenz: 2, Solo: 3 };
+const TOUT_RANK_BONUS = 2;
 
 export function getGameRank(gameName) {
-    return GAME_RANK[parseGame(gameName).base] ?? 0;
+    const { base, tout } = parseGame(gameName);
+    return (GAME_RANK[base] ?? 0) + (tout ? TOUT_RANK_BONUS : 0);
 }
 
 const count = (cards, test) => cards.filter(test).length;
 // A Solo with five trumps needs this many shepherds and dogs among them.
 const SOLO_HIGH_TRUMPS = 3;
+// A Solo Tout: six trumps, at least five of them shepherds or dogs.
+const SOLO_TOUT_HIGH_TRUMPS = 5;
 
 // --- Announcing -------------------------------------------------------------
 
@@ -35,7 +40,10 @@ export function decideAnnouncement(hand, minRank = 0) {
         const trumps = hand.filter((card) => isTrumpForGame(card, game));
         const high = count(trumps, (card) => card.rank === "O" || card.rank === "U");
         const plainSheep = hand.some((card) => card.rank === "A" && !isTrumpForGame(card, game));
-        if (trumps.length === 6 || (trumps.length === 5 && high >= SOLO_HIGH_TRUMPS && plainSheep)) {
+        if (trumps.length === 6 && high >= SOLO_TOUT_HIGH_TRUMPS) {
+            // So strong the opponents shouldn't take a single trick: a Tout.
+            options.push({ game: `${game}:tout`, rank: 5, strength: trumps.length * 10 + high });
+        } else if (trumps.length === 6 || (trumps.length === 5 && high >= SOLO_HIGH_TRUMPS && plainSheep)) {
             options.push({ game, rank: 3, strength: trumps.length * 10 + high });
         }
     }
@@ -44,7 +52,10 @@ export function decideAnnouncement(hand, minRank = 0) {
     const dogs = count(hand, (card) => card.rank === "U");
     const sheep = count(hand, (card) => card.rank === "A");
     const blueDog = hand.some((card) => card.rank === "U" && card.suit === "acorn");
-    if (dogs >= 3 || (dogs >= 2 && blueDog && sheep >= 2)) {
+    if (dogs === 4 && sheep === 2) {
+        // All four dogs draw every trump, then the two sheep take the rest: a Tout.
+        options.push({ game: "Wenz:tout", rank: 4, strength: dogs });
+    } else if (dogs >= 3 || (dogs >= 2 && blueDog && sheep >= 2)) {
         options.push({ game: "Wenz", rank: 2, strength: dogs });
     }
 

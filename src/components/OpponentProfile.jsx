@@ -57,7 +57,8 @@ export function CoinBox({ coins, scale = 1, style }) {
 
 // tagSide "right" puts the name tag beside the portrait instead of below it
 // (the player at the top in the web view), with the coins moved to the left.
-function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinner, size = 70, tagSide = "below" }) {
+// isHighlighted: the portrait glows gold (e.g. this player just accepted your marriage).
+function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinner, isHighlighted = false, size = 70, tagSide = "below" }) {
     const beside = tagSide === "right";
     const portrait = opponentPortraits[seat];
     const known = status && status !== "Unknown";
@@ -65,16 +66,18 @@ function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinn
 
     return (
         <View style={[styles.profile, beside && styles.profileBeside]}>
-            <View
-                style={[
-                    styles.ring,
-                    { width: size + 10, height: size + 10, borderRadius: (size + 10) / 2 },
-                    isCurrentTurn && styles.ringActive,
-                ]}
-            >
-                <Portrait portrait={portrait} size={size} />
-                <CoinBox coins={coins} scale={scale} style={[styles.coinBoxOnRing, beside ? styles.coinBoxLeft : styles.coinBoxRight]} />
-            </View>
+            <WinnerGlow active={isHighlighted} loop radius={(size + 10) / 2} spread={8} scaleTo={1.08} style={styles.glowWrap}>
+                <View
+                    style={[
+                        styles.ring,
+                        { width: size + 10, height: size + 10, borderRadius: (size + 10) / 2 },
+                        (isCurrentTurn || isHighlighted) && styles.ringActive,
+                    ]}
+                >
+                    <Portrait portrait={portrait} size={size} />
+                    <CoinBox coins={coins} scale={scale} style={[styles.coinBoxOnRing, beside ? styles.coinBoxLeft : styles.coinBoxRight]} />
+                </View>
+            </WinnerGlow>
 
             <DarkNameTag
                 name={name}
@@ -97,6 +100,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#ffffff",
+        zIndex: 1,
+    },
+    // Keeps the ring above the name tag, as before the glow wrapped it.
+    glowWrap: {
         zIndex: 1,
     },
     ringActive: {

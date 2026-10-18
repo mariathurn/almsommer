@@ -21,7 +21,7 @@ const cards = [
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
-  await page.goto("http://localhost:8081", { waitUntil: "load", timeout: 120000 });
+  await page.goto(process.env.URL || "http://localhost:8081", { waitUntil: "load", timeout: 120000 });
   await page.waitForSelector('[aria-label="Settings"]', { timeout: 120000 });
   await wait(1500);
   await page.click('[aria-label="Settings"]');

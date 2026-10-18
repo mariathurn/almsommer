@@ -58,3 +58,21 @@ test("A partner smears points onto a trick their partner is sure to win", () => 
     // In a Sheep Game east holds the called sheep and knows south is the partner: smear the leaf sheep
     assert.deepEqual([...hand, c("bell", "A")][sheepIndex], c("leaf", "A"));
 });
+
+test("Tout outranks every game without one, Solo Tout above Dog Game Tout", () => {
+    assert.ok(getGameRank("Wenz:tout") > getGameRank("Solo:acorn"));
+    assert.ok(getGameRank("Solo:bell:tout") > getGameRank("Wenz:tout"));
+    assert.equal(getGameRank("Solo:leaf"), getGameRank("Solo"));
+});
+
+test("a hand with all four dogs and two sheep announces a Dog Game Tout", () => {
+    const hand = [
+        { id: "acorn-U", suit: "acorn", rank: "U" },
+        { id: "leaf-U", suit: "leaf", rank: "U" },
+        { id: "heart-U", suit: "heart", rank: "U" },
+        { id: "bell-U", suit: "bell", rank: "U" },
+        { id: "acorn-A", suit: "acorn", rank: "A" },
+        { id: "bell-A", suit: "bell", rank: "A" },
+    ];
+    assert.equal(decideAnnouncement(hand)?.game, "Wenz:tout");
+});

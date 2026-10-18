@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import CoachBubble from "../components/CoachBubble";
 import GameHeader from "../components/GameHeader";
+import { LastTrickPanel } from "../components/LastTrick";
+import MarriageExchange from "../components/MarriageExchange";
 import GamePicker, { ChoicePrompt } from "../components/GamePicker";
 import SceneBackground from "../components/SceneBackground";
 import AchievementToast from "../components/AchievementToast";
@@ -8,7 +11,9 @@ import PausePanel from "../components/PausePanel";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
-import { getSauSpielStatus, parseGame } from "../ai/schafkopfAI";
+import { TOUT_GAMES, getSauSpielStatus, isTrumpForGame, parseGame, withTout } from "../ai/schafkopfAI";
+import { dealScenario } from "../data/devScenarios";
+import { dealGuided, dealPractice, guidedLesson } from "../data/lessons";
 import { getGameType } from "../data/gameTypes";
 import { t } from "../i18n";
 import { cardName } from "../i18n/names";
@@ -20,10 +25,26 @@ import useHotkey from "../hooks/useHotkey";
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
 
-function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores, onRoundScored }) {
+// lesson: null for a normal game, { type: "guided" } for the guided first
+// game, or { type: "practice", lesson } for a practice round (see
+// data/lessons.js). Lessons deal fixed cards, show tips and don't count for
+// coins or achievements; at their end onLessonAction("continue" | "practice"
+// | "again") picks what comes next.
+function GameScreen({
+  onOpenMenu,
+  playerName: yourName = "Maria",
+  sessionScores,
+  onRoundScored,
+  lesson = null,
+  onLessonAction,
+}) {
+  const guided = lesson?.type === "guided";
   // The pause menu (Menu button or Esc): the other players wait while it's open.
   const [isPaused, setIsPaused] = useState(false);
-  useHotkey("Escape", () => setIsPaused((paused) => !paused));
+  // The last trick, shown again from the eye button by the banner; the others
+  // wait while it is open.
+  const [showLastTrick, setShowLastTrick] = useState(false);
+  useHotkey("Escape", () => (showLastTrick ? setShowLastTrick(false) : setIsPaused((paused) => !paused)));
   const {
     players,
     currentTurn,
@@ -36,16 +57,20 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
     dealHands,
     playCard,
     collectTrick,
+    lastTrick,
     roundResult,
     marriage,
     marriageOffer,
     humanMarriageOffer,
     humanMarriageAnswer,
+    humanMarriageExchange,
+    humanMarriageContinue,
+    humanMarriagePlace,
     caller,
     bidding,
     lastBid,
     humanBid,
-  } = useSchafkopfGame({ paused: isPaused });
+  } = useSchafkopfGame({ paused: isPaused || showLastTrick });
 
   // A card landing on the table, and a finished trick being collected.
   const previousTrickSizeRef = useRef(0);
@@ -63,10 +88,12 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
   useEffect(() => {
     if (roundResult && scoredRoundRef.current !== roundResult.id) {
       scoredRoundRef.current = roundResult.id;
+      // Lessons don't count for coins or achievements.
+      if (lesson) return;
       const fresh = onRoundScored?.(roundResult) ?? [];
       if (fresh.length) setNewAchievements(fresh);
     }
-  }, [roundResult, onRoundScored]);
+  }, [roundResult, onRoundScored, lesson]);
 
   const [tableSize, setTableSize] = useState(null);
   // Where the table sits in the window, so a card dragged from your hand
@@ -109,14 +136,11 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
   const bestBid = bidding?.best ?? null;
   // A game value split for the texts: { game: "Solo", suit: "leaf" }.
   const gameParts = (value) => {
-    const { base, suit } = parseGame(value);
-    return { game: base, suit };
+    const { base, suit, tout } = parseGame(value);
+    return { game: base, suit, tout };
   };
   // "Jonas wants a Sheep Game", with the game's suit for a Solo.
-  const wantsText = (seat, value) => {
-    const { base, suit } = parseGame(value);
-    return t("bid.wants", { name: playerName(seat), game: base, suit });
-  };
+  const wantsText = (seat, value) => t("bid.wants", { name: playerName(seat), ...gameParts(value) });
   const biddingTitle = bidding ? (bestBid ? wantsText(bestBid.seat, bestBid.game) : t("bid.whoPlays")) : null;
   const lastBidText = lastBid
     ? lastBid.marriageDeclined
@@ -128,20 +152,39 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
 
   // Marriage offer, before announcing: who offers and who has to answer.
   const marriageSeat = marriageOffer?.seat ?? null;
+  // You accepted a marriage: pick the card to give back, then confirm.
+  const isExchanging = marriageOffer?.stage === "exchange" && marriageSeat === "south";
+  // Your offer was accepted: the swap is shown until you tap the new card.
+  const isRevealing = marriageOffer?.stage === "reveal";
+  // Your own offer was accepted: lay your trump on the swap field.
+  const isPlacing = marriageOffer?.stage === "place";
+  // Whoever accepted your marriage glows while you swap.
+  const marriagePartner = isPlacing ? marriageOffer.partner : isRevealing ? marriage?.partner : null;
+  const [exchangeCard, setExchangeCard] = useState(null);
+  useEffect(() => {
+    if (!isExchanging) setExchangeCard(null);
+  }, [isExchanging]);
   const marriageTitle = marriageOffer
     ? marriageOffer.stage === "offer"
       ? t("marriage.oneTrump")
-      : t("marriage.offers", { name: playerName(marriageOffer.offerer) })
+      : isPlacing || isRevealing
+        ? t("marriage.revealTitle", { name: playerName(marriagePartner) })
+        : isExchanging
+        ? t("marriage.exchangeTitle", { name: playerName(marriageOffer.offerer) })
+        : t("marriage.offers", { name: playerName(marriageOffer.offerer) })
     : null;
+  // The banner says what is going on; the swap field says what to tap.
   const marriageAskNote = marriageOffer
-    ? marriageSeat === "south"
-      ? t("marriage.yourAnswer")
-      : t("bid.deciding", { name: playerName(marriageSeat) })
+    ? isRevealing || isExchanging || isPlacing
+      ? t("marriage.together")
+      : marriageSeat === "south"
+        ? t("marriage.yourAnswer")
+        : t("bid.deciding", { name: playerName(marriageSeat) })
     : null;
   const biddingNote = bidding
     ? [lastBidText, biddingSeat === "south" ? t("bid.yourSay") : t("bid.deciding", { name: playerName(biddingSeat) })]
-        .filter(Boolean)
-        .join(" · ")
+      .filter(Boolean)
+      .join(" · ")
     : null;
 
   // Until the first card is played, the banner tells how the marriage went.
@@ -160,7 +203,7 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
 
   const handleDeal = () => {
     sounds.shuffle();
-    dealHands();
+    dealHands(guided ? dealGuided() : lesson ? dealPractice(lesson.lesson) : null);
   };
 
   // The game panel opens when it's Maria's say.
@@ -182,17 +225,24 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
   };
 
   // Games Maria can't announce any more: a marriage nobody accepts, and
-  // anything not stronger than what someone already announced.
+  // anything not stronger than what someone already announced, even as a
+  // Tout. Games only a Tout can still beat go to the picker as toutOnly.
+  const bestRank = bestBid ? getGameRank(bestBid.game) : 0;
+  const beats = (value) => getGameRank(value) > bestRank;
+  const canBeat = (value) => beats(value) || (TOUT_GAMES.includes(value) && beats(withTout(value)));
+  const toutOnlyGames = TOUT_GAMES.filter((value) => !beats(value) && beats(withTout(value)));
   const declinedGames = {
     ...(bestBid
       ? Object.fromEntries(
-          ["Sau Spiel", "Marriage", "Wenz", "Solo"]
-            .filter((value) => getGameRank(value) <= getGameRank(bestBid.game))
-            .map((value) => [value, wantsText(bestBid.seat, bestBid.game)])
-        )
+        ["Sau Spiel", "Marriage", "Wenz", "Solo"]
+          .filter((value) => !canBeat(value))
+          .map((value) => [value, wantsText(bestBid.seat, bestBid.game)])
+      )
       : {}),
     // A marriage is offered right after the deal, before announcing.
     Marriage: t("marriage.offeredBefore"),
+    // The guided first game teaches the Sheep Game.
+    ...(guided ? Object.fromEntries(["Solo", "Wenz", "Marriage"].map((value) => [value, t("tutorial.onlySheep")])) : {}),
   };
 
   // Web shortcuts: D or Enter deals when dealing is possible.
@@ -225,12 +275,12 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
     if (!isGameOver() || !roundResult) return null;
     const names = (keys) => keys.map(playerName).join(" & ");
     const rows = ["south", "west", "north", "east"].map((seat) => ({
-        seat,
-        name: playerName(seat),
-        delta: roundResult.deltas[seat],
-        total: sessionScores?.[seat] ?? 0,
-        isWinner: roundResult.winners.includes(seat),
-      }));
+      seat,
+      name: playerName(seat),
+      delta: roundResult.deltas[seat],
+      total: sessionScores?.[seat] ?? 0,
+      isWinner: roundResult.winners.includes(seat),
+    }));
 
     if (roundResult.gameName === "Ramsch") {
       return {
@@ -251,10 +301,71 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
     const callerPoints = roundResult.callerPoints;
     return {
       message: t(callersWon ? "result.wins" : "result.loses", { names: names(callers), plural, game: gameType.value }),
-      points: t("result.score", { ours: callerPoints, theirs: 120 - callerPoints }),
+      // "98 : 22 points · Schneider"; Schwarz includes Schneider, so only one shows.
+      points: [
+        // The other side's real points: after a lost Tout not all cards were played.
+        t("result.score", {
+          ours: callerPoints,
+          theirs: Object.values(roundResult.points).reduce((sum, p) => sum + p, 0) - callerPoints,
+        }),
+        roundResult.tout
+          ? t("result.tout")
+          : roundResult.schwarz
+            ? t("result.schwarz")
+            : roundResult.schneider
+              ? t("result.schneider")
+              : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
       rows,
     };
   };
+
+  // Lessons: the coach's tip for what is happening now, and in the guided
+  // game the one card you should play (the others are greyed out).
+  const roundOver = isGameOver() && Boolean(roundResult);
+  const southTurn = currentTurn === "south" && Boolean(gameType) && !isTrickComplete;
+  const guidedCard = guided && southTurn ? guidedLesson.turns[6 - players.south.length] : null;
+  const coach = (() => {
+    if (!lesson) return {};
+    if (roundOver) {
+      return guided
+        ? {
+            text: t("tutorial.done"),
+            placement: "top",
+            actions: [
+              { label: t("tutorial.practice"), onPress: () => onLessonAction?.("practice") },
+              { label: t("tutorial.continue"), onPress: () => onLessonAction?.("continue"), primary: true },
+            ],
+          }
+        : {
+            text: t("practice.done"),
+            placement: "top",
+            actions: [
+              { label: t("practice.back"), onPress: () => onLessonAction?.("practice") },
+              { label: t("practice.again"), onPress: () => onLessonAction?.("again"), primary: true },
+            ],
+          };
+    }
+    if (guided) {
+      if (!hasCards) return { text: t("tutorial.deal") };
+      if (!gameType) return { text: needsGame ? t("tutorial.announce") : t("tutorial.wait") };
+      if (isTrickComplete) return { text: t("tutorial.collect") };
+      if (guidedCard) return { text: t(`tutorial.turn${7 - players.south.length}`) };
+      return { text: t("tutorial.wait") };
+    }
+    const id = lesson.lesson.id;
+    if (!gameType) return { text: `${t(`lesson.${id}.goal`)} ${t(`lesson.${id}.tip1`)}` };
+    return { text: t(`lesson.${id}.${lastTrick ? "tip3" : "tip2"}`) };
+  })();
+
+  // Your hand during a marriage swap: the card on the swap field has left it,
+  // and the card you get only joins it once you tap it on the field.
+  const southHand = players.south.filter(
+    (card) =>
+      !(isExchanging && card.id === exchangeCard?.id) && !(isRevealing && card.id === marriageOffer?.received?.id)
+  );
 
   const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
   const layout = tableLayout;
@@ -268,8 +379,8 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
     const dy = y - tableOrigin.current.y - blanket.centerY;
     return Math.hypot(dx, dy) <= (blanket.width / 2) * 1.15;
   };
-  // Phones: the panel reaches up over the banner to the top of the screen.
-  const pickerTop = layout?.portrait ? 8 - headerHeight : 8;
+  // The panel reaches up over the banner to the top of the screen, for room.
+const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
 
   return (
     <View style={styles.shell}>
@@ -288,6 +399,8 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
           caller={caller}
           title={marriageTitle ?? biddingTitle}
           note={marriageAskNote ?? biddingNote ?? marriageNote}
+          onShowLastTrick={() => setShowLastTrick(true)}
+          hasLastTrick={Boolean(lastTrick)}
         />
         {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} /> : null}
       </View>
@@ -335,12 +448,37 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
                 status={getGameStatus(seat)}
                 showFriendBadge={revealedAceOwner === seat || (selectedGame === "Marriage" && marriage?.partner === seat)}
                 isTrickWinner={isTrickComplete && trickWinner === seat}
+                isHighlighted={marriagePartner === seat}
                 score={sessionScores?.[seat] ?? 0}
               />
             ))}
 
             {/* Marriage: Maria offers one, or answers someone else's offer. */}
-            {marriageOffer && marriageSeat === "south" ? (
+            {isExchanging ? (
+              <MarriageExchange
+                blanket={layout.blanket}
+                given={exchangeCard}
+                received={marriageOffer.trump}
+                onConfirm={() => exchangeCard && humanMarriageExchange(exchangeCard)}
+              />
+            ) : null}
+
+            {/* Your offer was accepted: lay your trump down to see what you get. */}
+            {isPlacing ? (
+              <MarriageExchange blanket={layout.blanket} given={null} received={null} waitingHint={t("marriage.placeHint")} />
+            ) : null}
+
+            {isRevealing ? (
+              <MarriageExchange
+                blanket={layout.blanket}
+                given={marriageOffer.trump}
+                received={marriageOffer.received}
+                onConfirm={humanMarriageContinue}
+                hint={t("marriage.revealHint")}
+              />
+            ) : null}
+
+            {marriageOffer && marriageSeat === "south" && !isExchanging && !isRevealing && !isPlacing ? (
               <>
                 <View style={styles.scrim} />
                 <View style={[styles.pickerSlot, { top: layout.height * 0.2, paddingHorizontal: 16 }]} pointerEvents="box-none">
@@ -380,6 +518,10 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
                     onPass={handlePass}
                     onPreview={setPreviewGame}
                     declined={declinedGames}
+                    toutOnly={toutOnlyGames}
+                    onClose={closePicker}
+                    allowedSheep={guided ? [guidedLesson.calledAce] : null}
+                    canPass={!guided}
                   />
                 </View>
               </>
@@ -389,9 +531,25 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
               seat="south"
               layout={layout}
               name={playerName("south")}
-              cards={players.south}
-              isCurrentTurn={currentTurn === "south" && Boolean(gameType)}
-              onPlayCard={(index) => playCard("south", index)}
+              cards={southHand}
+              isCurrentTurn={isExchanging || isPlacing || (!isRevealing && currentTurn === "south" && Boolean(gameType))}
+              onPlayCard={(index) =>
+                isPlacing
+                  ? humanMarriagePlace(southHand[index])
+                  : isExchanging
+                    ? setExchangeCard(southHand[index])
+                    : playCard("south", index)
+              }
+              selectMode={isExchanging || isPlacing}
+              selectableIds={
+                guidedCard
+                  ? [guidedCard]
+                  : isPlacing && marriageOffer.offered
+                  ? [marriageOffer.offered.id]
+                  : isExchanging
+                    ? southHand.filter((card) => !isTrumpForGame(card, "Marriage")).map((card) => card.id)
+                    : null
+              }
               isOverTable={isOverTable}
               playedCards={playedCards}
               gameType={isCaller("south") ? selectedGame : null}
@@ -419,8 +577,29 @@ function GameScreen({ onOpenMenu, playerName: yourName = "Maria", sessionScores,
 
       <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
 
+      {lesson && coach.text && !isPaused && !showLastTrick ? (
+        <CoachBubble text={coach.text} actions={coach.actions} placement={coach.placement} />
+      ) : null}
+
+      {showLastTrick && lastTrick ? (
+        <LastTrickPanel
+          trick={lastTrick}
+          playerName={playerName}
+          trumpGame={trumpGame}
+          onClose={() => setShowLastTrick(false)}
+        />
+      ) : null}
+
       {isPaused ? (
-        <PausePanel onResume={() => setIsPaused(false)} onLeave={onOpenMenu} isRoundInProgress={hasCards} />
+        <PausePanel
+          onResume={() => setIsPaused(false)}
+          onLeave={onOpenMenu}
+          onDevDeal={(scenario) => {
+            setIsPaused(false);
+            sounds.shuffle();
+            dealHands(dealScenario(scenario));
+          }}
+        />
       ) : null}
     </View>
   );

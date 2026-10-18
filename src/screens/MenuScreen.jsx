@@ -14,6 +14,7 @@ import SettingsPanel from "../components/SettingsPanel";
 import { TornButton } from "../components/TornPaper";
 import { useStage } from "../components/Stage";
 import useHotkey from "../hooks/useHotkey";
+import { sounds } from "../audio/sounds";
 import { t } from "../i18n";
 import { TITLE_RATIO, menuShepherds, titleLettering } from "../data/uiArt";
 import { fillParent } from "../theme";
@@ -22,6 +23,10 @@ import { fillParent } from "../theme";
 // share of its width.
 const PAIR_OFFSET = 0.62;
 const SLIDE_DURATION = 1100;
+// Pressing Play: the shepherds walk back out to their sides while the title
+// and buttons fade, then the game starts.
+const EXIT_DURATION = 650;
+const useNativeDriver = Platform.OS !== "web";
 const portraitPairs = [
     ["blue", "orange"],
     ["red", "green"],
@@ -56,8 +61,9 @@ function getPortraitFigures(width, height, [leftKey, rightKey]) {
     ].map((f) => ({ ...f, height: figureHeight, bottom: -figureHeight * 0.06 }));
 }
 
-// One shepherd sliding in from its side of the screen with an ease-out.
-function SlidingFigure({ figure, stageWidth }) {
+// One shepherd sliding in from its side of the screen with an ease-out, and
+// back out (ease-in) when `leaving` turns true.
+function SlidingFigure({ figure, stageWidth, leaving = false }) {
     const shepherd = menuShepherds[figure.key];
     const figureWidth = figure.height * shepherd.ratio;
     const start = figure.side === "left" ? -(figure.left + figureWidth) : stageWidth - figure.left;
@@ -68,9 +74,20 @@ function SlidingFigure({ figure, stageWidth }) {
             toValue: 0,
             duration: SLIDE_DURATION,
             easing: Easing.out(Easing.cubic),
-            useNativeDriver: Platform.OS !== "web",
+            useNativeDriver,
         }).start();
     }, [offset]);
+
+    useEffect(() => {
+        if (!leaving) return;
+        offset.stopAnimation();
+        Animated.timing(offset, {
+            toValue: start,
+            duration: EXIT_DURATION,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver,
+        }).start();
+    }, [leaving]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <Animated.View
@@ -91,13 +108,25 @@ function SlidingFigure({ figure, stageWidth }) {
     );
 }
 
-function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
+function MenuScreen({ onPlay, onOpenPractice, onOpenAchievements, onOpenDeck }) {
     const { width, height, isPortrait } = useStage();
     const [pair] = useState(() => portraitPairs[Math.floor(Math.random() * portraitPairs.length)]);
     // The open panel, if any: "settings" or "profile".
     const [panel, setPanel] = useState(null);
     // Esc closes a panel (on other screens it goes back to the menu).
     useHotkey("Escape", () => setPanel(null), Boolean(panel));
+
+    // Play: shepherds out, title and buttons fade, then the game.
+    const [leaving, setLeaving] = useState(false);
+    const fade = useRef(new Animated.Value(1)).current;
+    const play = () => {
+        if (leaving) return;
+        setLeaving(true);
+        sounds.sheep();
+        Animated.timing(fade, { toValue: 0, duration: EXIT_DURATION * 0.7, easing: Easing.in(Easing.quad), useNativeDriver }).start();
+        setTimeout(onPlay, EXIT_DURATION);
+    };
+    useHotkey("p", play, !panel && !leaving);
 
     const figures = isPortrait ? getPortraitFigures(width, height, pair) : getLandscapeFigures(width, height);
     const titleWidth = isPortrait ? width * 0.9 : Math.min(width * 0.56, 760);
@@ -107,10 +136,13 @@ function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
             <SceneBackground />
 
             {figures.map((figure) => (
-                <SlidingFigure key={`${isPortrait}-${figure.key}`} figure={figure} stageWidth={width} />
+                <SlidingFigure key={`${isPortrait}-${figure.key}`} figure={figure} stageWidth={width} leaving={leaving} />
             ))}
 
-            <View style={[styles.centre, isPortrait && styles.centrePortrait]} pointerEvents="box-none">
+            <Animated.View
+                style={[styles.centre, isPortrait && styles.centrePortrait, { opacity: fade }]}
+                pointerEvents={leaving ? "none" : "box-none"}
+            >
                 <Image
                     source={titleLettering}
                     contentFit="contain"
@@ -123,15 +155,19 @@ function MenuScreen({ onPlay, onOpenAchievements, onOpenDeck }) {
                     }}
                 />
                 <View style={[styles.buttons, { gap: Math.max(height * (isPortrait ? 0.02 : 0.03), 14) }]}>
-                    <TornButton label={t("menu.play")} accessibilityLabel={t("menu.playLabel")} fontSize={58} paddingHorizontal={60} paddingVertical={8} onPress={onPlay} />
+                    <TornButton label={t("menu.play")} accessibilityLabel={t("menu.playLabel")} fontSize={58} paddingHorizontal={60} paddingVertical={8} onPress={play} />
+                    <TornButton label={t("menu.practice")} accessibilityLabel={t("menu.practiceLabel")} onPress={onOpenPractice} />
                     <TornButton label={t("menu.achievements")} accessibilityLabel={t("menu.achievementsLabel")} onPress={onOpenAchievements} />
                     <TornButton label={t("menu.settings")} accessibilityLabel={t("menu.settingsLabel")} paddingHorizontal={34} onPress={() => setPanel("settings")} />
                 </View>
-            </View>
+            </Animated.View>
 
-            <View style={[styles.profile, isPortrait && styles.profilePortrait]} pointerEvents="box-none">
+            <Animated.View
+                style={[styles.profile, isPortrait && styles.profilePortrait, { opacity: fade }]}
+                pointerEvents={leaving ? "none" : "box-none"}
+            >
                 <ProfileBadge compact={isPortrait} onPress={() => setPanel("profile")} />
-            </View>
+            </Animated.View>
 
             {panel === "settings" ? (
                 <SettingsPanel

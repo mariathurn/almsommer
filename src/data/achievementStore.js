@@ -29,6 +29,19 @@ export function unlockAchievements({ round = null, savings }) {
     return fresh;
 }
 
+// Developer menu: unlock all of them, or lock them all again.
+export function devUnlockAll(ids) {
+    const now = Date.now();
+    unlocked = Object.fromEntries(ids.map((id) => [id, unlocked[id] ?? now]));
+    AsyncStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(unlocked)).catch(() => {});
+    emit();
+}
+export function devResetAchievements() {
+    unlocked = {};
+    AsyncStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(unlocked)).catch(() => {});
+    emit();
+}
+
 // React hook: the unlocked achievements, re-rendering when one is added.
 export function useUnlocked() {
     return useSyncExternalStore(

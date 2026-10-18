@@ -7,7 +7,8 @@ import { colors } from "../theme";
 
 const useNativeDriver = Platform.OS !== "web";
 
-function WinnerGlow({ active, radius = 12, spread = 6, scaleTo = 1, children, style }) {
+// loop: keep pulsing while active (e.g. the player who just accepted a marriage).
+function WinnerGlow({ active, radius = 12, spread = 6, scaleTo = 1, loop = false, children, style }) {
     const glow = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -16,13 +17,14 @@ function WinnerGlow({ active, radius = 12, spread = 6, scaleTo = 1, children, st
             return undefined;
         }
         // Shine once: flare up, then fade out.
-        const pulse = Animated.sequence([
+        const once = Animated.sequence([
             Animated.timing(glow, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver }),
-            Animated.timing(glow, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver }),
+            Animated.timing(glow, { toValue: loop ? 0.35 : 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver }),
         ]);
+        const pulse = loop ? Animated.loop(once) : once;
         pulse.start();
         return () => pulse.stop();
-    }, [active, glow]);
+    }, [active, loop, glow]);
 
     const scale = glow.interpolate({ inputRange: [0, 1], outputRange: [1, scaleTo] });
 

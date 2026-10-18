@@ -60,6 +60,16 @@ export function recordRound(delta) {
     save();
 }
 
+// Developer menu: change the savings directly, or start over.
+export function devAddSavings(amount) {
+    profile = { ...profile, savings: profile.savings + amount };
+    save();
+}
+export function devResetStats() {
+    profile = { ...profile, savings: 0, gamesPlayed: 0, bestGame: 0 };
+    save();
+}
+
 // React hook: the current profile, re-rendering when it changes.
 export function useProfile() {
     return useSyncExternalStore(

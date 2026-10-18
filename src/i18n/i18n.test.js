@@ -49,5 +49,8 @@ test("German phrases use the right articles", () => {
     assert.equal(de["bid.wants"]({ name: "Resi", game: "Marriage" }), "Resi will eine Hochzeit spielen");
     assert.equal(de["result.loses"]({ names: "Bernd", plural: false, game: "Ramsch" }), "Bernd verliert den Ramsch");
     assert.equal(de["banner.callsSheep"]({ name: "Ernie", suit: "acorn" }), "Ernie ruft das blaue Schaf");
+    assert.equal(de["card.name"]({ suit: "acorn", rank: "O" }), "blauer Schäfer");
+    assert.equal(de["card.name"]({ suit: "bell", rank: "10" }), "oranges Korn");
+    assert.equal(en["card.name"]({ suit: "leaf", rank: "A" }), "green sheep");
     assert.equal(en["banner.plays"]({ name: "Resi", game: "Solo", suit: "acorn" }), "Resi plays an Acorn Solo");
 });

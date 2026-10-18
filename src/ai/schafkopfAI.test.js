@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+    canAcceptMarriage,
+    marriageCandidates,
+    swapMarriageCards,
     isTrumpForGame,
     getPartnerForCalledAce,
     canCallAce,
@@ -199,4 +202,43 @@ test("Marriage: if nobody accepts, there is no partner and nothing is swapped", 
     const result = resolveMarriage(players);
     assert.equal(result.partner, null);
     assert.equal(result.players, players);
+});
+
+test("Marriage: the partner can give back a card of their own choice", () => {
+    const players = {
+        west: [{ id: "heart-9", suit: "heart", rank: "9" }, { id: "bell-A", suit: "bell", rank: "A" }],
+        south: [
+            { id: "acorn-O", suit: "acorn", rank: "O" },
+            { id: "leaf-A", suit: "leaf", rank: "A" },
+            { id: "bell-9", suit: "bell", rank: "9" },
+        ],
+    };
+    // Without a choice the weakest plain card goes back; with one, that card.
+    assert.equal(swapMarriageCards(players, "west", "south").given.id, "bell-9");
+    const chosen = swapMarriageCards(players, "west", "south", "Marriage", { id: "leaf-A" });
+    assert.equal(chosen.given.id, "leaf-A");
+    assert.ok(chosen.players.south.some((c) => c.id === "heart-9"));
+    assert.ok(chosen.players.west.some((c) => c.id === "leaf-A"));
+});
+
+test("Marriage: only a card that is no trump can be given back", () => {
+    const allTrumps = [
+        { id: "acorn-O", suit: "acorn", rank: "O" }, { id: "leaf-O", suit: "leaf", rank: "O" },
+        { id: "acorn-U", suit: "acorn", rank: "U" }, { id: "heart-A", suit: "heart", rank: "A" },
+        { id: "heart-10", suit: "heart", rank: "10" }, { id: "heart-K", suit: "heart", rank: "K" },
+    ];
+    assert.equal(canAcceptMarriage(allTrumps), false);
+    assert.equal(canAcceptMarriage([...allTrumps.slice(1), { id: "bell-9", suit: "bell", rank: "9" }]), true);
+
+    const players = {
+        south: [{ id: "heart-9", suit: "heart", rank: "9" }, { id: "bell-A", suit: "bell", rank: "A" }],
+        west: allTrumps,
+        north: [{ id: "leaf-9", suit: "leaf", rank: "9" }],
+        east: [{ id: "bell-U", suit: "bell", rank: "U" }, { id: "leaf-K", suit: "leaf", rank: "K" }],
+    };
+    // West holds only trumps, so West is never asked.
+    assert.deepEqual(marriageCandidates(players, "south"), ["north", "east"]);
+    // A trump chosen to give back is ignored: a plain card goes instead.
+    const swap = swapMarriageCards(players, "south", "east", "Marriage", { id: "bell-U" });
+    assert.equal(swap.given.id, "leaf-K");
 });

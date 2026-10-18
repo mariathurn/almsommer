@@ -45,12 +45,17 @@ test("Solo and Dog Game count only when you announced and won them", () => {
     assert.ok(earned(dog).includes("first-dog-game"));
 });
 
-test("tout needs every trick", () => {
-    const solo = { gameName: "Solo:acorn", callerTeam: ["south"], winners: ["south"], losers: ["west", "north", "east"] };
-    assert.ok(!earned(round({ ...solo })).includes("solo-tout"));
-    const tout = round({ ...solo, tricks: { south: 6, west: 0, north: 0, east: 0 } });
+test("tout achievements need an announced Tout, won", () => {
+    const solo = { callerTeam: ["south"], winners: ["south"], losers: ["west", "north", "east"], tricks: { south: 6, west: 0, north: 0, east: 0 } };
+    // Every trick in a plain Solo is not a Tout.
+    assert.ok(!earned(round({ ...solo, gameName: "Solo:acorn" })).includes("solo-tout"));
+    const tout = round({ ...solo, gameName: "Solo:acorn:tout" });
     assert.ok(earned(tout).includes("solo-tout"));
+    assert.ok(earned(tout).includes("first-solo"));
     assert.ok(!earned(tout).includes("dog-tout"));
+    assert.ok(earned(round({ ...solo, gameName: "Wenz:tout" })).includes("dog-tout"));
+    const lost = round({ gameName: "Wenz:tout", callerTeam: ["south"], winners: ["west", "north", "east"], losers: ["south"] });
+    assert.ok(!earned(lost).includes("dog-tout"));
 });
 
 test("few and many trumps in the dealt hand", () => {

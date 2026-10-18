@@ -14,10 +14,18 @@ const suitStrength = { acorn: 4, leaf: 3, heart: 2, bell: 1 };
 // Order of non-trump cards within a colour (a shepherd only appears here in the Dog Game).
 const plainRank = { A: 6, "10": 5, K: 4, O: 3, U: 2, "9": 1 };
 
-// A Solo carries its trump suit in the game value: "Solo:leaf".
+// A Solo carries its trump suit in the game value: "Solo:leaf". A Tout
+// (Solo or Dog Game) is marked at the end: "Solo:leaf:tout", "Wenz:tout".
 export function parseGame(gameName = "Pass") {
-    const [base, suit] = String(gameName).split(":");
-    return { base, suit: suit ?? null };
+    const [base, ...rest] = String(gameName).split(":");
+    return { base, suit: rest.find((part) => part !== "tout") ?? null, tout: rest.includes("tout") };
+}
+
+// The game value for a Tout: "Solo:leaf" -> "Solo:leaf:tout", "Wenz" -> "Wenz:tout".
+// Only Solo and Dog Game can be played as a Tout.
+export const TOUT_GAMES = ["Solo", "Wenz"];
+export function withTout(gameName) {
+    return parseGame(gameName).tout ? gameName : `${gameName}:tout`;
 }
 
 // How strong a trump is in the given game (higher wins), or 0 if the card is
@@ -266,8 +274,20 @@ export function isGoodTrump(card) {
     return card.rank === "O" || card.rank === "U" || (card.suit === "heart" && (card.rank === "A" || card.rank === "10"));
 }
 
+// Accepting a marriage means giving back a card that is no trump, so a hand
+// of only trumps (shepherds, dogs and hearts) can't accept.
+export function canAcceptMarriage(hand) {
+    return hand.some((card) => !isTrumpForGame(card, "Marriage"));
+}
+
 export function wantsToAcceptMarriage(hand) {
-    return hand.filter(isGoodTrump).length >= MARRIAGE_GOOD_TRUMPS;
+    return canAcceptMarriage(hand) && hand.filter(isGoodTrump).length >= MARRIAGE_GOOD_TRUMPS;
+}
+
+// The players who may be asked, in order: everyone after the offerer who
+// can give back a card that is no trump.
+export function marriageCandidates(players, offerer) {
+    return marriageAskOrder(offerer).filter((seat) => canAcceptMarriage(players[seat]));
 }
 
 // The players asked, in order, when `offerer` offers a marriage.
@@ -277,13 +297,16 @@ export function marriageAskOrder(offerer) {
 }
 
 // The card swap once `partner` accepted. Returns { trump, given, players }.
-export function swapMarriageCards(players, offerer, partner, gameName = "Marriage") {
+// The partner gives back a card that is no trump: `chosen` (Maria picks it
+// herself), or else their weakest plain card.
+export function swapMarriageCards(players, offerer, partner, gameName = "Marriage", chosen = null) {
     const hand = players[offerer];
     const trump = hand.find((card) => isTrumpForGame(card, gameName));
     const partnerHand = players[partner];
     const plain = partnerHand.filter((card) => !isTrumpForGame(card, gameName));
-    const pool = plain.length ? plain : partnerHand;
-    const given = pool.reduce((low, card) => ((plainRank[card.rank] ?? 0) < (plainRank[low.rank] ?? 0) ? card : low));
+    const given =
+        (chosen ? plain.find((card) => card.id === chosen.id) : null) ??
+        plain.reduce((low, card) => ((plainRank[card.rank] ?? 0) < (plainRank[low.rank] ?? 0) ? card : low));
     return {
         trump,
         given,
@@ -298,7 +321,7 @@ export function swapMarriageCards(players, offerer, partner, gameName = "Marriag
 // Asks the computer players in turn (for tests and simple uses).
 // Returns { partner, trump, given, players }; partner is null if nobody accepts.
 export function resolveMarriage(players, offerer = "south") {
-    const partner = marriageAskOrder(offerer).find((seat) => wantsToAcceptMarriage(players[seat]));
+    const partner = marriageCandidates(players, offerer).find((seat) => wantsToAcceptMarriage(players[seat]));
     if (!canOfferMarriage(players[offerer]) || !partner) return { partner: null, trump: null, given: null, players };
     return { partner, ...swapMarriageCards(players, offerer, partner) };
 }

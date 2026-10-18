@@ -3,7 +3,15 @@ const path = require("path");
 const puppeteer = require("puppeteer-core");
 
 const OUT = process.argv[2];
-const URL = "http://localhost:8081";
+// Another dev server: URL=http://localhost:8099 node capture.js <out dir>
+const URL = process.env.URL || "http://localhost:8081";
+// The app's language for the export: LANGUAGE=en or de (default de). The
+// buttons are found by their (translated) accessibility labels.
+const LANGUAGE = process.env.LANGUAGE || "de";
+const L = {
+  en: { deal: "Deal", pass: "Pass", no: "No", decline: "Decline", chooseGame: "Choose game", leave: "Leave game", coins: "coins", play: /^Play / },
+  de: { deal: "Geben", pass: "Passen", no: "Nein", decline: "Ablehnen", chooseGame: "Spiel wählen", leave: "Spiel verlassen", coins: "Münzen", play: / spielen$/ },
+}[LANGUAGE];
 const converter = fs.readFileSync(path.join(__dirname, "dom2svg.js"), "utf8");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,21 +48,19 @@ async function reachPicker(page) {
   for (let attempt = 0; attempt < 15; attempt++) {
     await page.keyboard.press("p");
     await wait(800);
-    await clickLabel(page, "Deal");
+    await clickLabel(page, L.deal);
     for (let t = 0; t < 40; t++) {
       await wait(300);
-      if (await hasLabel(page, "Pass")) return true;
+      if (await hasLabel(page, L.pass)) return true;
       // Marriage offer for us: decline it.
-      if (await clickLabel(page, "No")) continue;
-      await clickLabel(page, "Decline");
-      await clickLabel(page, "Choose game");
+      if (await clickLabel(page, L.no)) continue;
+      await clickLabel(page, L.decline);
+      await clickLabel(page, L.chooseGame);
     }
-    // Esc opens the pause menu; leave the game (and confirm if a round is on).
+    // Esc opens the pause menu; leave the game from there.
     await page.keyboard.press("Escape");
     await wait(300);
-    await clickLabel(page, "Leave game");
-    await wait(300);
-    await clickLabel(page, "Leave game");
+    await clickLabel(page, L.leave);
     await wait(500);
   }
   return false;
@@ -71,6 +77,8 @@ async function reachPicker(page) {
     const page = await browser.newPage();
     await page.setViewport({ ...vp, deviceScaleFactor: 2 });
     await page.goto(URL, { waitUntil: "load", timeout: 120000 });
+    await page.evaluate((lang) => localStorage.setItem("almsommer.language", lang), LANGUAGE);
+    await page.reload({ waitUntil: "load", timeout: 120000 });
     await page.waitForFunction(() => document.querySelector("img") || [...document.querySelectorAll("div")].some((d) => d.style.backgroundImage), { timeout: 120000 });
     await wait(4000);
     await save(page, `menu-${orientation}`);
@@ -80,21 +88,21 @@ async function reachPicker(page) {
     await save(page, `game-choice-${orientation}`);
 
     // Pick the first available game and play into the first trick.
-    await page.evaluate(() => {
-      const tile = [...document.querySelectorAll('[role="button"][aria-label*="coins"]')].find((t) => t.getAttribute("aria-disabled") !== "true");
+    await page.evaluate((coins) => {
+      const tile = [...document.querySelectorAll(`[role="button"][aria-label*="${coins}"]`)].find((t) => t.getAttribute("aria-disabled") !== "true");
       tile && tile.click();
-    });
+    }, L.coins);
     await wait(600);
-    const played = await page.evaluate(() => {
-      const b = [...document.querySelectorAll('[aria-label^="Play "]')][0];
+    const played = await page.evaluate((play) => {
+      const b = [...document.querySelectorAll("[aria-label]")].find((e) => new RegExp(play).test(e.getAttribute("aria-label")));
       if (b) b.click();
       return Boolean(b);
-    });
-    if (!played) await clickLabel(page, "Pass");
+    }, L.play.source);
+    if (!played) await clickLabel(page, L.pass);
     // Let the others finish announcing and lead; play one of our cards if asked.
     for (let t = 0; t < 30; t++) {
       await wait(300);
-      if (await clickLabel(page, "Pass")) continue;
+      if (await clickLabel(page, L.pass)) continue;
     }
     // Play cards from the hand (bottom of the stage) until the trick has a few cards.
     for (let round = 0; round < 3; round++) {

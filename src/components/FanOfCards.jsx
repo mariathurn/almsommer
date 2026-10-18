@@ -215,6 +215,10 @@ function FanOfCards({
     confirmTap = false,
     calledAce = null,
     isOverTable = null,
+    // A card picked outside of play (the marriage swap): it stays raised.
+    selectedCardId = null,
+    // Only these cards may be picked (the others are greyed); null: the rules decide.
+    selectableIds = null,
 }) {
     // Phones: the first tap raises a card, a second tap on it plays it.
     const [selectedId, setSelectedId] = useState(null);
@@ -253,7 +257,9 @@ function FanOfCards({
                     );
                 }
 
-                const isLegal = canPlayCard(card, cards, playedCards, trumpGame ?? undefined, calledAce);
+                const isLegal = selectableIds
+                    ? selectableIds.includes(card.id)
+                    : canPlayCard(card, cards, playedCards, trumpGame ?? undefined, calledAce);
                 const handIndex = cards.indexOf(card);
                 const isPlayable = isCurrentTurn && isLegal;
 
@@ -272,7 +278,7 @@ function FanOfCards({
                         isFaded={isCurrentTurn && !isLegal}
                         isTrump={isTrump}
                         isHighlighted={highlightTrumps && isTrump}
-                        isSelected={confirmTap && selectedId === card.id}
+                        isSelected={(confirmTap && selectedId === card.id) || selectedCardId === card.id}
                         trumpGame={trumpGame}
                         accessibilityHint={!isLegal ? t("hand.mustFollow") : undefined}
                         onPress={() => {

@@ -12,9 +12,6 @@
 //                  or null when only the savings are checked
 //          seat    is your seat ("south")
 //          savings is your savings after the round
-//
-// "Tout" can't be announced (yet), so the tout achievements count a Solo or
-// Dog Game in which you take every trick.
 
 import { isTrumpForGame, parseGame } from "../ai/schafkopfAI.js";
 
@@ -25,12 +22,8 @@ const lost = (round, seat) => Boolean(round?.losers.includes(seat));
 const base = (round) => parseGame(round.gameName).base;
 // You announced the game and won it (Solo, Dog Game).
 const wonOwnGame = (round, seat, game) => won(round, seat) && base(round) === game && round.callerTeam.includes(seat);
-// You (and your partner) took every trick.
-const allTricks = (round, seat) => {
-    const side = round.callerTeam.includes(seat) ? round.callerTeam : [seat];
-    const total = Object.values(round.tricks).reduce((sum, n) => sum + n, 0);
-    return side.reduce((sum, p) => sum + round.tricks[p], 0) === total;
-};
+// You announced this game as a Tout and won it.
+const wonOwnTout = (round, seat, game) => wonOwnGame(round, seat, game) && parseGame(round.gameName).tout;
 const trumpsDealt = (round, seat) => round.hands[seat].filter((card) => isTrumpForGame(card, round.gameName)).length;
 // Card points your side took: your team in a game with a caller, else your own.
 const sidePoints = (round, seat) => {
@@ -44,8 +37,8 @@ export const achievements = [
     { id: "first-loss", check: ({ round, seat }) => lost(round, seat) },
     { id: "first-solo", check: ({ round, seat }) => Boolean(round) && wonOwnGame(round, seat, "Solo") },
     { id: "first-dog-game", check: ({ round, seat }) => Boolean(round) && wonOwnGame(round, seat, "Wenz") },
-    { id: "solo-tout", check: ({ round, seat }) => Boolean(round) && wonOwnGame(round, seat, "Solo") && allTricks(round, seat) },
-    { id: "dog-tout", check: ({ round, seat }) => Boolean(round) && wonOwnGame(round, seat, "Wenz") && allTricks(round, seat) },
+    { id: "solo-tout", check: ({ round, seat }) => Boolean(round) && wonOwnTout(round, seat, "Solo") },
+    { id: "dog-tout", check: ({ round, seat }) => Boolean(round) && wonOwnTout(round, seat, "Wenz") },
     { id: "two-trumps", check: ({ round, seat }) => won(round, seat) && base(round) !== "Ramsch" && trumpsDealt(round, seat) <= 2 },
     { id: "first-ramsch", check: ({ round, seat }) => won(round, seat) && base(round) === "Ramsch" },
     { id: "big-win", check: ({ round, seat }) => (round?.deltas[seat] ?? 0) >= 100 },
