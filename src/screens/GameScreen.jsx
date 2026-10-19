@@ -281,7 +281,11 @@ function GameScreen({
     setPreviewGame(null);
     setIsPickerOpen(false);
   };
-  const showPicker = isPickerOpen && needsGame;
+  // Lessons: before the game panel opens, the coach's tip on what to announce
+  // is shown alone over the dimmed table; a tap puts it away and opens the panel.
+  const [announceTipRead, setAnnounceTipRead] = useState(false);
+  const showAnnounceTip = Boolean(lesson) && needsGame && !announceTipRead;
+  const showPicker = isPickerOpen && needsGame && !showAnnounceTip;
   // Trumps shown on the cards: the hovered game while choosing, then the
   // chosen one; before a game is chosen, the Sheep Game trumps.
   const trumpGame = (showPicker && previewGame) || (gameType ? selectedGame : hasCards ? "Sau Spiel" : null);
@@ -643,8 +647,20 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
 
         <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
 
-        {lesson && coach.text && !isPaused && !showLastTrick && tourStep === null ? (
-          <CoachBubble text={coach.text} actions={coach.actions} placement={showPicker ? "bottom" : "top"} wideBottom={showPicker} />
+        {showAnnounceTip && coach.text && !isPaused ? (
+          <>
+            <Pressable
+              style={[styles.scrim, styles.tipScrim]}
+              onPress={() => setAnnounceTipRead(true)}
+              accessibilityLabel={t("tour.next")}
+            />
+            <CoachBubble
+              text={coach.text}
+              actions={[{ label: t("tour.next"), onPress: () => setAnnounceTipRead(true), primary: true }]}
+            />
+          </>
+        ) : lesson && coach.text && !showPicker && !isPaused && !showLastTrick && tourStep === null ? (
+          <CoachBubble text={coach.text} actions={coach.actions} />
         ) : null}
 
         {tourStep !== null && !isPaused ? (
@@ -728,6 +744,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 13,
     color: colors.ink,
+  },
+  tipScrim: {
+    zIndex: 11,
   },
   pickerSlot: {
     position: "absolute",

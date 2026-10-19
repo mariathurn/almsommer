@@ -1,8 +1,8 @@
 /* The tip from the old shepherd during the guided game and practice
 rounds: his portrait and a speech bubble, under the banner (on phones and
 narrow windows, over the other players) or top left under the Menu button
-(on the web), so it covers neither your cards nor the table. While the game
-panel is open at the top it moves to the bottom instead.
+(on the web), so it covers neither your cards nor the table. The game panel
+waits until the tip before it has been read.
 `actions` are buttons under the text (e.g. at the end of the round). */
 
 import { StyleSheet, Text, View } from "react-native";
@@ -15,9 +15,9 @@ import { colors, fonts, softShadow } from "../theme";
 
 const coach = portraits.find((p) => p.id === "shepherd-bell");
 
-// placement "bottom": on phones over your hand instead. wideBottom: on the
-// web at the bottom left instead.
-function CoachBubble({ text, actions = [], placement = "top", wideBottom = false }) {
+// placement "bottom": on phones over your hand instead (tour steps that
+// explain the top of the screen).
+function CoachBubble({ text, actions = [], placement = "top" }) {
     const { isPortrait, width } = useStage();
     if (!text) return null;
 
@@ -28,15 +28,15 @@ function CoachBubble({ text, actions = [], placement = "top", wideBottom = false
                 // On the web it ends left of the player at the top (centred).
                 isPortrait ? styles.slotPhone : [styles.slotWide, { width: Math.min(520, width / 2 - 145) }],
                 placement !== "bottom" && isPortrait && styles.slotPhoneTop,
-                !isPortrait && (wideBottom ? styles.slotWideBottom : styles.slotWideTop),
+                !isPortrait && styles.slotWideTop,
             ]}
             pointerEvents="box-none"
         >
-            <View style={[styles.row, !isPortrait && !wideBottom && styles.rowWide]}>
+            <View style={[styles.row, !isPortrait && styles.rowWide]}>
                 <View style={styles.ring}>
-                    <Portrait portrait={coach} size={isPortrait ? 48 : 68} />
+                    <Portrait portrait={coach} size={isPortrait ? 62 : 84} borderWidth={2} />
                 </View>
-                <View style={[styles.bubble, isPortrait ? styles.bubblePhone : !wideBottom && styles.bubbleWide]}>
+                <View style={[styles.bubble, isPortrait ? styles.bubblePhone : styles.bubbleWide]}>
                     <Text style={styles.label}>{t("tutorial.coach")}</Text>
                     <Text style={[styles.text, isPortrait && styles.textPhone]}>{text}</Text>
                     {actions.length ? (
@@ -74,9 +74,6 @@ const styles = StyleSheet.create({
     slotWideTop: {
         top: 84,
     },
-    slotWideBottom: {
-        bottom: 16,
-    },
     slotPhoneTop: {
         bottom: undefined,
         top: 86,
@@ -90,9 +87,7 @@ const styles = StyleSheet.create({
         alignItems: "flex-start",
     },
     ring: {
-        padding: 2,
         borderRadius: 999,
-        backgroundColor: colors.ink,
     },
     bubble: {
         flex: 1,
