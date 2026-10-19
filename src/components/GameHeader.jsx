@@ -7,6 +7,7 @@ import Svg, { Circle, Defs, Path, Pattern, Rect } from "react-native-svg";
 import PaperButton from "./PaperButton";
 import { CoinBalance } from "./Coin";
 import { LastTrickButton } from "./LastTrick";
+import { TourTarget } from "./Tour";
 import { useStage } from "./Stage";
 import { parseGame } from "../ai/schafkopfAI";
 import { getGameType } from "../data/gameTypes";
@@ -97,14 +98,18 @@ function GameHeader({
     return (
         <View style={[styles.header, compact && styles.headerCompact]}>
             {phone ? (
-                <HamburgerButton onPress={onOpenMenu} />
+                <TourTarget id="menu">
+                    <HamburgerButton onPress={onOpenMenu} />
+                </TourTarget>
             ) : (
                 <View style={[styles.side, compact && styles.sideCompact]}>
-                    <PaperButton label={t("common.menu")} accessibilityLabel={t("common.menu")} compact={compact} onPress={onOpenMenu} />
+                    <TourTarget id="menu" style={styles.tourMenu}>
+                        <PaperButton label={t("common.menu")} accessibilityLabel={t("common.menu")} compact={compact} onPress={onOpenMenu} />
+                    </TourTarget>
                 </View>
             )}
 
-            <View style={[styles.banner, phone && styles.bannerPhone]}>
+            <TourTarget id="banner" style={[styles.banner, phone && styles.bannerPhone]}>
                 <RibbonTail height={ribbonHeight} />
                 <View
                     style={[
@@ -135,15 +140,21 @@ function GameHeader({
                     </Text>
                 </View>
                 <RibbonTail height={ribbonHeight} flip />
-            </View>
+            </TourTarget>
 
             {/* The last-trick eye and your coins, opposite the Menu button so the banner stays centred */}
             {phone ? (
-                <LastTrickButton onPress={onShowLastTrick} disabled={!hasLastTrick} size={46} />
+                <TourTarget id="lastTrick">
+                    <LastTrickButton onPress={onShowLastTrick} disabled={!hasLastTrick} size={46} />
+                </TourTarget>
             ) : (
                 <View style={[styles.side, styles.sideRight, compact && styles.sideCompact]}>
-                    <LastTrickButton onPress={onShowLastTrick} disabled={!hasLastTrick} size={compact ? 36 : 42} />
-                    <CoinBalance value={coins} compact={compact} />
+                    <TourTarget id="lastTrick">
+                        <LastTrickButton onPress={onShowLastTrick} disabled={!hasLastTrick} size={compact ? 36 : 42} />
+                    </TourTarget>
+                    <TourTarget id="coins">
+                        <CoinBalance value={coins} compact={compact} />
+                    </TourTarget>
                 </View>
             )}
         </View>
@@ -167,6 +178,9 @@ const styles = StyleSheet.create({
     },
     side: {
         width: 150,
+    },
+    tourMenu: {
+        alignSelf: "flex-start",
     },
     sideCompact: {
         width: 124,

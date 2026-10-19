@@ -10,6 +10,7 @@ import AchievementToast from "../components/AchievementToast";
 import PausePanel from "../components/PausePanel";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
+import { TourOverlay, TourProvider } from "../components/Tour";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { TOUT_GAMES, getSauSpielStatus, isTrumpForGame, parseGame, withTout } from "../ai/schafkopfAI";
 import { dealScenario } from "../data/devScenarios";
@@ -44,7 +45,12 @@ function GameScreen({
   // The last trick, shown again from the eye button by the banner; the others
   // wait while it is open.
   const [showLastTrick, setShowLastTrick] = useState(false);
-  useHotkey("Escape", () => (showLastTrick ? setShowLastTrick(false) : setIsPaused((paused) => !paused)));
+  // Guided game: after the first trick, a short tour of the screen (index of
+  // its step, null when not running); the others wait meanwhile.
+  const [tourStep, setTourStep] = useState(null);
+  const tourShownRef = useRef(false);
+  const shellRef = useRef(null);
+  useHotkey("Escape", () => (showLastTrick ? setShowLastTrick(false) : setIsPaused((paused) => !paused)), tourStep === null);
   const {
     players,
     currentTurn,
@@ -70,7 +76,7 @@ function GameScreen({
     bidding,
     lastBid,
     humanBid,
-  } = useSchafkopfGame({ paused: isPaused || showLastTrick });
+  } = useSchafkopfGame({ paused: isPaused || showLastTrick || tourStep !== null });
 
   // A card landing on the table, and a finished trick being collected.
   const previousTrickSizeRef = useRef(0);
@@ -322,11 +328,29 @@ function GameScreen({
     };
   };
 
+  const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
+  const layout = tableLayout;
+
   // Lessons: the coach's tip for what is happening now, and in the guided
   // game the one card you should play (the others are greyed out).
   const roundOver = isGameOver() && Boolean(roundResult);
   const southTurn = currentTurn === "south" && Boolean(gameType) && !isTrickComplete;
   const guidedCard = guided && southTurn ? guidedLesson.turns[6 - players.south.length] : null;
+  // The tour starts once the first trick has been collected.
+  useEffect(() => {
+    if (guided && !tourShownRef.current && lastTrick && playedCards.length === 0) {
+      tourShownRef.current = true;
+      setTourStep(0);
+    }
+  }, [guided, lastTrick, playedCards.length]);
+  const tourSteps = [
+    { target: "banner", text: t("tour.banner"), placement: "bottom" },
+    { target: "lastTrick", text: t("tour.lastTrick"), placement: "bottom" },
+    { target: "name", text: t("tour.name"), placement: "top" },
+    { target: "coins", text: t("tour.coins"), placement: layout?.portrait ? "top" : "bottom" },
+    { target: "menu", text: t("tour.menu"), placement: "bottom" },
+  ];
+
   const coach = (() => {
     if (!lesson) return {};
     if (roundOver) {
@@ -367,8 +391,6 @@ function GameScreen({
       !(isExchanging && card.id === exchangeCard?.id) && !(isRevealing && card.id === marriageOffer?.received?.id)
   );
 
-  const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
-  const layout = tableLayout;
 
   // Whether a point in the window (a dragged card's pointer) is over the
   // table circle, with a little slack around its edge.
@@ -383,225 +405,238 @@ function GameScreen({
 const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
 
   return (
-    <View style={styles.shell}>
-      <SceneBackground />
-      <View onLayout={({ nativeEvent }) => setHeaderHeight(nativeEvent.layout.height)}>
-        <GameHeader
-          hasCards={hasCards}
-          currentTurn={currentTurn}
-          trickWinner={trickWinner}
-          selectedGame={selectedGame}
-          calledAce={calledAce}
-          playerName={playerName}
-          onOpenMenu={() => setIsPaused(true)}
-          coins={sessionScores?.south ?? 0}
-          marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
-          caller={caller}
-          title={marriageTitle ?? biddingTitle}
-          note={marriageAskNote ?? biddingNote ?? marriageNote}
-          onShowLastTrick={() => setShowLastTrick(true)}
-          hasLastTrick={Boolean(lastTrick)}
-        />
-        {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} /> : null}
-      </View>
+    <TourProvider>
+      <View style={styles.shell} ref={shellRef} collapsable={false}>
+        <SceneBackground />
+        <View onLayout={({ nativeEvent }) => setHeaderHeight(nativeEvent.layout.height)}>
+          <GameHeader
+            hasCards={hasCards}
+            currentTurn={currentTurn}
+            trickWinner={trickWinner}
+            selectedGame={selectedGame}
+            calledAce={calledAce}
+            playerName={playerName}
+            onOpenMenu={() => setIsPaused(true)}
+            coins={sessionScores?.south ?? 0}
+            marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
+            caller={caller}
+            title={marriageTitle ?? biddingTitle}
+            note={marriageAskNote ?? biddingNote ?? marriageNote}
+            onShowLastTrick={() => setShowLastTrick(true)}
+            hasLastTrick={Boolean(lastTrick)}
+          />
+          {showPicker ? <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} /> : null}
+        </View>
 
-      <View
-        ref={tableRef}
-        style={styles.table}
-        onLayout={({ nativeEvent }) => {
-          setTableSize(nativeEvent.layout);
-          tableRef.current?.measureInWindow((x, y) => {
-            tableOrigin.current = { x, y };
-          });
-        }}
-      >
-        {layout ? (
-          <>
-            <TableCenter
-              blanket={layout.blanket}
-              portrait={Boolean(layout.portrait)}
-              playedCards={playedCards}
-              trickWinner={trickWinner}
-              trickWinnerName={trickWinner ? playerName(trickWinner) : null}
-              isTrickComplete={isTrickComplete}
-              gameResult={getGameResult()}
-              canDeal={canDeal}
-              needsGame={needsGame && !showPicker}
-              onDeal={handleDeal}
-              onChooseGame={() => setIsPickerOpen(true)}
-              trumpGame={trumpGame}
-            />
-
-            {opponents.map((seat) => (
-              <PlayerPanel
-                key={seat}
-                seat={seat}
-                layout={layout}
-                name={playerName(seat)}
-                cards={players[seat]}
-                isCurrentTurn={
-                  marriageOffer ? marriageSeat === seat : bidding ? biddingSeat === seat : currentTurn === seat && Boolean(gameType)
-                }
-                onPlayCard={(index) => playCard(seat, index)}
+        <View
+          ref={tableRef}
+          style={styles.table}
+          onLayout={({ nativeEvent }) => {
+            setTableSize(nativeEvent.layout);
+            tableRef.current?.measureInWindow((x, y) => {
+              tableOrigin.current = { x, y };
+            });
+          }}
+        >
+          {layout ? (
+            <>
+              <TableCenter
+                blanket={layout.blanket}
+                portrait={Boolean(layout.portrait)}
                 playedCards={playedCards}
-                gameType={isCaller(seat) ? selectedGame : null}
-                status={getGameStatus(seat)}
-                showFriendBadge={revealedAceOwner === seat || (selectedGame === "Marriage" && marriage?.partner === seat)}
-                isTrickWinner={isTrickComplete && trickWinner === seat}
-                isHighlighted={marriagePartner === seat}
-                score={sessionScores?.[seat] ?? 0}
+                trickWinner={trickWinner}
+                trickWinnerName={trickWinner ? playerName(trickWinner) : null}
+                isTrickComplete={isTrickComplete}
+                gameResult={getGameResult()}
+                canDeal={canDeal}
+                needsGame={needsGame && !showPicker}
+                onDeal={handleDeal}
+                onChooseGame={() => setIsPickerOpen(true)}
+                trumpGame={trumpGame}
               />
-            ))}
 
-            {/* Marriage: Maria offers one, or answers someone else's offer. */}
-            {isExchanging ? (
-              <MarriageExchange
-                blanket={layout.blanket}
-                given={exchangeCard}
-                received={marriageOffer.trump}
-                onConfirm={() => exchangeCard && humanMarriageExchange(exchangeCard)}
-              />
-            ) : null}
+              {opponents.map((seat) => (
+                <PlayerPanel
+                  key={seat}
+                  seat={seat}
+                  layout={layout}
+                  name={playerName(seat)}
+                  cards={players[seat]}
+                  isCurrentTurn={
+                    marriageOffer ? marriageSeat === seat : bidding ? biddingSeat === seat : currentTurn === seat && Boolean(gameType)
+                  }
+                  onPlayCard={(index) => playCard(seat, index)}
+                  playedCards={playedCards}
+                  gameType={isCaller(seat) ? selectedGame : null}
+                  status={getGameStatus(seat)}
+                  showFriendBadge={revealedAceOwner === seat || (selectedGame === "Marriage" && marriage?.partner === seat)}
+                  isTrickWinner={isTrickComplete && trickWinner === seat}
+                  isHighlighted={marriagePartner === seat}
+                  score={sessionScores?.[seat] ?? 0}
+                />
+              ))}
 
-            {/* Your offer was accepted: lay your trump down to see what you get. */}
-            {isPlacing ? (
-              <MarriageExchange blanket={layout.blanket} given={null} received={null} waitingHint={t("marriage.placeHint")} />
-            ) : null}
+              {/* Marriage: Maria offers one, or answers someone else's offer. */}
+              {isExchanging ? (
+                <MarriageExchange
+                  blanket={layout.blanket}
+                  given={exchangeCard}
+                  received={marriageOffer.trump}
+                  onConfirm={() => exchangeCard && humanMarriageExchange(exchangeCard)}
+                />
+              ) : null}
 
-            {isRevealing ? (
-              <MarriageExchange
-                blanket={layout.blanket}
-                given={marriageOffer.trump}
-                received={marriageOffer.received}
-                onConfirm={humanMarriageContinue}
-                hint={t("marriage.revealHint")}
-              />
-            ) : null}
+              {/* Your offer was accepted: lay your trump down to see what you get. */}
+              {isPlacing ? (
+                <MarriageExchange blanket={layout.blanket} given={null} received={null} waitingHint={t("marriage.placeHint")} />
+              ) : null}
 
-            {marriageOffer && marriageSeat === "south" && !isExchanging && !isRevealing && !isPlacing ? (
-              <>
-                <View style={styles.scrim} />
-                <View style={[styles.pickerSlot, { top: layout.height * 0.2, paddingHorizontal: 16 }]} pointerEvents="box-none">
-                  {marriageOffer.stage === "offer" ? (
-                    <ChoicePrompt
-                      heading={t("marriage.offerHeading")}
-                      text={t("marriage.offerText")}
-                      noLabel={t("marriage.no")}
-                      yesLabel={t("marriage.offer")}
-                      onNo={() => humanMarriageOffer(false)}
-                      onYes={() => humanMarriageOffer(true)}
+              {isRevealing ? (
+                <MarriageExchange
+                  blanket={layout.blanket}
+                  given={marriageOffer.trump}
+                  received={marriageOffer.received}
+                  onConfirm={humanMarriageContinue}
+                  hint={t("marriage.revealHint")}
+                />
+              ) : null}
+
+              {marriageOffer && marriageSeat === "south" && !isExchanging && !isRevealing && !isPlacing ? (
+                <>
+                  <View style={styles.scrim} />
+                  <View style={[styles.pickerSlot, { top: layout.height * 0.2, paddingHorizontal: 16 }]} pointerEvents="box-none">
+                    {marriageOffer.stage === "offer" ? (
+                      <ChoicePrompt
+                        heading={t("marriage.offerHeading")}
+                        text={t("marriage.offerText")}
+                        noLabel={t("marriage.no")}
+                        yesLabel={t("marriage.offer")}
+                        onNo={() => humanMarriageOffer(false)}
+                        onYes={() => humanMarriageOffer(true)}
+                      />
+                    ) : (
+                      <ChoicePrompt
+                        heading={t("marriage.askHeading")}
+                        text={t("marriage.askText", { name: playerName(marriageOffer.offerer) })}
+                        noLabel={t("marriage.decline")}
+                        yesLabel={t("marriage.accept")}
+                        onNo={() => humanMarriageAnswer(false)}
+                        onYes={() => humanMarriageAnswer(true)}
+                      />
+                    )}
+                  </View>
+                </>
+              ) : null}
+
+              {/* Declaring a game: the table darkens, your hand stays visible above it. */}
+              {showPicker ? (
+                <>
+                  <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} />
+                  <View style={[styles.pickerSlot, { top: pickerTop }]} pointerEvents="box-none">
+                    <GamePicker
+                      width={Math.min(layout.width - 24, 900)}
+                      maxHeight={layout.southFanTop - pickerTop - (layout.portrait ? 12 : layout.compact ? 12 : layout.labelHeight + 16)}
+                      hand={players.south}
+                      onPick={handlePickGame}
+                      onPass={handlePass}
+                      onPreview={setPreviewGame}
+                      declined={declinedGames}
+                      toutOnly={toutOnlyGames}
+                      onClose={closePicker}
+                      allowedSheep={guided ? [guidedLesson.calledAce] : null}
+                      canPass={!guided}
                     />
-                  ) : (
-                    <ChoicePrompt
-                      heading={t("marriage.askHeading")}
-                      text={t("marriage.askText", { name: playerName(marriageOffer.offerer) })}
-                      noLabel={t("marriage.decline")}
-                      yesLabel={t("marriage.accept")}
-                      onNo={() => humanMarriageAnswer(false)}
-                      onYes={() => humanMarriageAnswer(true)}
-                    />
-                  )}
-                </View>
-              </>
-            ) : null}
+                  </View>
+                </>
+              ) : null}
 
-            {/* Declaring a game: the table darkens, your hand stays visible above it. */}
-            {showPicker ? (
-              <>
-                <Pressable style={styles.scrim} onPress={closePicker} accessibilityLabel={t("common.close")} />
-                <View style={[styles.pickerSlot, { top: pickerTop }]} pointerEvents="box-none">
-                  <GamePicker
-                    width={Math.min(layout.width - 24, 900)}
-                    maxHeight={layout.southFanTop - pickerTop - (layout.portrait ? 12 : layout.compact ? 12 : layout.labelHeight + 16)}
-                    hand={players.south}
-                    onPick={handlePickGame}
-                    onPass={handlePass}
-                    onPreview={setPreviewGame}
-                    declined={declinedGames}
-                    toutOnly={toutOnlyGames}
-                    onClose={closePicker}
-                    allowedSheep={guided ? [guidedLesson.calledAce] : null}
-                    canPass={!guided}
-                  />
-                </View>
-              </>
-            ) : null}
-
-            <PlayerPanel
-              seat="south"
-              layout={layout}
-              name={playerName("south")}
-              cards={southHand}
-              isCurrentTurn={isExchanging || isPlacing || (!isRevealing && currentTurn === "south" && Boolean(gameType))}
-              onPlayCard={(index) =>
-                isPlacing
-                  ? humanMarriagePlace(southHand[index])
-                  : isExchanging
-                    ? setExchangeCard(southHand[index])
-                    : playCard("south", index)
-              }
-              selectMode={isExchanging || isPlacing}
-              selectableIds={
-                guidedCard
-                  ? [guidedCard]
-                  : isPlacing && marriageOffer.offered
-                  ? [marriageOffer.offered.id]
-                  : isExchanging
-                    ? southHand.filter((card) => !isTrumpForGame(card, "Marriage")).map((card) => card.id)
-                    : null
-              }
-              isOverTable={isOverTable}
-              playedCards={playedCards}
-              gameType={isCaller("south") ? selectedGame : null}
-              status={getGameStatus("south")}
-              showFriendBadge={revealedAceOwner === "south"}
-              isTrickWinner={isTrickComplete && trickWinner === "south"}
-              score={sessionScores?.south ?? 0}
-              trumpGame={trumpGame}
-              highlightTrumps={Boolean(showPicker && previewGame)}
-              calledAce={selectedGame === "Sau Spiel" ? calledAce : null}
-            />
-
-            {/* A finished trick stays until you tap anywhere on the table. */}
-            {isTrickComplete ? (
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={collectTrick}
-                accessibilityRole="button"
-                accessibilityLabel={t("table.collectTrick")}
+              <PlayerPanel
+                seat="south"
+                layout={layout}
+                name={playerName("south")}
+                cards={southHand}
+                isCurrentTurn={isExchanging || isPlacing || (!isRevealing && currentTurn === "south" && Boolean(gameType))}
+                onPlayCard={(index) =>
+                  isPlacing
+                    ? humanMarriagePlace(southHand[index])
+                    : isExchanging
+                      ? setExchangeCard(southHand[index])
+                      : playCard("south", index)
+                }
+                selectMode={isExchanging || isPlacing}
+                selectableIds={
+                  guidedCard
+                    ? [guidedCard]
+                    : isPlacing && marriageOffer.offered
+                    ? [marriageOffer.offered.id]
+                    : isExchanging
+                      ? southHand.filter((card) => !isTrumpForGame(card, "Marriage")).map((card) => card.id)
+                      : null
+                }
+                isOverTable={isOverTable}
+                playedCards={playedCards}
+                gameType={isCaller("south") ? selectedGame : null}
+                status={getGameStatus("south")}
+                showFriendBadge={revealedAceOwner === "south"}
+                isTrickWinner={isTrickComplete && trickWinner === "south"}
+                score={sessionScores?.south ?? 0}
+                trumpGame={trumpGame}
+                highlightTrumps={Boolean(showPicker && previewGame)}
+                calledAce={selectedGame === "Sau Spiel" ? calledAce : null}
               />
-            ) : null}
-          </>
+
+              {/* A finished trick stays until you tap anywhere on the table. */}
+              {isTrickComplete ? (
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={collectTrick}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("table.collectTrick")}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
+        <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
+
+        {lesson && coach.text && !isPaused && !showLastTrick && tourStep === null ? (
+          <CoachBubble text={coach.text} actions={coach.actions} placement={coach.placement} wideBottom={showPicker} />
+        ) : null}
+
+        {tourStep !== null && !isPaused ? (
+          <TourOverlay
+            rootRef={shellRef}
+            steps={tourSteps}
+            step={tourStep}
+            nextLabel={t("tour.next")}
+            doneLabel={t("tour.done")}
+            onNext={() => setTourStep(tourStep + 1 < tourSteps.length ? tourStep + 1 : null)}
+          />
+        ) : null}
+
+        {showLastTrick && lastTrick ? (
+          <LastTrickPanel
+            trick={lastTrick}
+            playerName={playerName}
+            trumpGame={trumpGame}
+            onClose={() => setShowLastTrick(false)}
+          />
+        ) : null}
+
+        {isPaused ? (
+          <PausePanel
+            onResume={() => setIsPaused(false)}
+            onLeave={onOpenMenu}
+            onDevDeal={(scenario) => {
+              setIsPaused(false);
+              sounds.shuffle();
+              dealHands(dealScenario(scenario));
+            }}
+          />
         ) : null}
       </View>
-
-      <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
-
-      {lesson && coach.text && !isPaused && !showLastTrick ? (
-        <CoachBubble text={coach.text} actions={coach.actions} placement={coach.placement} />
-      ) : null}
-
-      {showLastTrick && lastTrick ? (
-        <LastTrickPanel
-          trick={lastTrick}
-          playerName={playerName}
-          trumpGame={trumpGame}
-          onClose={() => setShowLastTrick(false)}
-        />
-      ) : null}
-
-      {isPaused ? (
-        <PausePanel
-          onResume={() => setIsPaused(false)}
-          onLeave={onOpenMenu}
-          onDevDeal={(scenario) => {
-            setIsPaused(false);
-            sounds.shuffle();
-            dealHands(dealScenario(scenario));
-          }}
-        />
-      ) : null}
-    </View>
+    </TourProvider>
   );
 }
 

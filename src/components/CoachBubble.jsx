@@ -1,6 +1,8 @@
 /* The tip from the old shepherd during the guided game and practice
 rounds: his portrait and a speech bubble, at the bottom over your hand (on
-phones) or bottom left beside it (on the web), so the table stays clear.
+phones) or top left under the Menu button (on the web, where the large text
+would cover your cards; bottom left while the game panel is open at the top),
+so the table stays clear.
 `actions` are buttons under the text (e.g. at the end of the round). */
 
 import { StyleSheet, Text, View } from "react-native";
@@ -13,26 +15,29 @@ import { colors, fonts, softShadow } from "../theme";
 
 const coach = portraits.find((p) => p.id === "shepherd-bell");
 
-// placement "top": under the banner instead (at the end of a round, when the
-// result sits where the hand was).
-function CoachBubble({ text, actions = [], placement = "bottom" }) {
-    const { isPortrait } = useStage();
+// placement "top": on phones under the banner instead (at the end of a round,
+// when the result sits where the hand was). wideBottom: on the web at the
+// bottom left instead (the game panel is open).
+function CoachBubble({ text, actions = [], placement = "bottom", wideBottom = false }) {
+    const { isPortrait, width } = useStage();
     if (!text) return null;
 
     return (
         <View
             style={[
                 styles.slot,
-                isPortrait ? styles.slotPhone : styles.slotWide,
-                placement === "top" && (isPortrait ? styles.slotPhoneTop : styles.slotWideTop),
+                // On the web it ends left of the player at the top (centred).
+                isPortrait ? styles.slotPhone : [styles.slotWide, { width: Math.min(520, width / 2 - 145) }],
+                placement === "top" && isPortrait && styles.slotPhoneTop,
+                !isPortrait && (wideBottom ? styles.slotWideBottom : styles.slotWideTop),
             ]}
             pointerEvents="box-none"
         >
-            <View style={styles.row}>
+            <View style={[styles.row, !isPortrait && !wideBottom && styles.rowWide]}>
                 <View style={styles.ring}>
-                    <Portrait portrait={coach} size={isPortrait ? 48 : 60} />
+                    <Portrait portrait={coach} size={isPortrait ? 48 : 68} />
                 </View>
-                <View style={[styles.bubble, isPortrait && styles.bubblePhone]}>
+                <View style={[styles.bubble, isPortrait ? styles.bubblePhone : !wideBottom && styles.bubbleWide]}>
                     <Text style={styles.label}>{t("tutorial.coach")}</Text>
                     <Text style={[styles.text, isPortrait && styles.textPhone]}>{text}</Text>
                     {actions.length ? (
@@ -66,21 +71,24 @@ const styles = StyleSheet.create({
     },
     slotWide: {
         left: 16,
+    },
+    slotWideTop: {
+        top: 84,
+    },
+    slotWideBottom: {
         bottom: 16,
-        width: 380,
     },
     slotPhoneTop: {
         bottom: undefined,
         top: 86,
     },
-    slotWideTop: {
-        bottom: undefined,
-        top: 96,
-    },
     row: {
         flexDirection: "row",
         alignItems: "flex-end",
         gap: 8,
+    },
+    rowWide: {
+        alignItems: "flex-start",
     },
     ring: {
         padding: 2,
@@ -98,25 +106,31 @@ const styles = StyleSheet.create({
         borderColor: colors.ink,
         ...softShadow,
     },
+    // The pointed corner towards the portrait, which sits top left here.
+    bubbleWide: {
+        borderBottomLeftRadius: 16,
+        borderTopLeftRadius: 4,
+    },
     bubblePhone: {
         padding: 10,
     },
     label: {
         fontFamily: fonts.bodyBold,
-        fontSize: 11,
+        fontSize: 13,
         letterSpacing: 1.4,
         textTransform: "uppercase",
         color: colors.hayDeep,
     },
+    // Large, so everyone can read the tips comfortably.
     text: {
         fontFamily: fonts.body,
-        fontSize: 16,
-        lineHeight: 21,
+        fontSize: 21,
+        lineHeight: 28,
         color: colors.ink,
     },
     textPhone: {
-        fontSize: 15,
-        lineHeight: 19,
+        fontSize: 17,
+        lineHeight: 23,
     },
     actions: {
         flexDirection: "row",

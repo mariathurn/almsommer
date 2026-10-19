@@ -7,6 +7,7 @@ portrait profiles (see OpponentProfile). */
 import { StyleSheet, Text, View } from "react-native";
 import FanOfCards from "./FanOfCards";
 import OpponentProfile, { CoinBox, DarkNameTag } from "./OpponentProfile";
+import { TourTarget } from "./Tour";
 import { gameName, statusName } from "../i18n/names";
 import { CARD_RATIO, PROFILE_SCALE, fanWidth } from "../theme";
 
@@ -113,7 +114,14 @@ function PlayerPanel({
             isTrickWinner={isTrickWinner}
             scale={scale}
         >
-            <CoinBox coins={score} scale={scale} />
+            {/* Phones show your coins only here; the web view also in the banner row. */}
+            {layout.portrait ? (
+                <TourTarget id="coins">
+                    <CoinBox coins={score} scale={scale} />
+                </TourTarget>
+            ) : (
+                <CoinBox coins={score} scale={scale} />
+            )}
         </DarkNameTag>
     );
 
@@ -176,7 +184,7 @@ function PlayerPanel({
                 ]}
                 pointerEvents="none"
             >
-                {tag}
+                <TourTarget id="name">{tag}</TourTarget>
             </View>
         </>
     );
