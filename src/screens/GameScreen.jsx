@@ -241,6 +241,8 @@ function GameScreen({
   }, [needsGame]);
 
   const handlePickGame = (game, ace) => {
+    // Calling a sheep: the sheep answers.
+    if (game === "Sau Spiel") sounds.sheep();
     setPreviewGame(null);
     setIsPickerOpen(false);
     humanBid(game, game === "Sau Spiel" ? ace : null);
