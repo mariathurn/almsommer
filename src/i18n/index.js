@@ -9,7 +9,7 @@
 
 import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getCardDeck } from "../data/cardDecks";
+import { isClassicDeck } from "./deckStyle";
 import de from "./de";
 import en from "./en";
 
@@ -77,7 +77,7 @@ AsyncStorage.getItem(LANGUAGE_KEY)
 // Ass …) is used where there is one.
 export function t(key, params = {}) {
     const dictionary = dictionaries[language];
-    const classic = getCardDeck() === "classic" ? (dictionary[`${key}.classic`] ?? en[`${key}.classic`]) : undefined;
+    const classic = isClassicDeck() ? (dictionary[`${key}.classic`] ?? en[`${key}.classic`]) : undefined;
     const entry = classic ?? dictionary[key] ?? en[key];
     if (entry === undefined) return key;
     if (typeof entry === "function") return entry(params);

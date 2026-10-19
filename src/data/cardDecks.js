@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setClassicDeck } from "../i18n/deckStyle";
 
 export const cardDecks = [
     {
@@ -42,6 +43,7 @@ export function getCardDeck() {
 export function setCardDeck(next) {
     if (!cardDecks.some((d) => d.id === next) || next === deck) return;
     deck = next;
+    setClassicDeck(next === "classic");
     AsyncStorage.setItem(DECK_KEY, next).catch(() => {});
     listeners.forEach((listener) => listener());
 }
@@ -62,6 +64,7 @@ AsyncStorage.getItem(DECK_KEY)
     .then((saved) => {
         if (saved && cardDecks.some((d) => d.id === saved) && saved !== deck) {
             deck = saved;
+            setClassicDeck(saved === "classic");
             listeners.forEach((listener) => listener());
         }
     })

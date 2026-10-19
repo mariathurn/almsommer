@@ -1,6 +1,6 @@
 /* A short tour of the game screen in the guided game: one part of the screen
 at a time stays bright in a gold frame, everything else is dimmed, and the
-coach explains it.
+coach explains it. The bright part can be tapped (try the last-trick eye).
 
 Parts take part by wrapping themselves in <TourTarget id="…">. The overlay
 measures the target in the window and converts it to the stage's coordinates
@@ -69,20 +69,21 @@ export function TourOverlay({ rootRef, steps, step, nextLabel, doneLabel, onNext
     const last = step === steps.length - 1;
     return (
         <>
-            {/* Blocks the table while the tour runs. */}
-            <Pressable style={[StyleSheet.absoluteFill, styles.layer]} accessible={false}>
+            {/* The dimmed parts block the table while the tour runs; the
+            bright part in the frame stays usable. */}
+            <View style={[StyleSheet.absoluteFill, styles.layer]} pointerEvents="box-none">
                 {rect ? (
                     <>
-                        <View style={[styles.dim, { left: 0, right: 0, top: 0, height: Math.max(rect.y, 0) }]} />
-                        <View style={[styles.dim, { left: 0, right: 0, top: rect.y + rect.height, bottom: 0 }]} />
-                        <View style={[styles.dim, { left: 0, width: Math.max(rect.x, 0), top: rect.y, height: rect.height }]} />
-                        <View style={[styles.dim, { left: rect.x + rect.width, right: 0, top: rect.y, height: rect.height }]} />
-                        <View style={[styles.frame, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]} />
+                        <Pressable accessible={false} style={[styles.dim, { left: 0, right: 0, top: 0, height: Math.max(rect.y, 0) }]} />
+                        <Pressable accessible={false} style={[styles.dim, { left: 0, right: 0, top: rect.y + rect.height, bottom: 0 }]} />
+                        <Pressable accessible={false} style={[styles.dim, { left: 0, width: Math.max(rect.x, 0), top: rect.y, height: rect.height }]} />
+                        <Pressable accessible={false} style={[styles.dim, { left: rect.x + rect.width, right: 0, top: rect.y, height: rect.height }]} />
+                        <View pointerEvents="none" style={[styles.frame, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }]} />
                     </>
                 ) : (
-                    <View style={[StyleSheet.absoluteFill, styles.dim]} />
+                    <Pressable accessible={false} style={[StyleSheet.absoluteFill, styles.dim]} />
                 )}
-            </Pressable>
+            </View>
             <CoachBubble
                 text={current.text}
                 placement={current.placement}

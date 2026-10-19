@@ -3,7 +3,8 @@ rounds: his portrait and a speech bubble, under the banner (on phones and
 narrow windows, over the other players) or top left under the Menu button
 (on the web), so it covers neither your cards nor the table. The game panel
 waits until the tip before it has been read.
-`actions` are buttons under the text (e.g. at the end of the round). */
+`actions` are buttons under the text (e.g. at the end of the round). Words
+in **double asterisks** are shown in bold. */
 
 import { StyleSheet, Text, View } from "react-native";
 import Portrait from "./Portrait";
@@ -14,6 +15,19 @@ import { t } from "../i18n";
 import { colors, fonts, softShadow } from "../theme";
 
 const coach = portraits.find((p) => p.id === "shepherd-bell");
+
+// "Leg den **grünen Hut**" → plain and bold pieces.
+function richText(text) {
+    return text.split(/\*\*(.+?)\*\*/g).map((piece, index) =>
+        index % 2 ? (
+            <Text key={index} style={styles.bold}>
+                {piece}
+            </Text>
+        ) : (
+            piece
+        )
+    );
+}
 
 // placement "bottom": on phones over your hand instead (tour steps that
 // explain the top of the screen).
@@ -38,7 +52,7 @@ function CoachBubble({ text, actions = [], placement = "top" }) {
                 </View>
                 <View style={[styles.bubble, isPortrait ? styles.bubblePhone : styles.bubbleWide]}>
                     <Text style={styles.label}>{t("tutorial.coach")}</Text>
-                    <Text style={[styles.text, isPortrait && styles.textPhone]}>{text}</Text>
+                    <Text style={[styles.text, isPortrait && styles.textPhone]}>{richText(text)}</Text>
                     {actions.length ? (
                         <View style={styles.actions}>
                             {actions.map(({ label, onPress, primary }) => (
@@ -121,6 +135,11 @@ const styles = StyleSheet.create({
         fontSize: 21,
         lineHeight: 28,
         color: colors.ink,
+        // Lining figures: Alegreya's old-style 0 looks like an "o".
+        fontVariant: ["lining-nums"],
+    },
+    bold: {
+        fontFamily: fonts.bodyBold,
     },
     textPhone: {
         fontSize: 17,

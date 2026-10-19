@@ -2,7 +2,13 @@
 // Games are named by their internal value: "Sau Spiel" (Sheep Game), "Solo",
 // "Wenz" (Dog Game), "Marriage", "Ramsch" (Cowards Game).
 
+import { isClassicDeck } from "./deckStyle.js";
+
+// Suits: Acorn, Leaf … with the classic deck; by colour (Blue, Green …) with
+// the Almsommer deck (see deckStyle.js).
 const suits = { acorn: "Acorn", heart: "Heart", leaf: "Leaf", bell: "Bell" };
+const colourNames = { acorn: "Blue", heart: "Red", leaf: "Green", bell: "Orange" };
+const suitName = (suit) => (isClassicDeck() ? suits : colourNames)[suit];
 // Colour of each suit, as in the rulebook ("the blue sheep").
 const colours = { acorn: "blue", heart: "red", leaf: "green", bell: "orange" };
 const ranks = { "9": "Hat", K: "Staff", "10": "Grain", A: "Sheep", U: "Dog", O: "Shepherd" };
@@ -16,7 +22,7 @@ const games = {
 
 // "Sheep Game", "Acorn Solo", "Dog Game Tout"
 const gameName = ({ game, suit, tout }) =>
-    `${game === "Solo" && suit ? `${suits[suit]} Solo` : games[game]}${tout ? " Tout" : ""}`;
+    `${game === "Solo" && suit ? `${suitName(suit)} Solo` : games[game]}${tout ? " Tout" : ""}`;
 const withA = (words) => `${/^[AEIOU]/.test(words) ? "an" : "a"} ${words}`;
 
 export default {
@@ -123,7 +129,7 @@ export default {
     "achievement.all-points.description": "Win a round with all 120 points.",
 
     // Cards
-    "suit.name": ({ suit }) => suits[suit],
+    "suit.name": ({ suit }) => suitName(suit),
     "rank.name": ({ rank }) => ranks[rank],
     // Label at the bottom of a card face.
     "rank.cardLabel": ({ rank }) => ranks[rank].toUpperCase(),
@@ -228,7 +234,7 @@ export default {
     "picker.pass": "Pass",
     "picker.chooseGame": "Choose a game",
     "picker.chooseSheep": "Choose a sheep",
-    "picker.callSheep": ({ suit }) => `Call the ${suits[suit]} sheep`,
+    "picker.callSheep": ({ suit }) => `Call the ${isClassicDeck() ? suits[suit] : colours[suit]} sheep`,
     "picker.play": ({ game, tout }) => `Play ${game === "Solo" ? "Solo" : games[game]}${tout ? " Tout" : ""}`,
     "picker.tout": "Tout",
     "picker.toutHint": "Take every trick: double value, but one trick for the others loses it",
@@ -250,7 +256,7 @@ export default {
     "rules.page1.title": "Welcome to the Alm",
     "rules.page1.text": "The shepherds have gathered on the Alm to find the master shepherd. There are four of you, and everyone gets 6 cards. Whoever collects the most points by the end wins the round.",
     "rules.page2.title": "The cards",
-    "rules.page2.text": "There are four colours: Acorn (blue), Leaf (green), Heart (red) and Bell (orange). Each colour has a hat, a staff, a grain, a sheep, a dog and a shepherd.",
+    "rules.page2.text": "There are four colours: blue, green, red and orange. Each colour has a hat, a staff, a grain, a sheep, a dog and a shepherd.",
     "rules.page3.title": "Counting points",
     "rules.page3.text": "Every card is worth points, shown top right: sheep 11, grain 10, staff 4, shepherd 3, dog 2, hat 0. That makes 120 points – whoever gets 61 wins.",
     "rules.page4.title": "Trumps",
@@ -269,28 +275,28 @@ export default {
     "rules.start": "Let's go",
     "rules.done": "Done",
     "tutorial.coach": "Tip",
-    "tutorial.deal": "Welcome to the table! We'll play a practice round, it doesn't count for your coins. Tap “Deal”.",
-    "tutorial.announce": "You hold four trumps: the blue shepherd, the red dog, the red sheep and the red grain. That's enough for a Sheep Game. Choose “Sheep Game” and call the green sheep – whoever holds it secretly plays with you.",
+    "tutorial.deal": "Welcome to the table! We'll play a **practice round**; it doesn't count for your coins. Tap **“Deal”**.",
+    "tutorial.announce": "You hold **four trumps**: the blue shepherd, the red dog, the red sheep and the red grain. That's enough for a **Sheep Game**. Choose “Sheep Game” and call the **green sheep** – whoever holds it secretly plays with you.",
     "tutorial.wait": "It's the others' turn. Watch which cards they play.",
-    "tutorial.collect": "The trick is full: the strongest card takes all four. Tap the table. Now it's {name}'s turn.",
-    "tutorial.collectYou": "The trick is full: the strongest card takes all four. Tap the table. Now it's your turn.",
-    "tutorial.collectLast": "The trick is full: the strongest card takes all four. Tap the table to see the result.",
-    "tutorial.turn1": "You lead. As the caller you first draw out the opponents' trumps: play your strongest trump, the blue shepherd (12).",
-    "tutorial.turn2": "Trump again! The red dog draws out more trumps – even if a higher shepherd takes it, the opponents have fewer trumps afterwards.",
-    "tutorial.turn3": "Bernd played the green sheep – he's your partner! Leaf was led and you still have leaf: you must follow suit. Play the green hat, it's worth 0 points.",
-    "tutorial.turn4": "Bell was led. Your orange sheep is the highest bell card: it takes the trick and brings in 25 points.",
-    "tutorial.turn5": "You lead. Play the red sheep: Bernd plays after you and still has a high trump. If he takes it, the 11 points stay with you.",
-    "tutorial.turn6": "Acorn was led, but you have no acorn left. Then you may trump: your red grain is a trump and takes the last trick – with 35 points!",
-    "tutorial.done": "You won! You have 113 points, the opponents only 7. Under 30 points is called “Schneider” – in a real game it's worth 5 extra coins. Now you know the Sheep Game!",
+    "tutorial.collect": "The trick is full: the **strongest card** takes all four. **Tap the table.** Now it's {name}'s turn.",
+    "tutorial.collectYou": "The trick is full: the **strongest card** takes all four. **Tap the table.** Now it's your turn.",
+    "tutorial.collectLast": "The trick is full: the **strongest card** takes all four. **Tap the table** to see the result.",
+    "tutorial.turn1": "You lead. As the **caller** you first draw out the opponents' trumps: play your strongest trump, the **blue shepherd** (12).",
+    "tutorial.turn2": "**Trump** again! The **red dog** draws out more trumps – even if a higher shepherd takes it, the opponents have fewer trumps afterwards.",
+    "tutorial.turn3": "Bernd played the **green sheep** – he's your **partner**! **Green** was led and you still have green: you must **follow suit**. Play the **green hat**, it's worth 0 points.",
+    "tutorial.turn4": "**Orange** was led. Your **orange sheep** is the highest orange card: it takes the trick and brings in **25 points**.",
+    "tutorial.turn5": "You lead. Play the **red sheep**: Bernd plays after you and still has a high trump. If he takes it, the **11 points** stay with you.",
+    "tutorial.turn6": "**Blue** was led, but you have no blue left. Then you may **trump**: your **red grain** is a trump and takes the last trick – with **35 points**!",
+    "tutorial.done": "**You won!** You have **113 points**, the opponents only 7. Under 30 points is called **“Schneider”** – in a real game that's 5 extra coins. Now you know the Sheep Game!",
     "tutorial.continue": "Keep playing",
     "tutorial.practice": "Practice more",
     "tutorial.skip": "Skip",
     // Tour of the game screen after the first trick
-    "tour.banner": "Up here in the banner you always see what is happening: which game is being played and whose turn it is.",
-    "tour.lastTrick": "With the eye you can look at the last trick again – handy when it went by quickly.",
-    "tour.name": "That's you. Under your name is your role: “Caller” means you announced the game. Whoever holds the called sheep is your partner.",
-    "tour.coins": "Here are your coins. Win a round and you get coins; lose and you pay. This practice round doesn't count yet.",
-    "tour.menu": "In the menu you can pause the game, set music and sounds, or go back to the main menu.",
+    "tour.banner": "Up here in the **banner** you always see what is happening: which game is being played and whose turn it is.",
+    "tour.lastTrick": "With the **eye** you can look at the **last trick** again. Try it now: tap the eye!",
+    "tour.name": "That's you. Under your name is your **role**: **“Caller”** means you announced the game. Whoever holds the called sheep is your **partner**.",
+    "tour.coins": "Here are your **coins**. Win a round and you get coins; lose and you pay. This practice round doesn't count yet.",
+    "tour.menu": "In the **menu** you can pause the game, set music and sounds, or go back to the main menu.",
     "tour.next": "Next",
     "tour.done": "Play on",
     "practice.title": "Practice",
@@ -310,13 +316,13 @@ export default {
     "lesson.sheep.tip2": "As the caller, draw out trumps early so the opponents can't trump your sheep.",
     "lesson.sheep.tip3": "When the called colour is led, your partner must play the sheep – then you know who plays together.",
     "lesson.solo.title": "Solo Game",
-    "lesson.solo.goal": "Announce a Solo and choose acorn as trumps.",
-    "lesson.solo.tip1": "In a Solo you play alone against three. You choose the trump colour: instead of hearts, every card of that colour is a trump.",
+    "lesson.solo.goal": "Announce a Solo and choose blue as trumps.",
+    "lesson.solo.tip1": "In a Solo you play alone against three. You choose the trump colour: instead of red, every card of that colour is a trump.",
     "lesson.solo.tip2": "A Solo pays off with five or six trumps, including shepherds and dogs.",
     "lesson.solo.tip3": "Draw out all trumps first, then your sheep collect the points undisturbed.",
     "lesson.dog.title": "Dog Game",
     "lesson.dog.goal": "Announce a Dog Game.",
-    "lesson.dog.tip1": "In the Dog Game only the four dogs are trumps. Shepherds and hearts are ordinary colour cards.",
+    "lesson.dog.tip1": "In the Dog Game only the four dogs are trumps. Shepherds and red cards are ordinary colour cards.",
     "lesson.dog.tip2": "It's good with three dogs, or two dogs including the blue one and two sheep.",
     "lesson.dog.tip3": "Sheep are the highest colour cards. Lead them once the opponents' dogs are out.",
     "lesson.marriage.title": "Marriage",
@@ -347,14 +353,14 @@ export default {
     "rules.page3.text.classic": "Every card is worth points, shown at the top in the middle: Ace 11, Ten 10, King 4, Ober 3, Unter 2, Nine 0. That makes 120 points – whoever gets 61 wins.",
     "rules.page4.text.classic": "All Obers, all Unters and all Heart cards are trumps. A trump beats any other card. The order is Ober → Unter → Ace → Ten → King → Nine.",
     "rules.page8.text.classic": "After the deal, everyone says whether they want to play. In the Sheep Game you call an ace: whoever holds it is secretly your partner. We'll show you how in a practice round.",
-    "tutorial.announce.classic": "You hold four trumps: the Acorn Ober, the Heart Unter, the Heart Ace and the Heart Ten. That's enough for a Sheep Game. Choose “Sheep Game” and call the Leaf Ace – whoever holds it secretly plays with you.",
-    "tutorial.turn1.classic": "You lead. As the caller you first draw out the opponents' trumps: play your strongest Ober, the Acorn Ober.",
-    "tutorial.turn2.classic": "Trump again! The Heart Unter draws out more trumps – even if an Ober takes it, the opponents have fewer trumps afterwards.",
-    "tutorial.turn3.classic": "Bernd played the Leaf Ace – he's your partner! Leaf was led and you still have leaf: you must follow suit. Play the Leaf Nine, it's worth 0 points.",
-    "tutorial.turn4.classic": "Bell was led. Your Bell Ace is the highest bell card: it takes the trick and brings in 25 points.",
-    "tutorial.turn5.classic": "You lead. Play the Heart Ace: Bernd plays after you and still has a high trump. If he takes it, the 11 points stay with you.",
-    "tutorial.turn6.classic": "Acorn was led, but you have no acorn left. Then you may trump: your Heart Ten is a trump and takes the last trick – with 35 points!",
-    "tour.name.classic": "That's you. Under your name is your role: “Caller” means you announced the game. Whoever holds the called ace is your partner.",
+    "tutorial.announce.classic": "You hold **four trumps**: the Acorn Ober, the Heart Unter, the Heart Ace and the Heart Ten. That's enough for a **Sheep Game**. Choose “Sheep Game” and call the **Leaf Ace** – whoever holds it secretly plays with you.",
+    "tutorial.turn1.classic": "You lead. As the **caller** you first draw out the opponents' trumps: play your strongest Ober, the **Acorn Ober**.",
+    "tutorial.turn2.classic": "**Trump** again! The **Heart Unter** draws out more trumps – even if an Ober takes it, the opponents have fewer trumps afterwards.",
+    "tutorial.turn3.classic": "Bernd played the **Leaf Ace** – he's your **partner**! **Leaf** was led and you still have leaf: you must **follow suit**. Play the **Leaf Nine**, it's worth 0 points.",
+    "tutorial.turn4.classic": "**Bell** was led. Your **Bell Ace** is the highest bell card: it takes the trick and brings in **25 points**.",
+    "tutorial.turn5.classic": "You lead. Play the **Heart Ace**: Bernd plays after you and still has a high trump. If he takes it, the **11 points** stay with you.",
+    "tutorial.turn6.classic": "**Acorn** was led, but you have no acorn left. Then you may **trump**: your **Heart Ten** is a trump and takes the last trick – with **35 points**!",
+    "tour.name.classic": "That's you. Under your name is your **role**: **“Caller”** means you announced the game. Whoever holds the called ace is your **partner**.",
     "lesson.sheep.goal.classic": "Announce a Sheep Game and call the Bell Ace.",
     "lesson.sheep.tip1.classic": "You can announce with about four trumps. Call the ace of a colour you hold a card of, but not its ace.",
     "lesson.sheep.tip2.classic": "As the caller, draw out trumps early so the opponents can't trump your aces.",
@@ -369,4 +375,6 @@ export default {
     "technique.smear.text.classic": "When your partner is sure to take the trick, add a valuable card – an ace or a ten. That way lots of points end up with you.",
     "technique.search.title.classic": "Searching for the ace",
     "technique.search.text.classic": "As an opponent in a Sheep Game, lead the called colour. The partner then has to play the ace, and everyone knows who plays together.",
+    "lesson.solo.goal.classic": "Announce a Solo and choose acorn as trumps.",
+    "lesson.solo.tip1.classic": "In a Solo you play alone against three. You choose the trump colour: instead of hearts, every card of that colour is a trump.",
 };

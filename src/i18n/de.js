@@ -2,7 +2,13 @@
 // Spiele: "Sau Spiel" = Schafspiel, "Solo", "Wenz" = Hundespiel,
 // "Marriage" = Hochzeit, "Ramsch".
 
+import { isClassicDeck } from "./deckStyle.js";
+
+// Farben: beim klassischen Blatt Eichel, Gras …, beim Almsommer-Blatt nach
+// ihrer Farbe (Blau, Grün …), siehe deckStyle.js.
 const suits = { acorn: "Eichel", heart: "Herz", leaf: "Gras", bell: "Schellen" };
+const colourNames = { acorn: "Blau", heart: "Rot", leaf: "Grün", bell: "Orange" };
+const suitName = (suit) => (isClassicDeck() ? suits : colourNames)[suit];
 // Farben ohne Artikel, nach dem Geschlecht der Karte: "blauer Hut", "blaues Korn".
 const colourAdjectives = {
     acorn: { m: "blauer", n: "blaues" },
@@ -26,10 +32,17 @@ const games = {
 const indefinite = { "Sau Spiel": "ein", Solo: "ein", Wenz: "ein", Marriage: "eine", Ramsch: "einen" };
 const definite = { "Sau Spiel": "das", Solo: "das", Wenz: "das", Marriage: "die", Ramsch: "den" };
 
-// "Schafspiel", "Eichel-Solo", "Hundespiel Tout"
-const gameName = ({ game, suit, tout }) =>
-    `${game === "Solo" && suit ? `${suits[suit]}-Solo` : games[game]}${tout ? " Tout" : ""}`;
-const withA = (params) => `${indefinite[params.game]} ${gameName(params)}`;
+// "Grünes" (Schaf, Solo): die Farbe als Adjektiv am Satzanfang.
+const colourWord = (suit) => colourAdjectives[suit].n.replace(/^./, (c) => c.toUpperCase());
+// "Schafspiel", "Eichel-Solo" bzw. "Blaues Solo", "Hundespiel Tout"
+const soloName = (suit) => (isClassicDeck() ? `${suits[suit]}-Solo` : `${colourWord(suit)} Solo`);
+const gameName = ({ game, suit, tout }) => `${game === "Solo" && suit ? soloName(suit) : games[game]}${tout ? " Tout" : ""}`;
+// After "ein" the colour is a plain adjective: "ein grünes Solo".
+const withA = (params) => {
+    const name = gameName(params);
+    const lower = params.game === "Solo" && params.suit && !isClassicDeck();
+    return `${indefinite[params.game]} ${lower ? name.replace(/^./, (c) => c.toLowerCase()) : name}`;
+};
 
 export default {
     // Startmenü
@@ -135,7 +148,7 @@ export default {
     "achievement.all-points.description": "Gewinne eine Runde mit allen 120 Augen.",
 
     // Karten
-    "suit.name": ({ suit }) => suits[suit],
+    "suit.name": ({ suit }) => suitName(suit),
     "rank.name": ({ rank }) => ranks[rank],
     "rank.cardLabel": ({ rank }) => ranks[rank].toUpperCase(),
     // Nach Farbe, wie auf den Karten: "blauer Schäfer", "oranges Korn".
@@ -237,7 +250,7 @@ export default {
     "picker.pass": "Passen",
     "picker.chooseGame": "Wähle ein Spiel",
     "picker.chooseSheep": "Wähle ein Schaf",
-    "picker.callSheep": ({ suit }) => `${suits[suit]}-Schaf rufen`,
+    "picker.callSheep": ({ suit }) => (isClassicDeck() ? `${suits[suit]}-Schaf rufen` : `${colourWord(suit)} Schaf rufen`),
     "picker.play": ({ game, tout }) => `${games[game]}${tout ? " Tout" : ""} spielen`,
     "picker.tout": "Tout",
     "picker.toutHint": "Jeden Stich machen: doppelter Wert, aber ein Stich für die anderen und es ist verloren",
@@ -259,7 +272,7 @@ export default {
     "rules.page1.title": "Willkommen auf der Alm",
     "rules.page1.text": "Die Schäfer haben sich auf der Alm versammelt, um den Meisterschäfer zu finden. Ihr seid zu viert, jeder bekommt 6 Karten. Wer am Ende die meisten Augen sammelt, gewinnt die Runde.",
     "rules.page2.title": "Die Karten",
-    "rules.page2.text": "Es gibt vier Farben: Eichel (blau), Gras (grün), Herz (rot) und Schellen (orange). Jede Farbe hat einen Hut, einen Stab, ein Korn, ein Schaf, einen Hund und einen Schäfer.",
+    "rules.page2.text": "Es gibt vier Farben: Blau, Grün, Rot und Orange. Jede Farbe hat einen Hut, einen Stab, ein Korn, ein Schaf, einen Hund und einen Schäfer.",
     "rules.page3.title": "Augen zählen",
     "rules.page3.text": "Jede Karte ist Augen wert, oben rechts steht wie viele: Schaf 11, Korn 10, Stab 4, Schäfer 3, Hund 2, Hut 0. Zusammen sind es 120 Augen – wer 61 schafft, gewinnt.",
     "rules.page4.title": "Trümpfe",
@@ -278,28 +291,28 @@ export default {
     "rules.start": "Los geht's",
     "rules.done": "Fertig",
     "tutorial.coach": "Tipp",
-    "tutorial.deal": "Willkommen am Tisch! Wir spielen eine Übungsrunde, sie zählt nicht für deine Münzen. Tippe auf „Geben“.",
-    "tutorial.announce": "Du hast vier Trümpfe: den blauen Schäfer, den roten Hund, das rote Schaf und das rote Korn. Das reicht für ein Schafspiel. Wähle „Schafspiel“ und ruf das grüne Schaf – wer es hat, spielt heimlich mit dir.",
+    "tutorial.deal": "Willkommen am Tisch! Wir spielen eine **Übungsrunde**, sie zählt nicht für deine Münzen. Tippe auf **„Geben“**.",
+    "tutorial.announce": "Du hast **vier Trümpfe**: den blauen Schäfer, den roten Hund, das rote Schaf und das rote Korn. Das reicht für ein **Schafspiel**. Wähle „Schafspiel“ und ruf das **grüne Schaf** – wer es hat, spielt heimlich mit dir.",
     "tutorial.wait": "Die anderen sind dran. Schau zu, welche Karten sie legen.",
-    "tutorial.collect": "Der Stich ist voll: Die stärkste Karte gewinnt alle vier. Tippe auf den Tisch. Nun ist {name} dran.",
-    "tutorial.collectYou": "Der Stich ist voll: Die stärkste Karte gewinnt alle vier. Tippe auf den Tisch. Nun bist du dran.",
-    "tutorial.collectLast": "Der Stich ist voll: Die stärkste Karte gewinnt alle vier. Tippe auf den Tisch, um das Ergebnis zu sehen.",
-    "tutorial.turn1": "Du spielst aus. Als Ansager holst du zuerst die Trümpfe der Gegner heraus: Spiel deinen stärksten Trumpf, den blauen Schäfer (12).",
-    "tutorial.turn2": "Noch einmal Trumpf! Mit dem roten Hund ziehst du weitere Trümpfe heraus – auch wenn ihn ein höherer Schäfer sticht, haben die Gegner danach weniger Trümpfe.",
-    "tutorial.turn3": "Bernd hat das grüne Schaf gelegt – er ist dein Partner! Gras wurde ausgespielt und du hast noch Gras: Du musst Farbe bedienen. Leg den grünen Hut, er ist 0 Augen wert.",
-    "tutorial.turn4": "Schellen wurde ausgespielt. Dein oranges Schaf ist die höchste Schellen-Karte: Es gewinnt den Stich und holt 25 Augen.",
-    "tutorial.turn5": "Du spielst aus. Spiel das rote Schaf: Bernd legt nach dir und hat noch einen hohen Trumpf. Sticht er drüber, bleiben die 11 Augen bei euch.",
-    "tutorial.turn6": "Eichel wurde ausgespielt, aber du hast keine Eichel mehr. Dann darfst du stechen: Dein rotes Korn ist Trumpf und holt den letzten Stich – mit 35 Augen!",
-    "tutorial.done": "Gewonnen! Ihr habt 113 Augen, die Gegner nur 7. Unter 30 Augen heißt „Schneider“ – im echten Spiel bringt das 5 Münzen extra. Jetzt kennst du das Schafspiel!",
+    "tutorial.collect": "Der Stich ist voll: Die **stärkste Karte** gewinnt alle vier. **Tippe auf den Tisch.** Nun ist {name} dran.",
+    "tutorial.collectYou": "Der Stich ist voll: Die **stärkste Karte** gewinnt alle vier. **Tippe auf den Tisch.** Nun bist du dran.",
+    "tutorial.collectLast": "Der Stich ist voll: Die **stärkste Karte** gewinnt alle vier. **Tippe auf den Tisch**, um das Ergebnis zu sehen.",
+    "tutorial.turn1": "Du spielst aus. Als **Ansager** holst du zuerst die Trümpfe der Gegner heraus: Spiel deinen stärksten Trumpf, den **blauen Schäfer** (12).",
+    "tutorial.turn2": "Noch einmal **Trumpf**! Mit dem **roten Hund** ziehst du weitere Trümpfe heraus – auch wenn ihn ein höherer Schäfer sticht, haben die Gegner danach weniger Trümpfe.",
+    "tutorial.turn3": "Bernd hat das **grüne Schaf** gelegt – er ist dein **Partner**! **Grün** wurde ausgespielt und du hast noch Grün: Du musst **Farbe bedienen**. Leg den **grünen Hut**, er ist 0 Augen wert.",
+    "tutorial.turn4": "**Orange** wurde ausgespielt. Dein **oranges Schaf** ist die höchste orange Karte: Es gewinnt den Stich und holt **25 Augen**.",
+    "tutorial.turn5": "Du spielst aus. Spiel das **rote Schaf**: Bernd legt nach dir und hat noch einen hohen Trumpf. Sticht er drüber, bleiben die **11 Augen** bei euch.",
+    "tutorial.turn6": "**Blau** wurde ausgespielt, aber du hast kein Blau mehr. Dann darfst du **stechen**: Dein **rotes Korn** ist Trumpf und holt den letzten Stich – mit **35 Augen**!",
+    "tutorial.done": "**Gewonnen!** Ihr habt **113 Augen**, die Gegner nur 7. Unter 30 Augen heißt **„Schneider“** – im echten Spiel bringt das 5 Münzen extra. Jetzt kennst du das Schafspiel!",
     "tutorial.continue": "Weiterspielen",
     "tutorial.practice": "Mehr üben",
     "tutorial.skip": "Überspringen",
     // Rundgang durch den Spieltisch nach dem ersten Stich
-    "tour.banner": "Hier oben im Banner steht immer, was gerade passiert: welches Spiel gespielt wird und wer dran ist.",
-    "tour.lastTrick": "Mit dem Auge kannst du dir den letzten Stich noch einmal ansehen – praktisch, wenn es schnell ging.",
-    "tour.name": "Das bist du. Unter deinem Namen steht deine Rolle: „Ansager“ heißt, du hast das Spiel angesagt. Wer das gerufene Schaf hat, ist dein Partner.",
-    "tour.coins": "Hier siehst du deine Münzen. Gewinnst du eine Runde, bekommst du Münzen dazu; verlierst du, musst du zahlen. Diese Übungsrunde zählt noch nicht.",
-    "tour.menu": "Über das Menü kannst du das Spiel pausieren, Musik und Töne einstellen oder zurück zum Hauptmenü gehen.",
+    "tour.banner": "Hier oben im **Banner** steht immer, was gerade passiert: welches Spiel gespielt wird und wer dran ist.",
+    "tour.lastTrick": "Mit dem **Auge** kannst du dir den **letzten Stich** noch einmal ansehen. Probier es gleich aus: Tippe auf das Auge!",
+    "tour.name": "Das bist du. Unter deinem Namen steht deine **Rolle**: **„Ansager“** heißt, du hast das Spiel angesagt. Wer das gerufene Schaf hat, ist dein **Partner**.",
+    "tour.coins": "Hier siehst du deine **Münzen**. Gewinnst du eine Runde, bekommst du Münzen dazu; verlierst du, musst du zahlen. Diese Übungsrunde zählt noch nicht.",
+    "tour.menu": "Über das **Menü** kannst du das Spiel pausieren, Musik und Töne einstellen oder zurück zum Hauptmenü gehen.",
     "tour.next": "Weiter",
     "tour.done": "Weiterspielen",
     "practice.title": "Üben",
@@ -319,13 +332,13 @@ export default {
     "lesson.sheep.tip2": "Als Ansager ziehst du früh Trümpfe, damit die Gegner deine Schafe nicht stechen können.",
     "lesson.sheep.tip3": "Wird die gerufene Farbe ausgespielt, muss dein Partner das Schaf legen – dann wisst ihr, wer zusammenspielt.",
     "lesson.solo.title": "Solo",
-    "lesson.solo.goal": "Sag ein Solo an und wähle Eichel als Trumpf.",
-    "lesson.solo.tip1": "Im Solo spielst du allein gegen drei. Du wählst die Trumpffarbe: Statt Herz sind dann alle Karten dieser Farbe Trumpf.",
+    "lesson.solo.goal": "Sag ein Solo an und wähle Blau als Trumpf.",
+    "lesson.solo.tip1": "Im Solo spielst du allein gegen drei. Du wählst die Trumpffarbe: Statt Rot sind dann alle Karten dieser Farbe Trumpf.",
     "lesson.solo.tip2": "Ein Solo lohnt sich mit fünf oder sechs Trümpfen, darunter Schäfer und Hunde.",
     "lesson.solo.tip3": "Zieh zuerst alle Trümpfe heraus, dann holen deine Schafe ungestört die Augen.",
     "lesson.dog.title": "Hundespiel",
     "lesson.dog.goal": "Sag ein Hundespiel an.",
-    "lesson.dog.tip1": "Im Hundespiel sind nur die vier Hunde Trumpf. Schäfer und Herz sind normale Farbkarten.",
+    "lesson.dog.tip1": "Im Hundespiel sind nur die vier Hunde Trumpf. Schäfer und rote Karten sind normale Farbkarten.",
     "lesson.dog.tip2": "Gut ist es mit drei Hunden, oder zwei Hunden samt dem blauen und zwei Schafen.",
     "lesson.dog.tip3": "Die Schafe sind die höchsten Farbkarten. Spiel sie aus, sobald die Hunde der Gegner draußen sind.",
     "lesson.marriage.title": "Hochzeit",
@@ -356,14 +369,14 @@ export default {
     "rules.page3.text.classic": "Jede Karte ist Augen wert, oben in der Mitte steht wie viele: Ass 11, Zehn 10, König 4, Ober 3, Unter 2, Neun 0. Zusammen sind es 120 Augen – wer 61 schafft, gewinnt.",
     "rules.page4.text.classic": "Alle Ober, alle Unter und alle Herz-Karten sind Trumpf. Ein Trumpf schlägt jede andere Karte. Die Reihenfolge ist Ober → Unter → Ass → Zehn → König → Neun.",
     "rules.page8.text.classic": "Nach dem Geben sagt jeder an, ob er spielen will. Im Schafspiel rufst du ein Ass: Wer es hat, ist heimlich dein Partner. Wie das geht, zeigen wir dir jetzt an einer Übungsrunde.",
-    "tutorial.announce.classic": "Du hast vier Trümpfe: den Eichel-Ober, den Herz-Unter, das Herz-Ass und die Herz-Zehn. Das reicht für ein Schafspiel. Wähle „Schafspiel“ und ruf das Gras-Ass – wer es hat, spielt heimlich mit dir.",
-    "tutorial.turn1.classic": "Du spielst aus. Als Ansager holst du zuerst die Trümpfe der Gegner heraus: Spiel deinen stärksten Ober, den Eichel-Ober.",
-    "tutorial.turn2.classic": "Noch einmal Trumpf! Mit dem Herz-Unter ziehst du weitere Trümpfe heraus – auch wenn ihn ein Ober sticht, haben die Gegner danach weniger Trümpfe.",
-    "tutorial.turn3.classic": "Bernd hat das Gras-Ass gelegt – er ist dein Partner! Gras wurde ausgespielt und du hast noch Gras: Du musst Farbe bedienen. Leg die Gras-Neun, sie ist 0 Augen wert.",
-    "tutorial.turn4.classic": "Schellen wurde ausgespielt. Dein Schellen-Ass ist die höchste Schellen-Karte: Es gewinnt den Stich und holt 25 Augen.",
-    "tutorial.turn5.classic": "Du spielst aus. Spiel das Herz-Ass: Bernd legt nach dir und hat noch einen hohen Trumpf. Sticht er drüber, bleiben die 11 Augen bei euch.",
-    "tutorial.turn6.classic": "Eichel wurde ausgespielt, aber du hast keine Eichel mehr. Dann darfst du stechen: Deine Herz-Zehn ist Trumpf und holt den letzten Stich – mit 35 Augen!",
-    "tour.name.classic": "Das bist du. Unter deinem Namen steht deine Rolle: „Ansager“ heißt, du hast das Spiel angesagt. Wer das gerufene Ass hat, ist dein Partner.",
+    "tutorial.announce.classic": "Du hast **vier Trümpfe**: den Eichel-Ober, den Herz-Unter, das Herz-Ass und die Herz-Zehn. Das reicht für ein **Schafspiel**. Wähle „Schafspiel“ und ruf das **Gras-Ass** – wer es hat, spielt heimlich mit dir.",
+    "tutorial.turn1.classic": "Du spielst aus. Als **Ansager** holst du zuerst die Trümpfe der Gegner heraus: Spiel deinen stärksten Ober, den **Eichel-Ober**.",
+    "tutorial.turn2.classic": "Noch einmal **Trumpf**! Mit dem **Herz-Unter** ziehst du weitere Trümpfe heraus – auch wenn ihn ein Ober sticht, haben die Gegner danach weniger Trümpfe.",
+    "tutorial.turn3.classic": "Bernd hat das **Gras-Ass** gelegt – er ist dein **Partner**! **Gras** wurde ausgespielt und du hast noch Gras: Du musst **Farbe bedienen**. Leg die **Gras-Neun**, sie ist 0 Augen wert.",
+    "tutorial.turn4.classic": "**Schellen** wurde ausgespielt. Dein **Schellen-Ass** ist die höchste Schellen-Karte: Es gewinnt den Stich und holt **25 Augen**.",
+    "tutorial.turn5.classic": "Du spielst aus. Spiel das **Herz-Ass**: Bernd legt nach dir und hat noch einen hohen Trumpf. Sticht er drüber, bleiben die **11 Augen** bei euch.",
+    "tutorial.turn6.classic": "**Eichel** wurde ausgespielt, aber du hast keine Eichel mehr. Dann darfst du **stechen**: Deine **Herz-Zehn** ist Trumpf und holt den letzten Stich – mit **35 Augen**!",
+    "tour.name.classic": "Das bist du. Unter deinem Namen steht deine **Rolle**: **„Ansager“** heißt, du hast das Spiel angesagt. Wer das gerufene Ass hat, ist dein **Partner**.",
     "lesson.sheep.goal.classic": "Sag ein Schafspiel an und ruf das Schellen-Ass.",
     "lesson.sheep.tip1.classic": "Ansagen kannst du mit etwa vier Trümpfen. Ruf das Ass einer Farbe, von der du selbst eine Karte hast, aber nicht das Ass.",
     "lesson.sheep.tip2.classic": "Als Ansager ziehst du früh Trümpfe, damit die Gegner deine Asse nicht stechen können.",
@@ -378,4 +391,6 @@ export default {
     "technique.smear.text.classic": "Gewinnt dein Partner den Stich sicher, legst du ihm eine wertvolle Karte dazu – ein Ass oder eine Zehn. So landen viele Augen bei euch.",
     "technique.search.title.classic": "Das Ass suchen",
     "technique.search.text.classic": "Als Gegner im Schafspiel spielst du die gerufene Farbe aus. Dann muss der Partner das Ass legen, und alle wissen, wer zusammenspielt.",
+    "lesson.solo.goal.classic": "Sag ein Solo an und wähle Eichel als Trumpf.",
+    "lesson.solo.tip1.classic": "Im Solo spielst du allein gegen drei. Du wählst die Trumpffarbe: Statt Herz sind dann alle Karten dieser Farbe Trumpf.",
 };

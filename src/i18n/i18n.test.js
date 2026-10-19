@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import de from "./de.js";
 import en from "./en.js";
+import { setClassicDeck } from "./deckStyle.js";
 
 const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
@@ -45,12 +46,26 @@ test("names and phrases cover every game, suit and rank", () => {
 });
 
 test("German phrases use the right articles", () => {
-    assert.equal(de["bid.announces"]({ name: "Jonas", game: "Solo", suit: "leaf" }), "Jonas sagt ein Gras-Solo an");
+    assert.equal(de["bid.announces"]({ name: "Jonas", game: "Solo", suit: "leaf" }), "Jonas sagt ein grünes Solo an");
+    assert.equal(de["game.name"]({ game: "Solo", suit: "bell" }), "Oranges Solo");
+    assert.equal(de["picker.callSheep"]({ suit: "leaf" }), "Grünes Schaf rufen");
     assert.equal(de["bid.wants"]({ name: "Resi", game: "Marriage" }), "Resi will eine Hochzeit spielen");
     assert.equal(de["result.loses"]({ names: "Bernd", plural: false, game: "Ramsch" }), "Bernd verliert den Ramsch");
     assert.equal(de["banner.callsSheep"]({ name: "Ernie", suit: "acorn" }), "Ernie ruft das blaue Schaf");
     assert.equal(de["card.name"]({ suit: "acorn", rank: "O" }), "blauer Schäfer");
     assert.equal(de["card.name"]({ suit: "bell", rank: "10" }), "oranges Korn");
     assert.equal(en["card.name"]({ suit: "leaf", rank: "A" }), "green sheep");
-    assert.equal(en["banner.plays"]({ name: "Resi", game: "Solo", suit: "acorn" }), "Resi plays an Acorn Solo");
+    assert.equal(en["banner.plays"]({ name: "Resi", game: "Solo", suit: "acorn" }), "Resi plays a Blue Solo");
+});
+
+test("With the classic deck, suits have their classic names", () => {
+    setClassicDeck(true);
+    try {
+        assert.equal(de["bid.announces"]({ name: "Jonas", game: "Solo", suit: "leaf" }), "Jonas sagt ein Gras-Solo an");
+        assert.equal(de["picker.callSheep"]({ suit: "leaf" }), "Gras-Schaf rufen");
+        assert.equal(de["suit.name"]({ suit: "bell" }), "Schellen");
+        assert.equal(en["banner.plays"]({ name: "Resi", game: "Solo", suit: "acorn" }), "Resi plays an Acorn Solo");
+    } finally {
+        setClassicDeck(false);
+    }
 });

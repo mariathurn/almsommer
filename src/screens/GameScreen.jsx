@@ -667,7 +667,8 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
           <CoachBubble text={coach.text} actions={coach.actions} />
         ) : null}
 
-        {tourStep !== null && !isPaused ? (
+        {/* Hidden while the last trick (tried out from the tour) or the menu is open. */}
+        {tourStep !== null && !isPaused && !showLastTrick ? (
           <TourOverlay
             rootRef={shellRef}
             steps={tourSteps}
