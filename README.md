@@ -7,10 +7,10 @@
 Almsommer is the Bavarian card game Schafkopf as an app for Android, iOS and the web. You play against three
 computer opponents, and a guided first game and practice rounds help new players learn the rules.
 
-It's my favourite card game, and I wanted to make it easier for people outside Bavaria to learn – so I have
-more people to play with in Denmark.
+It's my favourite card game, and I wanted to make it easier for people outside Bavaria to learn.
 
-Solo project: concept, illustration, design and code by [Maria Thurn](https://mariathurn.de).
+I made Almsommer entirely on my own: I wrote all of the code – the rules engine, the computer opponents and the
+app for Android, iOS and the web – illustrated the whole deck and every figure, and designed every screen. – [Maria Thurn](https://mariathurn.de)
 
 ## Highlights
 
