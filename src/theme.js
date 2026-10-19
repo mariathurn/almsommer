@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // "Almsommer" look: warm linen paper, muted alpine suit colours, a
 // bright yellow accent, ink for lines and text. Shared table geometry too.
 
@@ -42,6 +44,14 @@ export const softShadow = {
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
 };
+
+// The same shadow for cards. On the web a normal shadow is a box, which
+// shows as a square halo around the rounded card corners; a drop-shadow
+// filter follows the card's actual shape instead.
+export const cardShadow = Platform.select({
+    web: { filter: "drop-shadow(0px 3px 6px rgba(47, 42, 36, 0.22))" },
+    default: softShadow,
+});
 
 // Linen card stock with a thin keyline: menus, tags, buttons and panels.
 export const paper = {

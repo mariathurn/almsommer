@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     deckCard: {
-        ...softShadow,
+        ...cardShadow,
     },
     deckText: {
         flex: 1,

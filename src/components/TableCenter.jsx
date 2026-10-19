@@ -13,7 +13,7 @@ import { Image as PaintedImage } from "expo-image";
 import { cardTexture } from "../data/cardDesign";
 import { tableDisc } from "../data/uiArt";
 import { t } from "../i18n";
-import { colors, fonts, paper, softShadow } from "../theme";
+import { cardShadow, colors, fonts, paper, softShadow } from "../theme";
 
 // Where a played card sits relative to the blanket centre, as a share of the
 // card size, and its slight tilt.
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     },
     playedCard: {
         position: "absolute",
-        ...softShadow,
+        ...cardShadow,
     },
     resultRows: {
         marginTop: 8,

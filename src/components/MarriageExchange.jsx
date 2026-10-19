@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Card from "./Card";
 import { t } from "../i18n";
 import { cardName } from "../i18n/names";
-import { colors, fonts, softShadow } from "../theme";
+import { cardShadow, colors, fonts } from "../theme";
 
 const ROW_GAP = 16;
 const ARROW_WIDTH = 28;
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     },
     shadow: {
         borderRadius: 12,
-        ...softShadow,
+        ...cardShadow,
     },
     empty: {
         alignItems: "center",

@@ -12,7 +12,7 @@ import { cardMeta } from "../data/cardMeta";
 import { cardPoints, getCardNumber, suitColors, suitOrder } from "../data/cardDesign";
 import { t } from "../i18n";
 import { cardLabel, rankName, suitName } from "../i18n/names";
-import { CARD_RATIO, colors, fonts, paper, softShadow } from "../theme";
+import { CARD_RATIO, cardShadow, colors, fonts, paper } from "../theme";
 
 const rankOrder = ["9", "K", "10", "A", "U", "O"];
 const suitsStrongestFirst = [...suitOrder].reverse();
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
         opacity: 0.85,
     },
     cardShadow: {
-        ...softShadow,
+        ...cardShadow,
     },
     cardCaption: {
         marginTop: 5,

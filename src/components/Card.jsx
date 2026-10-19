@@ -31,10 +31,13 @@ function Card({ card, faceUp = true, isTrump = false, gameName = null, height, d
 
     const source = faceUp ? cardArt[`${card.suit}-${card.rank}`] : cardArt.back;
 
+    // The classic SVGs are narrower than the illustrated cards; drawn in their
+    // own shape, so no empty edge (and no shadow around it) shows beside them.
+    const classicWidth = height * CLASSIC_RATIO;
     return (
         <Image
             source={source}
-            style={[{ width, height }, style]}
+            style={[{ width: classicWidth, height, borderRadius: classicWidth * CLASSIC_CORNER }, style]}
             contentFit="contain"
             accessibilityLabel={faceUp ? `${card.rank} of ${card.suit}` : "Card back"}
         />
