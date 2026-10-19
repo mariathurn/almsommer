@@ -117,7 +117,7 @@ function SuitChip({ suit, selected, disabled, onPress, compact = false }) {
                 disabled && styles.tileDisabled,
             ]}
         >
-            <Svg width={compact ? 18 : 24} height={compact ? 18 : 24} viewBox="0 0 40 40">
+            <Svg width={compact ? 18 : 24} height={compact ? 18 : 24} viewBox="0 0 40 40" style={disabled && styles.dimIcon}>
                 <SuitIcon suit={suit} x={20} y={20} size={36} />
             </Svg>
             <Text style={[styles.chipLabel, disabled && styles.dimText]}>{suitName(suit)}</Text>
@@ -512,6 +512,10 @@ const styles = StyleSheet.create({
     },
     dimText: {
         color: "#a19a8f",
+    },
+    // The suit symbol of a suit that can't be chosen, faded like its name.
+    dimIcon: {
+        opacity: 0.35,
     },
     coinBadge: {
         flexDirection: "row",
