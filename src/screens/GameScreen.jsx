@@ -656,6 +656,8 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
                   accessibilityLabel={t(canSayKontra ? "doubling.kontraButton" : "doubling.retourButton")}
                   style={({ pressed, hovered }) => [
                     styles.doublingButton,
+                    // Always above your hand, never over the cards.
+                    { bottom: layout.height - layout.southFanTop + 16 },
                     layout.portrait ? styles.doublingButtonPhone : styles.doublingButtonWide,
                     (pressed || hovered) && styles.doublingButtonActive,
                   ]}
@@ -759,11 +761,9 @@ const styles = StyleSheet.create({
   },
   doublingButtonWide: {
     right: 24,
-    bottom: 24,
   },
   doublingButtonPhone: {
     right: 10,
-    bottom: 64,
   },
   doublingButtonActive: {
     transform: [{ scale: 1.05 }],
