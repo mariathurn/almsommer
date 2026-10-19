@@ -1,6 +1,6 @@
 # Schafkopf Card Game - Codebase Overview
 
-An Expo (React Native) implementation of Schafkopf, running on iOS, Android and the web,, a traditional Bavarian card game. One human player (South) plays against three AI opponents in real-time.
+An Expo (React Native) implementation of Schafkopf, running on iOS, Android and the web – a traditional Bavarian card game. One human player (South) plays against three AI opponents in real-time.
 
 ## Quick Start
 
@@ -22,6 +22,9 @@ src/
 ├── screens/
 │   ├── MenuScreen.jsx          # Title screen: lettering, shepherds sliding in (four in landscape, a random pair in portrait), your painted play / achievements / settings buttons (PaintedButton)
 │   ├── GameScreen.jsx          # The card table, wires game state to the UI
+│   ├── WelcomeScreen.jsx       # First start: choose a name and a portrait
+│   ├── RulesScreen.jsx         # The rules, page by page, with example cards (can be skipped)
+│   ├── PracticeScreen.jsx      # Lessons: the guided first game and practice games (data/lessons.js)
 │   ├── AchievementsScreen.jsx  # Lists the achievements from data/achievements.js
 │   └── DeckScreen.jsx          # Overview of all 24 cards, tap one to enlarge it
 ├── audio/sounds.js             # Music and effects (expo-audio): meadow loop, sheep at start, shuffle, card place, trick pick-up
@@ -60,7 +63,7 @@ src/
 └── data/
     ├── cardMeta.js             # Card metadata (suit, rank, value) for all 24 cards
     ├── cardDesign.js           # Card face design data (see below)
-    ├── achievements.js         # Achievement definitions (empty for now; format documented in the file)
+    ├── achievements.js         # Achievement definitions and findNewAchievements() (format documented in the file)
     ├── cardDecks.js            # Card decks offered in the settings (only Almsommer for now)
     ├── portraits.js            # Opponent portraits: dog, sheep, shepherd in all four colours (crop per figure); three picked at random per app start
     ├── uiArt.js                # Background, title lettering and menu shepherds (src/assets/ui)
@@ -70,57 +73,26 @@ src/
 ## Key Functionality by Feature
 
 ### 1. **Game State & Logic** (`src/hooks/useSchafkopfGame.js`)
-- **State variables:**
-  - `players` - cards in each player's hand (north, east, south, west)
-  - `currentTurn` - whose turn it is
-  - `playedCards` - cards played in current trick
-  - `trickWinner` - player who won the last trick
-- **Key functions:**
-  - `dealHands()` - shuffle deck, deal 5 cards to each player clockwise starting from north
-  - `playCard(playerName, cardIndex)` - plays a card, validates suit following, advances turn
-  - `getTrickWinner()` - compares played cards by rank, determines highest
-  - Auto-triggers AI moves when it's not the human player's turn
+- **State:** each player's hand, whose turn it is, the current trick, the chosen game and called sheep, the teams, the bidding and marriage state, trick points and counts, Kontra / Retour, the round result and the forehand
+- **Round flow:** `dealHands()` shuffles the 24 cards and deals six to each player (or uses a fixed `preset` for lessons) → bidding from the forehand (`startBidding`, `placeBid`, `finishBidding`) → optional marriage (`answerMarriage`, `commitMarriage`) → `playCard()` → `collectTrick()` → `scoreRound()` once all cards are played, or as soon as a Tout is lost
+- **Computer players** run on timers: `AI_BID_DELAY` to announce, `AI_PLAY_DELAY` per card, and slower play while you can still answer a Kontra with Retour. A finished trick stays on the table until you collect it, so there is no timer for that
 
-### 2. **Game Rules & AI** (`src/ai/schafkopfAI.js`)
-- **`canPlayCard(card, hand, playedCards)`** - validates suit following:
-  - If suit was led, you must play that suit if you have it
-  - Otherwise, any card is legal
-- **`getAIMove(hand, playedCards)`** - AI strategy:
-  - If leading: play lowest card
-  - If must follow suit: play lowest of that suit
-  - If can't follow: play lowest overall
+### 2. **Game Rules** (`src/ai/schafkopfAI.js`) and **Computer Players** (`src/ai/players.js`)
+- **`canPlayCard(card, hand, playedCards, gameName, calledAce)`** – the legal-move check: follow the led suit or trumps, plus the called-sheep rules (`checkCalledSheep`)
+- **`getTrumpStrength` / `isTrumpForGame` / `sortHandForGame`** – trumps and their order per game type (see *Look & Layout*)
+- **Sheep Game teams:** `canCallAce`, `getPartnerForCalledAce`, `getSauSpielTeams`, `getSauSpielStatus`
+- **Marriage:** `canOfferMarriage`, `wantsToAcceptMarriage`, `resolveMarriage`, `swapMarriageCards`
+- **`decideAnnouncement`** – which game a computer player announces, from its trumps
+- **`decideKontra` / `decideRetour`** – whether a computer player doubles the game
+- **`chooseCard`** – which card to play, knowing who its partner is (`getRelation`) and which card currently wins the trick (`getWinningIndex`)
+- **`getAIMove`** – a simple fallback (lowest legal card); `chooseCard` only ever picks from the legal cards
 
-### 3. **UI Components**
-
-**`App.jsx`** - Root component
-- Wires game state to UI
-- Renders board, 4 player seats, center trick area
-- Passes `playedCards` to all players so they can validate moves
-
-**`GameHeader.jsx`** - Display area
-- Shows current turn
-- Shows trick winner (last 600ms)
-- Deal button to start/restart game
-
-**`TableCenter.jsx`** - Central board
-- Displays cards currently played in the trick
-- Cards cascade with rotation for visual effect
-- Clears when trick ends
-
-**`PlayerPanel.jsx`** - One player's area
-- Contains player name + hand
-- Passes props through to FanOfCards
-
-**`FanOfCards.jsx`** - Hand display
-- Renders cards in a fan layout
-- Disables illegal cards (opacity 0.4)
-- Dims cards that would break suit-following when it is your turn
-- Uses `canPlayCard()` to mark playable cards
-
-**`Card.jsx`** - Individual card
-- Renders SVG image from `cardArt` map
-- Supports face-up and face-down display
-- Used in both hands and center trick area
+### 3. **Scoring** (`src/ai/scoring.js`)
+- Card points: ace 11, ten 10, king 4, shepherd 3, dog 2, nine 0 (120 in all); the announcing side needs 61
+- Schneider (+5) and Schwarz (+5) for every game except the Cowards Game
+- Tout (`"Solo:leaf:tout"`, `"Wenz:tout"`): the soloist must take every trick; worth double, no Schneider or Schwarz on top
+- Kontra and Retour double the value each time
+- `scoreRound()` returns the coins per player; every round is zero-sum
 
 ### 4. **Card Assets** (`src/assets/`)
 - **`cardArt.js`** - `require()`s all 24 SVG files plus the card back
@@ -157,9 +129,9 @@ src/
 - Trumps per game (`getTrumpStrength` in `schafkopfAI.js`): Dog Game only dogs; all other games shepherds, dogs, then red (a Solo carries its trump suit in the game value, e.g. `Solo:leaf`). Shepherds and dogs rank blue > green > red > orange. Hovering a game in the picker sorts your hand with trumps strongest-first on the left (`sortHandForGame`) and gives trump cards a yellow corner with a crown; both stay once the game is chosen. While hovering, the trumps also rise a little (`PREVIEW_RISE`); re-sorting glides the cards and the crown corner fades in and out (`FanOfCards.jsx`)
 - Scoring (`src/ai/scoring.js`): card points from tricks decide the round; the announcing side needs 61 of 120. Sheep Game: each winner gets the reward from one loser (2 v 2). Solo, Dog Game and Marriage (for now): the soloist settles with each of the three opponents. Cowards Game: whoever took the most points pays the reward to each other player. Rounds are zero-sum
 - Session balance: `App.jsx` keeps each player's coin total since the app was opened (survives going to the menu); it shows on every name tag, and after a round the table shows each player's coins for the round and the session
-- Called sheep (Rufsau) rules in `canPlayCard` (`checkCalledSheep`): its holder must play it when its colour is led, may only lead that colour with the sheep unless holding four or more of it (davonlaufen), and may not throw it off on another colour or trumps except in the last trick. The AI only picks legal cards (`chooseLegalAIMove`)
+- Called sheep (Rufsau) rules in `canPlayCard` (`checkCalledSheep`): its holder must play it when its colour is led, may only lead that colour with the sheep unless holding four or more of it (davonlaufen), and may not throw it off on another colour or trumps except in the last trick. Computer players only pick from the legal cards (`chooseCard`)
 - Marriage (`resolveMarriage` in `schafkopfAI.js`): with exactly one trump, Maria offers it; the others are asked from her left and a computer player accepts with four or more trumps. The partner takes her trump and gives back their weakest non-trump; then it's two against two (±20 each) with Sheep Game trumps. There is no forced marriage: if nobody accepts, the Marriage tile is greyed out ("Nobody accepted your marriage") and Maria picks another game or passes
-- Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). The other games can be chosen but still play with Sheep Game trumps; Schneider/Schwarz bonuses and running tariffs are not implemented yet
+- Sheep Game: only a regular sheep (not red) you don't hold, and only with a regular card of that colour (`canCallAce`). Running tariffs (Laufende) are not implemented yet
 - Everything is laid out on a canvas (`Stage.jsx`) scaled like a browser game: in landscape the height is fixed at 800 and the width follows the window between 1100 and 1700; in portrait the width is fixed at 430 and the height follows between 640 and 1000. Outside those limits the canvas is centred with black bars. Screens read its size with `useStage()`; `getTableLayout()` has a portrait branch: opponents as round portraits (a random dog, sheep or shepherd in any colour, see `data/portraits.js`) with their coins and a dark name tag, staggered at the top, the hand-painted disc (`assets/ui/circular-table.png`, kept translucent) instead of the blanket with the trick fanning out over its top edge; before a deal the painted deal button (`assets/ui/deal-button.png`) takes the disc's place, a large hand running off the bottom, and your name tag at the very bottom
 - The native app is locked to portrait (`app.json`); the web version picks portrait or landscape from the window shape
 
@@ -172,49 +144,37 @@ src/
 
 ## Game Flow
 
-1. **Deal** - User clicks "Deal" button
-   - `dealHands()` shuffles deck, distributes 5 cards per player
-   - Turn starts at "north"
+1. **Deal** – you tap Deal; six cards each, the forehand moves on clockwise every round
+2. **Bidding** – from the forehand, each player announces a stronger game or passes; the best game is played, or the Cowards Game if everybody passes
+3. **Marriage / called sheep** – if needed, the marriage partner is found or the called sheep decides the teams
+4. **Kontra / Retour** – the other side may double the game, and the announcers may double back
+5. **Play** – six tricks; computer players play on a timer, you tap a card (two taps on phones)
+6. **Collect** – a finished trick stays on the table until you tap
+7. **Score** – `scoreRound()` settles the coins; the session balance shows on every name tag
 
-2. **Play** - Players take turns playing one card
-   - AI (`useSchafkopfGame` effect) auto-plays after 600ms delay
-   - Human player (`south`) clicks cards to play
-   - Suit following validated before move is accepted
-
-3. **Trick Resolution** - After 4 cards played
-   - `getTrickWinner()` finds highest card
-   - Winner becomes next player to lead
-   - Center display shows cards for 600ms, then clears
-   - Next trick begins
-
-4. **Round End** - After 5 tricks (all cards dealt)
-   - Game pauses, waiting for "Deal" button to start next round
-
-## State Flow Diagram
+## State Flow
 
 ```
-App.jsx (orchestrator)
+App.jsx – menu, game and deck screens inside the Stage; session coin totals
     ↓
-useSchafkopfGame (state + logic)
-    ├─ players, currentTurn, playedCards, trickWinner
-    ├─ dealHands()
-    ├─ playCard()
-    └─ AI effect loop (checks currentTurn, triggers AI move)
+GameScreen.jsx
+    ↓
+useSchafkopfGame (state + round flow + AI timers)
+    ├─ rules:   ai/schafkopfAI.js
+    ├─ players: ai/players.js
+    └─ scoring: ai/scoring.js
          ↓
-    GameHeader, TableCenter, PlayerPanel × 4
+GameHeader, GamePicker, TableCenter, PlayerPanel × 4
          ↓
-    FanOfCards (validates via canPlayCard)
+FanOfCards (legal moves via canPlayCard)
          ↓
-    Card (renders SVG from cardArt)
+Card / IllustratedCard
 ```
 
 ## Known Limitations & Future Work
 
-- **No trump system** - All suits are equal (basic trick-taking only)
-- **No scoring** - Tricks are won/lost but not counted
-- **Simple AI** - Just plays lowest legal card (no strategy depth)
-- **No animation** - Cards appear/disappear instantly
-- **Single player only** - Human is always South
+- **Running tariffs (Laufende)** are not counted yet
+- **Single player only** – you always play South against three computer players
 
 ## Key Bugs & Fixes
 
@@ -227,7 +187,7 @@ useSchafkopfGame (state + logic)
 npm test
 ```
 
-Covers the Sau Spiel rules in `src/ai/schafkopfAI.js`.
+Covers the rules (`ai/schafkopfAI.test.js`), the computer players (`ai/players.test.js`), scoring (`ai/scoring.test.js`), the lessons and test scenarios (`data/*.test.js`) and the translations (`i18n/i18n.test.js`).
 
 ## Technologies
 
