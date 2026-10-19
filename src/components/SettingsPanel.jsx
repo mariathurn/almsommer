@@ -1,5 +1,5 @@
 /* Settings over the title screen: switches for music and sound effects, and
-the card deck (only Almsommer so far) with a way to look at all its cards.
+the card deck (Almsommer or classic) with a way to look at all its cards.
 In the style of the game panel (dotted paper, ink border, gold when on). The
 sound choices are saved, so they survive closing the app.
 The paper panel, the sound switches and the buttons are shared with the
@@ -9,9 +9,9 @@ import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import Card from "./Card";
 import { updateSoundSettings, useSoundSettings } from "../audio/sounds";
-import { DEFAULT_DECK, cardDecks } from "../data/cardDecks";
+import { cardDecks, setCardDeck, useCardDeck } from "../data/cardDecks";
 import { languages, setLanguage, t, useLanguage } from "../i18n";
-import { colors, fillParent, fonts, softShadow } from "../theme";
+import { cardShadow, colors, fillParent, fonts, softShadow } from "../theme";
 
 const PRIVACY_URL = "https://almsommer.mariathurn.de/privacy.html";
 
@@ -36,29 +36,62 @@ function Switch({ label, hint, value, onChange }) {
     );
 }
 
-// One deck to choose; the selected one gets the gold border.
-function DeckOption({ deck, selected, onView }) {
+// One deck to choose; the selected one gets the gold border. Without onView
+// there is no link to the whole deck. compact: a small tile with only the
+// cards and the name (welcome screen).
+function DeckOption({ deck, selected, onSelect, onView, compact }) {
+    const name = t(`deck.${deck.id}.name`);
     return (
-        <View style={[styles.deck, selected && styles.deckSelected]}>
+        <Pressable
+            onPress={onSelect}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
+            accessibilityLabel={name}
+            style={[styles.deck, compact && styles.deckCompact, selected && styles.deckSelected]}
+        >
             <View style={styles.deckPreview}>
                 {deck.preview.map((card, index) => (
                     <View
                         key={index}
                         style={[styles.deckCard, { marginLeft: index ? -26 : 0, transform: [{ rotate: `${(index - 1) * 8}deg` }] }]}
                     >
-                        <Card card={{ id: `${deck.id}-${index}`, ...card }} height={66} />
+                        <Card card={{ id: `${deck.id}-${index}`, ...card }} deck={deck.id} height={66} />
                     </View>
                 ))}
             </View>
             <View style={styles.deckText}>
-                <Text style={styles.rowLabel}>{deck.name}</Text>
-                <Text style={styles.rowHint} numberOfLines={2}>
-                    {t(`deck.${deck.id}.description`)}
-                </Text>
-                <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={t("settings.viewCardsLabel", { deck: deck.name })}>
-                    {({ hovered }) => <Text style={[styles.link, hovered && styles.linkHovered]}>{t("settings.viewCards")}</Text>}
-                </Pressable>
+                <Text style={[styles.rowLabel, compact && styles.deckNameCompact]}>{name}</Text>
+                {compact ? null : (
+                    <Text style={styles.rowHint} numberOfLines={2}>
+                        {t(`deck.${deck.id}.description`)}
+                    </Text>
+                )}
+                {onView ? (
+                    <Pressable onPress={onView} accessibilityRole="button" accessibilityLabel={t("settings.viewCardsLabel", { deck: name })}>
+                        {({ hovered }) => <Text style={[styles.link, hovered && styles.linkHovered]}>{t("settings.viewCards")}</Text>}
+                    </Pressable>
+                ) : null}
             </View>
+        </Pressable>
+    );
+}
+
+// All decks to choose from; onView(deckId) opens a deck's cards. compact:
+// small tiles side by side.
+export function DeckChoice({ onView, compact = false }) {
+    const chosen = useCardDeck();
+    return (
+        <View style={[styles.decks, compact && styles.decksCompact]} accessibilityRole="radiogroup">
+            {cardDecks.map((deck) => (
+                <DeckOption
+                    key={deck.id}
+                    deck={deck}
+                    compact={compact}
+                    selected={deck.id === chosen}
+                    onSelect={() => setCardDeck(deck.id)}
+                    onView={onView ? () => onView(deck.id) : null}
+                />
+            ))}
         </View>
     );
 }
@@ -167,9 +200,7 @@ function SettingsPanel({ onClose, onViewDeck }) {
             <LanguageChoice />
 
             <Text style={styles.sectionLabel}>{t("settings.cardDeck")}</Text>
-            {cardDecks.map((deck) => (
-                <DeckOption key={deck.id} deck={deck} selected={deck.id === DEFAULT_DECK} onView={onViewDeck} />
-            ))}
+            <DeckChoice onView={onViewDeck} />
 
             <PanelButton label={t("common.done")} onPress={onClose} />
             <Pressable
@@ -255,6 +286,21 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         borderWidth: 2.5,
         borderColor: colors.ink,
+    },
+    decks: {
+        gap: 10,
+    },
+    decksCompact: {
+        flexDirection: "row",
+    },
+    deckCompact: {
+        flex: 1,
+        flexDirection: "column",
+        gap: 6,
+        padding: 8,
+    },
+    deckNameCompact: {
+        textAlign: "center",
     },
     deckSelected: {
         borderWidth: 4,

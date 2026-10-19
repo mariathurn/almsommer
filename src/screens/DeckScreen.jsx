@@ -1,5 +1,6 @@
 /* Overview of the whole deck: one paper panel per suit, strongest suit first.
-Tap a card to see it large together with its number and points. */
+Tap a card to see it large together with its number and points.
+deck: the deck to show (Almsommer or classic); the chosen one when not given. */
 
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -20,7 +21,7 @@ const PADDING = 16;
 const PANEL_PADDING = 14;
 const GAP = 10;
 
-function DeckScreen({ onBack }) {
+function DeckScreen({ deck, onBack }) {
     const [contentWidth, setContentWidth] = useState(0);
     const [selectedCard, setSelectedCard] = useState(null);
     const { isPortrait } = useStage();
@@ -73,7 +74,7 @@ function DeckScreen({ onBack }) {
                                                   ]}
                                               >
                                                   <View style={styles.cardShadow}>
-                                                      <Card card={card} height={cardHeight} />
+                                                      <Card card={card} deck={deck} height={cardHeight} />
                                                   </View>
                                                   <Text style={styles.cardCaption}>{rankName(rank)}</Text>
                                               </Pressable>
@@ -96,7 +97,7 @@ function DeckScreen({ onBack }) {
                     {selectedCard ? (
                         <View style={[styles.detail, windowIsPortrait && styles.detailStacked]}>
                             <View style={styles.cardShadow}>
-                                <Card card={selectedCard} height={largeCardHeight} />
+                                <Card card={selectedCard} deck={deck} height={largeCardHeight} />
                             </View>
                             <View style={styles.detailPanel}>
                                 <View style={styles.sectionHeader}>

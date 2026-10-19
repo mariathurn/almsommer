@@ -61,7 +61,10 @@ export default {
     "settings.viewCards": "Alle Karten ansehen ›",
     "settings.viewCardsLabel": "Die {deck}-Karten ansehen",
     "settings.privacy": "Datenschutz & Kontakt",
+    "deck.almsommer.name": "Almsommer",
     "deck.almsommer.description": "Hüte, Stäbe, Korn, Schafe, Hunde und Schäfer",
+    "deck.classic.name": "Klassisch",
+    "deck.classic.description": "Klassische bayerische Figuren: Ober, Unter und Könige",
 
     // Pausenmenü im Spiel
     "pause.heading": "Pause",
@@ -80,9 +83,10 @@ export default {
     "profile.gamesPlayed": "Gespielte Spiele",
     "profile.saved": "{amount} gespart",
     "profile.badgeLabel": "Dein Profil: {name}, {amount} Münzen gespart",
-    "profile.welcomeHeading": "Willkommen auf der Alm!",
+    "profile.welcomeHeading": "Willkommen!",
     "profile.welcomeText": "Wie heißt du, und wie siehst du aus?",
     "profile.namePlaceholder": "Dein Name",
+    "profile.chooseDeck": "Wähle deine Karten",
     "profile.welcomeContinue": "Weiter",
 
     // Kartenansicht

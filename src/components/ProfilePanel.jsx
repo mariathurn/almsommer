@@ -3,14 +3,14 @@ menu. Choose a portrait and a name, and see what you have won so far. In the
 look of the settings panel; two columns on wide screens, one on phones.
 Back drops the changes, Done keeps them.
 With `welcome`, it's the very first step of a new player (before the rules):
-the language instead of stats, an empty name that must be filled in, and only
-a Continue button. */
+the language and the card deck instead of stats, an empty name that must be
+filled in, and only a Continue button. */
 
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CoinIcon } from "./Coin";
 import Portrait from "./Portrait";
-import { LanguageChoice, PanelButton, PaperPanel, panelStyles } from "./SettingsPanel";
+import { DeckChoice, LanguageChoice, PanelButton, PaperPanel, panelStyles } from "./SettingsPanel";
 import { useStage } from "./Stage";
 import { portraits } from "../data/portraits";
 import { formatSavings, portraitChoices, updateProfile, useProfile } from "../data/profile";
@@ -55,7 +55,7 @@ function ProfilePanel({ onClose, welcome = false }) {
                 {/* Portrait and the choices */}
                 <View style={[styles.portraitColumn, !isPortrait && styles.portraitColumnWide]}>
                     <View style={styles.bigRing}>
-                        <Portrait portrait={portrait} size={isPortrait ? 110 : 150} />
+                        <Portrait portrait={portrait} size={isPortrait ? (welcome ? 80 : 110) : 150} />
                     </View>
                     <Text style={panelStyles.sectionLabel}>{t("profile.choosePortrait")}</Text>
                     <View style={styles.choices}>
@@ -102,7 +102,14 @@ function ProfilePanel({ onClose, welcome = false }) {
                         accessibilityLabel={t("profile.name")}
                         style={styles.nameInput}
                     />
-                    <Text style={panelStyles.rowHint}>{t("profile.nameHint")}</Text>
+                    {welcome ? null : <Text style={panelStyles.rowHint}>{t("profile.nameHint")}</Text>}
+
+                    {welcome ? (
+                        <>
+                            <Text style={panelStyles.sectionLabel}>{t("profile.chooseDeck")}</Text>
+                            <DeckChoice compact />
+                        </>
+                    ) : null}
 
                     {welcome ? null : (
                         <View style={styles.stats}>

@@ -172,9 +172,9 @@ function MenuScreen({ onPlay, onOpenPractice, onOpenAchievements, onOpenDeck }) 
             {panel === "settings" ? (
                 <SettingsPanel
                     onClose={() => setPanel(null)}
-                    onViewDeck={() => {
+                    onViewDeck={(deckId) => {
                         setPanel(null);
-                        onOpenDeck();
+                        onOpenDeck(deckId);
                     }}
                 />
             ) : null}

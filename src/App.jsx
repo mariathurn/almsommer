@@ -71,6 +71,8 @@ function App() {
   }, [profile.savings]);
   const tableScores = { ...sessionScores, south: profile.savings };
   const openMenu = () => setScreen("menu");
+  // The deck shown on the deck screen (either deck, not only the chosen one).
+  const [viewedDeck, setViewedDeck] = useState(null);
   // The game being played: null for a normal game, or a lesson (guided first
   // game, practice round). gameKey restarts the table for a fresh game. The
   // menu plays its exit (shepherds out, sheep sound) before starting one.
@@ -140,7 +142,7 @@ function App() {
                 onRoundScored={addRoundToSession}
               />
             ) : screen === "deck" ? (
-              <DeckScreen onBack={openMenu} />
+              <DeckScreen deck={viewedDeck} onBack={openMenu} />
             ) : screen === "achievements" ? (
               <AchievementsScreen onBack={openMenu} />
             ) : screen === "welcome" ? (
@@ -159,7 +161,10 @@ function App() {
                 onPlay={() => startGame(null)}
                 onOpenPractice={() => setScreen("practice")}
                 onOpenAchievements={() => setScreen("achievements")}
-                onOpenDeck={() => setScreen("deck")}
+                onOpenDeck={(deckId) => {
+                  setViewedDeck(deckId);
+                  setScreen("deck");
+                }}
               />
             )}
           </Stage>

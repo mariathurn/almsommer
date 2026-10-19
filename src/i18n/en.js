@@ -49,7 +49,10 @@ export default {
     "settings.viewCards": "View all cards ›",
     "settings.viewCardsLabel": "View the {deck} cards",
     "settings.privacy": "Privacy & contact",
+    "deck.almsommer.name": "Almsommer",
     "deck.almsommer.description": "Hats, staffs, grain, sheep, dogs and shepherds",
+    "deck.classic.name": "Classic",
+    "deck.classic.description": "Classic Bavarian-style figures: Obers, Unters and Kings",
 
     // Pause menu in the game
     "pause.heading": "Paused",
@@ -68,9 +71,10 @@ export default {
     "profile.gamesPlayed": "Games played",
     "profile.saved": "{amount} saved",
     "profile.badgeLabel": "Your profile: {name}, {amount} coins saved",
-    "profile.welcomeHeading": "Welcome to the Alm!",
+    "profile.welcomeHeading": "Welcome!",
     "profile.welcomeText": "What's your name, and how do you look?",
     "profile.namePlaceholder": "Your name",
+    "profile.chooseDeck": "Choose your cards",
     "profile.welcomeContinue": "Continue",
 
     // Deck screen
