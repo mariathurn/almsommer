@@ -27,6 +27,14 @@ const SOLO_TOUT_HIGH_TRUMPS = 5;
 
 // --- Announcing -------------------------------------------------------------
 
+// The sheep to call in a Sheep Game, out of the callable suits: the colour we
+// hold least of, so the partner can take it. Null if none can be called.
+export function suggestCalledAce(hand, callable) {
+    if (!callable.length) return null;
+    const held = (suit) => count(hand, (c) => c.suit === suit && !isTrumpForGame(c, "Sau Spiel"));
+    return callable.reduce((best, suit) => (held(suit) < held(best) ? suit : best));
+}
+
 // The game this hand wants to announce, if it beats `minRank` (the best game
 // announced so far), or null to pass. Hands have six cards; 12 of the 24 cards
 // are trumps in a Sheep Game or Solo, so three trumps is an average hand.
@@ -64,14 +72,7 @@ export function decideAnnouncement(hand, minRank = 0) {
     const sheepHigh = count(sheepTrumps, (card) => card.rank === "O" || card.rank === "U");
     const callable = ["bell", "acorn", "leaf"].filter((suit) => canCallAce(suit, hand));
     if (callable.length && (sheepTrumps.length >= 4 || (sheepTrumps.length >= 3 && sheepHigh >= 2))) {
-        // Call the sheep of the colour we hold least of, so the partner can take it.
-        const calledAce = callable.reduce((best, suit) =>
-            count(hand, (c) => c.suit === suit && !isTrumpForGame(c, "Sau Spiel")) <
-            count(hand, (c) => c.suit === best && !isTrumpForGame(c, "Sau Spiel"))
-                ? suit
-                : best
-        );
-        options.push({ game: "Sau Spiel", calledAce, rank: 1, strength: sheepTrumps.length });
+        options.push({ game: "Sau Spiel", calledAce: suggestCalledAce(hand, callable), rank: 1, strength: sheepTrumps.length });
     }
 
     const best = options

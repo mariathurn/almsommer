@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { chooseCard, decideAnnouncement, decideKontra, decideRetour, getGameRank, getWinningIndex } from "./players.js";
+import { chooseCard, decideAnnouncement, decideKontra, decideRetour, getGameRank, getWinningIndex, suggestCalledAce } from "./players.js";
 
 const c = (suit, rank) => ({ suit, rank });
 
@@ -91,4 +91,12 @@ test("Kontra with a strong hand against the announcers, Retour with a very stron
     const five = [c("acorn", "O"), c("bell", "U"), c("heart", "A"), c("heart", "9"), c("heart", "K"), c("leaf", "K")];
     assert.equal(decideRetour(five, "Sau Spiel"), true);
     assert.equal(decideRetour(strong, "Sau Spiel"), false);
+});
+
+test("The suggested sheep is the callable colour we hold least of", () => {
+    // One bell card, two leaf cards: call the bell sheep
+    const hand = [c("acorn", "O"), c("heart", "U"), c("bell", "9"), c("leaf", "K"), c("leaf", "9"), c("heart", "A")];
+    assert.equal(suggestCalledAce(hand, ["bell", "leaf"]), "bell");
+    assert.equal(suggestCalledAce(hand, ["leaf"]), "leaf");
+    assert.equal(suggestCalledAce(hand, []), null);
 });

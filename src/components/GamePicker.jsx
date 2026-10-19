@@ -13,6 +13,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import Svg, { Circle, Defs, Line, Pattern, Rect } from "react-native-svg";
 import { SuitIcon } from "./IllustratedCard";
+import { suggestCalledAce } from "../ai/players";
 import { TOUT_GAMES, canCallAce, withTout } from "../ai/schafkopfAI";
 import { rankDesign, suitColors } from "../data/cardDesign";
 import { gameTypes } from "../data/gameTypes";
@@ -241,6 +242,13 @@ function GamePicker({
         setToutChosen(false);
     }, [hand.length]);
 
+    // Choosing the Sheep Game picks a sheep right away (the one a good player
+    // would call); another callable one can still be tapped.
+    const needsSheep = selected === "Sau Spiel";
+    useEffect(() => {
+        if (needsSheep && !callable.includes(sheepSuit)) setSheepSuit(suggestCalledAce(hand, callable));
+    }, [needsSheep, callable.join(), sheepSuit]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Tout: offered for Solo and Dog Game, forced on when nothing less would do.
     const canTout = TOUT_GAMES.includes(selected);
     const toutLocked = canTout && toutOnly.includes(selected);
@@ -269,7 +277,6 @@ function GamePicker({
     const artHeight = compact ? 46 : tight ? 64 : 72;
 
     const selectedGame = games.find((g) => g.value === selected);
-    const needsSheep = selected === "Sau Spiel";
     const canConfirm = Boolean(selected) && (!needsSheep || Boolean(sheepSuit));
     const confirmLabel = !selectedGame
         ? t("picker.chooseGame")
