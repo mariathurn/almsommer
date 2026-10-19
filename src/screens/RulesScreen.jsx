@@ -28,6 +28,8 @@ const pages = [
     { cards: ["acorn-O", "bell-O", "leaf-U", "heart-A", "heart-9"], trump: true },
     { cards: ["bell-10", "bell-A", "bell-K", "heart-9"] },
     { cards: ["leaf-K", "leaf-10", "leaf-9"] },
+    // Kontra: a hand strong enough to think the caller will lose.
+    { cards: ["acorn-O", "leaf-O", "bell-U", "heart-A"], trump: true },
     { cards: ["acorn-A", "leaf-A", "bell-A"] },
 ];
 

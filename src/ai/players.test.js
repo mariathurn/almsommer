@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { chooseCard, decideAnnouncement, getGameRank, getWinningIndex } from "./players.js";
+import { chooseCard, decideAnnouncement, decideKontra, decideRetour, getGameRank, getWinningIndex } from "./players.js";
 
 const c = (suit, rank) => ({ suit, rank });
 
@@ -75,4 +75,20 @@ test("a hand with all four dogs and two sheep announces a Dog Game Tout", () => 
         { id: "bell-A", suit: "bell", rank: "A" },
     ];
     assert.equal(decideAnnouncement(hand)?.game, "Wenz:tout");
+});
+
+test("Kontra with a strong hand against the announcers, Retour with a very strong one", () => {
+    // Four Sheep Game trumps, two of them high: Kontra
+    const strong = [c("acorn", "O"), c("bell", "U"), c("heart", "A"), c("heart", "9"), c("bell", "9"), c("leaf", "K")];
+    assert.equal(decideKontra(strong, "Sau Spiel"), true);
+    // Two trumps: no Kontra
+    const weak = [c("heart", "9"), c("bell", "U"), c("acorn", "A"), c("leaf", "9"), c("bell", "9"), c("leaf", "K")];
+    assert.equal(decideKontra(weak, "Sau Spiel"), false);
+    // Against a Dog Game, two dogs are enough
+    assert.equal(decideKontra([c("acorn", "U"), c("leaf", "U"), c("bell", "9"), c("leaf", "9"), c("heart", "K"), c("bell", "K")], "Wenz"), true);
+
+    // Five trumps: Retour; four with only one shepherd: none
+    const five = [c("acorn", "O"), c("bell", "U"), c("heart", "A"), c("heart", "9"), c("heart", "K"), c("leaf", "K")];
+    assert.equal(decideRetour(five, "Sau Spiel"), true);
+    assert.equal(decideRetour(strong, "Sau Spiel"), false);
 });

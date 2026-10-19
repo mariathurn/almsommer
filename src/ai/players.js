@@ -80,6 +80,42 @@ export function decideAnnouncement(hand, minRank = 0) {
     return best ? { game: best.game, calledAce: best.calledAce ?? null } : null;
 }
 
+// --- Kontra and Retour ------------------------------------------------------
+
+// Trumps and high trumps (shepherds and dogs; only dogs in the Dog Game) in a hand.
+function trumpCount(hand, gameName) {
+    const trumps = hand.filter((card) => isTrumpForGame(card, gameName));
+    const high = count(trumps, (card) => card.rank === "O" || card.rank === "U");
+    const shepherds = count(trumps, (card) => card.rank === "O");
+    return { trumps: trumps.length, high, shepherds };
+}
+
+// An opponent of the announcing side says Kontra (doubling the game) when
+// their hand is strong enough to think the announcers won't make 61 points.
+export function decideKontra(hand, gameName) {
+    const { base, tout } = parseGame(gameName);
+    const { trumps, high, shepherds } = trumpCount(hand, gameName);
+    const aces = count(hand, (card) => card.rank === "A" && !isTrumpForGame(card, gameName));
+    // Against a Tout one trick is enough: a shepherd (or a dog in the Dog Game) will take one.
+    if (tout) return base === "Wenz" ? high >= 1 : shepherds >= 1 && trumps >= 2;
+    if (base === "Wenz") return high >= 2 || (high >= 1 && aces >= 2);
+    // One against three: three trumps with two high ones break a Solo.
+    if (base === "Solo") return trumps >= 3 && high >= 2;
+    // Sheep Game and Marriage, two against two.
+    return (trumps >= 4 && high >= 2) || (trumps >= 3 && shepherds >= 2);
+}
+
+// The caller answers a Kontra with Retour (doubling again) with a very strong hand.
+export function decideRetour(hand, gameName) {
+    const { base, tout } = parseGame(gameName);
+    if (tout) return true;
+    const { trumps, high, shepherds } = trumpCount(hand, gameName);
+    const aces = count(hand, (card) => card.rank === "A" && !isTrumpForGame(card, gameName));
+    if (base === "Wenz") return high >= 3 && aces >= 2;
+    if (base === "Solo") return trumps === 6 || (trumps >= 5 && high >= 4);
+    return trumps >= 5 || (trumps >= 4 && shepherds >= 2);
+}
+
 // --- Playing ----------------------------------------------------------------
 
 // Which played card wins the trick so far (index into `trick`).

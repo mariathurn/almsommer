@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { combinations } from "../assets/CardDeck";
 import { getTrickPoints, scoreRound } from "../ai/scoring";
-import { chooseCard, decideAnnouncement, getGameRank } from "../ai/players";
+import { chooseCard, decideAnnouncement, decideKontra, decideRetour, getGameRank } from "../ai/players";
 import { getGameType } from "../data/gameTypes";
 import {
     canPlayCard,
@@ -22,6 +22,11 @@ import {
 const AI_PLAY_DELAY = 900;
 // Milliseconds a computer player takes to decide whether to announce a game.
 const AI_BID_DELAY = 1100;
+// While Maria can answer a Kontra with Retour, the others play slower, so she
+// has time to decide.
+const AI_PLAY_DELAY_RETOUR = 2600;
+// Milliseconds the computer caller takes to answer a Kontra.
+const AI_RETOUR_DELAY = 600;
 
 const initialPlayers = {
     south: [],
@@ -95,7 +100,8 @@ const getTrickWinner = (cards, gameName = "Pass") => {
 
 // paused: while true the computer players wait (the pause menu is open);
 // a pending move is cancelled and scheduled again on resume.
-function useSchafkopfGame({ paused = false } = {}) {
+// allowDoubling: whether Kontra and Retour can be said (not in lessons).
+function useSchafkopfGame({ paused = false, allowDoubling = true } = {}) {
     const [players, setPlayers] = useState(initialPlayers);
     // Hands as dealt. Teams are derived from these, because the called ace
     // leaves its owner's hand once it is played.
@@ -133,6 +139,8 @@ function useSchafkopfGame({ paused = false } = {}) {
     // A marriage offer being answered, before announcing:
     // { offerer, stage: "offer" (Maria deciding to offer) | "ask", order, index, lead, declinedBy }
     const [marriageOffer, setMarriageOffer] = useState(null);
+    // Kontra and Retour, each doubling the game: { kontra: seat | null, retour: bool }.
+    const [doubling, setDoubling] = useState({ kontra: null, retour: false });
     const aiTimeoutRef = useRef(null);
     const isProcessingRef = useRef(false);  // Prevent concurrent plays
     const gameStateRef = useRef({ players: initialPlayers, currentTurn: "south", playedCards: [] });
@@ -226,6 +234,7 @@ function useSchafkopfGame({ paused = false } = {}) {
         setLastTrick(null);
         setRoundResult(null);
         setMarriage(null);
+        setDoubling({ kontra: null, retour: false });
         // Every round is declared anew after the deal.
         setSelectedGame("Pass");
         setCalledAce(null);
@@ -466,10 +475,62 @@ function useSchafkopfGame({ paused = false } = {}) {
                     callerTeam,
                     points: nextPoints,
                     tricks: nextCounts,
+                    doubles: (doubling.kontra ? 1 : 0) + (doubling.retour ? 1 : 0),
                 }),
+                kontra: Boolean(doubling.kontra),
+                retour: doubling.retour,
             });
         }
-    }, [playedCards, trickWinner, players, trickPoints, trickCounts, dealtHands, selectedGame, teams, caller, humanPlayer]);
+    }, [playedCards, trickWinner, players, trickPoints, trickCounts, dealtHands, selectedGame, teams, caller, humanPlayer, doubling]);
+
+    // --- Kontra and Retour ---------------------------------------------------
+    // Both can be said until the last card of the first trick is played. Only
+    // an opponent of the announcing side says Kontra (not the partner in a
+    // Sheep Game), before laying their own first card; the caller can answer
+    // with Retour. Not in the Cowards Game, which nobody announced.
+    const doublingOpen =
+        allowDoubling &&
+        !bidding &&
+        !marriageOffer &&
+        Boolean(caller) &&
+        teams.callerTeam.includes(caller) &&
+        !["Pass", "Ramsch"].includes(parseGame(selectedGame).base) &&
+        !lastTrick &&
+        playedCards.length < playerOrder.length;
+    const canKontra = (seat) =>
+        doublingOpen &&
+        !doubling.kontra &&
+        !teams.callerTeam.includes(seat) &&
+        !playedCards.some((played) => played.player === seat);
+    const canRetour = (seat) => doublingOpen && Boolean(doubling.kontra) && !doubling.retour && seat === caller;
+    const humanCanRetour = canRetour(humanPlayer);
+
+    const sayKontra = () => {
+        if (canKontra(humanPlayer)) setDoubling((current) => ({ ...current, kontra: humanPlayer }));
+    };
+    const sayRetour = () => {
+        if (humanCanRetour) setDoubling((current) => ({ ...current, retour: true }));
+    };
+
+    // A computer opponent decides on Kontra when its turn in the first trick
+    // comes, before playing its card.
+    const aiKontraSeat = currentTurn && currentTurn !== humanPlayer && canKontra(currentTurn) ? currentTurn : null;
+    useEffect(() => {
+        if (paused || !aiKontraSeat) return;
+        if (decideKontra(players[aiKontraSeat], selectedGame)) {
+            setDoubling((current) => (current.kontra ? current : { ...current, kontra: aiKontraSeat }));
+        }
+    }, [paused, aiKontraSeat]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // A computer caller answers a Kontra.
+    const aiRetourSeat = caller && caller !== humanPlayer && canRetour(caller) ? caller : null;
+    useEffect(() => {
+        if (paused || !aiRetourSeat) return undefined;
+        const timer = setTimeout(() => {
+            if (decideRetour(players[aiRetourSeat], selectedGame)) setDoubling((current) => ({ ...current, retour: true }));
+        }, AI_RETOUR_DELAY);
+        return () => clearTimeout(timer);
+    }, [paused, aiRetourSeat, doubling.kontra]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const playCard = useCallback(
         (playerName, cardIndex) => {
@@ -540,7 +601,7 @@ function useSchafkopfGame({ paused = false } = {}) {
                 }
                 isProcessingRef.current = false;  // Mark as done processing
                 aiTimeoutRef.current = null;
-            }, AI_PLAY_DELAY);
+            }, humanCanRetour ? AI_PLAY_DELAY_RETOUR : AI_PLAY_DELAY);
 
             return () => {
                 if (aiTimeoutRef.current) {
@@ -551,7 +612,7 @@ function useSchafkopfGame({ paused = false } = {}) {
             };
         }
         return undefined;
-    }, [paused, currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, marriageOffer, revealCalledAceIfNeeded]);
+    }, [paused, currentTurn, humanPlayer, players, playedCards, selectedGame, calledAce, caller, teams, revealedAceOwner, bidding, marriageOffer, revealCalledAceIfNeeded, humanCanRetour]);
 
     return {
         players,
@@ -606,6 +667,13 @@ function useSchafkopfGame({ paused = false } = {}) {
         bidding: bidding && { seat: bidding.order[bidding.index], best: bidding.best },
         lastBid,
         humanBid,
+        // Kontra and Retour: who said Kontra, whether Retour was said, and
+        // whether Maria can say either right now.
+        doubling,
+        canSayKontra: canKontra(humanPlayer),
+        canSayRetour: humanCanRetour,
+        sayKontra,
+        sayRetour,
     };
 }
 

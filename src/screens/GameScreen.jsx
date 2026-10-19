@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import CoachBubble from "../components/CoachBubble";
 import GameHeader from "../components/GameHeader";
 import { LastTrickPanel } from "../components/LastTrick";
@@ -19,7 +19,7 @@ import { getGameType } from "../data/gameTypes";
 import { t } from "../i18n";
 import { cardName } from "../i18n/names";
 import { getGameRank } from "../ai/players";
-import { colors, fillParent, getTableLayout } from "../theme";
+import { colors, fillParent, fonts, getTableLayout, softShadow } from "../theme";
 import { sounds } from "../audio/sounds";
 import useHotkey from "../hooks/useHotkey";
 
@@ -76,7 +76,12 @@ function GameScreen({
     bidding,
     lastBid,
     humanBid,
-  } = useSchafkopfGame({ paused: isPaused || showLastTrick || tourStep !== null });
+    doubling,
+    canSayKontra,
+    canSayRetour,
+    sayKontra,
+    sayRetour,
+  } = useSchafkopfGame({ paused: isPaused || showLastTrick || tourStep !== null, allowDoubling: !lesson });
 
   // A card landing on the table, and a finished trick being collected.
   const previousTrickSizeRef = useRef(0);
@@ -187,6 +192,15 @@ function GameScreen({
         ? t("marriage.yourAnswer")
         : t("bid.deciding", { name: playerName(marriageSeat) })
     : null;
+  // Kontra and Retour: shown on the name tags, and in the banner during the first trick.
+  const doublingCall = (seat) =>
+    doubling.kontra === seat ? t("doubling.kontra") : doubling.retour && seat === caller ? t("doubling.retour") : null;
+  const doublingNote =
+    doubling.kontra && !lastTrick
+      ? doubling.retour
+        ? t("doubling.retourNote", { name: playerName(caller) })
+        : t("doubling.kontraNote", { name: playerName(doubling.kontra) })
+      : null;
   const biddingNote = bidding
     ? [lastBidText, biddingSeat === "south" ? t("bid.yourSay") : t("bid.deciding", { name: playerName(biddingSeat) })]
       .filter(Boolean)
@@ -321,6 +335,7 @@ function GameScreen({
             : roundResult.schneider
               ? t("result.schneider")
               : null,
+        roundResult.retour ? t("doubling.retour") : roundResult.kontra ? t("doubling.kontra") : null,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -421,7 +436,7 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
             marriagePartnerName={marriage?.partner ? playerName(marriage.partner) : null}
             caller={caller}
             title={marriageTitle ?? biddingTitle}
-            note={marriageAskNote ?? biddingNote ?? marriageNote}
+            note={marriageAskNote ?? biddingNote ?? doublingNote ?? marriageNote}
             onShowLastTrick={() => setShowLastTrick(true)}
             hasLastTrick={Boolean(lastTrick)}
           />
@@ -473,6 +488,7 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
                   isTrickWinner={isTrickComplete && trickWinner === seat}
                   isHighlighted={marriagePartner === seat}
                   score={sessionScores?.[seat] ?? 0}
+                  call={doublingCall(seat)}
                 />
               ))}
 
@@ -583,7 +599,25 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
                 trumpGame={trumpGame}
                 highlightTrumps={Boolean(showPicker && previewGame)}
                 calledAce={selectedGame === "Sau Spiel" ? calledAce : null}
+                call={doublingCall("south")}
               />
+
+              {/* Kontra or Retour, only while you can still say it. */}
+              {canSayKontra || canSayRetour ? (
+                <Pressable
+                  onPress={canSayKontra ? sayKontra : sayRetour}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(canSayKontra ? "doubling.kontraButton" : "doubling.retourButton")}
+                  style={({ pressed, hovered }) => [
+                    styles.doublingButton,
+                    layout.portrait ? styles.doublingButtonPhone : styles.doublingButtonWide,
+                    (pressed || hovered) && styles.doublingButtonActive,
+                  ]}
+                >
+                  <Text style={styles.doublingLabel}>{t(canSayKontra ? "doubling.kontraButton" : "doubling.retourButton")}</Text>
+                  <Text style={styles.doublingHint}>{t("doubling.hint")}</Text>
+                </Pressable>
+              ) : null}
 
               {/* A finished trick stays until you tap anywhere on the table. */}
               {isTrickComplete ? (
@@ -651,6 +685,40 @@ const styles = StyleSheet.create({
   scrim: {
     ...fillParent,
     backgroundColor: colors.scrim,
+  },
+  doublingButton: {
+    position: "absolute",
+    zIndex: 5,
+    alignItems: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2.5,
+    borderColor: colors.ink,
+    backgroundColor: colors.hay,
+    ...softShadow,
+  },
+  doublingButtonWide: {
+    right: 24,
+    bottom: 24,
+  },
+  doublingButtonPhone: {
+    right: 10,
+    bottom: 64,
+  },
+  doublingButtonActive: {
+    transform: [{ scale: 1.05 }],
+  },
+  doublingLabel: {
+    fontFamily: fonts.hand,
+    fontSize: 30,
+    lineHeight: 34,
+    color: colors.ink,
+  },
+  doublingHint: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.ink,
   },
   pickerSlot: {
     position: "absolute",

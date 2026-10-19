@@ -15,6 +15,8 @@ export const SCHNEIDER_BONUS = 5;
 export const SCHWARZ_BONUS = 5;
 // A Tout (Solo or Dog Game) doubles the game's value instead.
 export const TOUT_FACTOR = 2;
+// Kontra and Retour each double the value once more.
+export const DOUBLING_FACTOR = 2;
 
 export function getCardPoints(card) {
     return CARD_POINTS[card.rank] ?? 0;
@@ -48,8 +50,11 @@ const zero = () => Object.fromEntries(players.map((p) => [p, 0]));
  * Tout ("Solo:leaf:tout", "Wenz:tout"): the soloist wins only if the
  * opponents take no trick at all, whatever the points. Its value is doubled,
  * and Schneider and Schwarz don't count on top.
+ *
+ * doubles: how often the game was doubled by Kontra (1) and Retour (2); each
+ * doubles the final value. There is no Kontra in the Cowards Game.
  */
-export function scoreRound({ gameName, coins, callerTeam = [], points, tricks = null }) {
+export function scoreRound({ gameName, coins, callerTeam = [], points, tricks = null, doubles = 0 }) {
     const tout = String(gameName).split(":").includes("tout");
     const deltas = zero();
 
@@ -78,9 +83,9 @@ export function scoreRound({ gameName, coins, callerTeam = [], points, tricks = 
     const schwarz = !tout && Boolean(tricks) && (sideTricks(callers) === 0 || sideTricks(opponents) === 0);
     const schneider =
         !tout && (schwarz || callerPoints <= SCHNEIDER_MAX.callers || opponentPoints <= SCHNEIDER_MAX.opponents);
-    const value = tout
-        ? coins * TOUT_FACTOR
-        : coins + (schneider ? SCHNEIDER_BONUS : 0) + (schwarz ? SCHWARZ_BONUS : 0);
+    const value =
+        (tout ? coins * TOUT_FACTOR : coins + (schneider ? SCHNEIDER_BONUS : 0) + (schwarz ? SCHWARZ_BONUS : 0)) *
+        DOUBLING_FACTOR ** doubles;
 
     if (callers.length === 2) {
         // Two against two: each player gains or loses the reward once.

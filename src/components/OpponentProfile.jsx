@@ -58,7 +58,8 @@ export function CoinBox({ coins, scale = 1, style }) {
 // tagSide "right" puts the name tag beside the portrait instead of below it
 // (the player at the top in the web view), with the coins moved to the left.
 // isHighlighted: the portrait glows gold (e.g. this player just accepted your marriage).
-function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinner, isHighlighted = false, size = 70, tagSide = "below" }) {
+// call: "Kontra" or "Retour", if they said it.
+function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinner, isHighlighted = false, size = 70, tagSide = "below", call = null }) {
     const beside = tagSide === "right";
     const portrait = opponentPortraits[seat];
     const known = status && status !== "Unknown";
@@ -81,7 +82,7 @@ function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinn
 
             <DarkNameTag
                 name={name}
-                status={known ? statusName(status) : null}
+                status={[known ? statusName(status) : null, call].filter(Boolean).join(" · ") || null}
                 isTrickWinner={isTrickWinner}
                 scale={scale}
                 style={beside && styles.tagBeside}

@@ -100,6 +100,8 @@ function PlayerPanel({
     selectedCardId = null,
     selectableIds = null,
     isHighlighted = false,
+    // "Kontra" or "Retour", if this player said it.
+    call = null,
 }) {
     // Larger profiles and tags in the web (landscape) view.
     const scale = layout.portrait ? 1 : PROFILE_SCALE;
@@ -109,7 +111,7 @@ function PlayerPanel({
     const tag = (
         <DarkNameTag
             name={name}
-            status={[statusName(status), badge].filter(Boolean).join(" · ") || null}
+            status={[statusName(status), badge, call].filter(Boolean).join(" · ") || null}
             isCurrentTurn={isCurrentTurn}
             isTrickWinner={isTrickWinner}
             scale={scale}
@@ -147,6 +149,7 @@ function PlayerPanel({
                     isCurrentTurn={isCurrentTurn}
                     isTrickWinner={isTrickWinner}
                     isHighlighted={isHighlighted}
+                    call={call}
                 />
             </View>
         );

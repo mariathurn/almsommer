@@ -151,3 +151,19 @@ test("Tout: won only if the opponents take no trick, at double value", () => {
     assert.deepEqual(lost.deltas, { south: -120, west: 40, north: 40, east: 40 });
     assert.equal(sum(lost.deltas), 0);
 });
+
+test("Kontra doubles the value, Retour doubles it again", () => {
+    const round = {
+        gameName: "Sau Spiel",
+        coins: 5,
+        callerTeam: ["south", "north"],
+        points: { south: 40, north: 21, west: 30, east: 29 },
+    };
+    assert.equal(scoreRound({ ...round, doubles: 1 }).value, 10);
+    const retour = scoreRound({ ...round, doubles: 2 });
+    assert.equal(retour.value, 20);
+    assert.deepEqual(retour.deltas, { south: 20, west: -20, north: 20, east: -20 });
+    // Schneider counts before doubling: (5 + 5) × 2
+    const schneider = scoreRound({ ...round, points: { south: 60, north: 31, west: 20, east: 9 }, doubles: 1 });
+    assert.equal(schneider.value, 20);
+});
