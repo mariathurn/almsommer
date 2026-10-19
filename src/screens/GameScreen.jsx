@@ -403,7 +403,11 @@ function GameScreen({
       // While the others announce (and until the first card) there is no tip:
       // it would only flash up for a moment.
       if (!gameType) return needsGame ? { text: t("tutorial.announce") } : {};
-      if (isTrickComplete) return { text: t("tutorial.collect") };
+      // The trick's winner leads the next one; after the last trick comes the result.
+      if (isTrickComplete) {
+        if (players.south.length === 0) return { text: t("tutorial.collectLast") };
+        return { text: trickWinner === "south" ? t("tutorial.collectYou") : t("tutorial.collect", { name: playerName(trickWinner) }) };
+      }
       if (guidedCard) return { text: t(`tutorial.turn${7 - players.south.length}`) };
       return playedCards.length || players.south.length < 6 ? { text: t("tutorial.wait") } : {};
     }
