@@ -10,7 +10,8 @@ import AchievementToast from "../components/AchievementToast";
 import PausePanel from "../components/PausePanel";
 import PlayerPanel from "../components/PlayerPanel";
 import TableCenter from "../components/TableCenter";
-import { TourOverlay, TourProvider } from "../components/Tour";
+import { TourOverlay, TourProvider, measureTarget } from "../components/Tour";
+import { useStage } from "../components/Stage";
 import useSchafkopfGame from "../hooks/useSchafkopfGame";
 import { TOUT_GAMES, getSauSpielStatus, isTrumpForGame, parseGame, withTout } from "../ai/schafkopfAI";
 import { dealScenario } from "../data/devScenarios";
@@ -51,6 +52,9 @@ function GameScreen({
   const [tourStep, setTourStep] = useState(null);
   const tourShownRef = useRef(false);
   const shellRef = useRef(null);
+  // Parts of the screen measured for the tour and for collecting tricks.
+  const tourTargets = useRef({});
+  const { scale: stageScale } = useStage();
   useHotkey("Escape", () => (showLastTrick ? setShowLastTrick(false) : setIsPaused((paused) => !paused)), tourStep === null);
   const {
     players,
@@ -84,13 +88,12 @@ function GameScreen({
     sayRetour,
   } = useSchafkopfGame({ paused: isPaused || showLastTrick || tourStep !== null, allowDoubling: !lesson });
 
-  // A card landing on the table, and a finished trick being collected.
+  // A card landing on the table (collecting a trick has its sound in startCollect).
   const previousTrickSizeRef = useRef(0);
   useEffect(() => {
     const previous = previousTrickSizeRef.current;
     previousTrickSizeRef.current = playedCards.length;
     if (playedCards.length > previous) sounds.placeCard();
-    else if (previous === 4 && playedCards.length === 0) sounds.collectTrick();
   }, [playedCards.length]);
 
   // Add each finished round to the session balance exactly once.
@@ -361,6 +364,28 @@ function GameScreen({
   const tableLayout = tableSize ? getTableLayout(tableSize.width, tableSize.height) : null;
   const layout = tableLayout;
 
+  // Collecting a trick: its cards fly to the winner's portrait (your name tag
+  // for your own tricks), measured on screen, before the trick is cleared.
+  // collecting: where they fly, from the blanket's centre; null otherwise.
+  const [collecting, setCollecting] = useState(null);
+  const startCollect = async () => {
+    if (collecting || !isTrickComplete || !layout) return;
+    sounds.collectTrick();
+    const target = await measureTarget(tourTargets, trickWinner === "south" ? "name" : `profile-${trickWinner}`);
+    const table = await new Promise((resolve) =>
+      tableRef.current ? tableRef.current.measureInWindow((x, y) => resolve({ x, y })) : resolve(null)
+    );
+    if (!target || !table) return collectTrick();
+    setCollecting({
+      x: (target.x + target.width / 2 - table.x) / stageScale - layout.blanket.centerX,
+      y: (target.y + target.height / 2 - table.y) / stageScale - layout.blanket.centerY,
+    });
+  };
+  const finishCollect = () => {
+    setCollecting(null);
+    collectTrick();
+  };
+
   // Lessons: the coach's tip for what is happening now, and in the guided
   // game the one card you should play (the others are greyed out).
   const roundOver = isGameOver() && Boolean(roundResult);
@@ -439,7 +464,7 @@ function GameScreen({
 const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
 
   return (
-    <TourProvider>
+    <TourProvider targets={tourTargets}>
       <View style={styles.shell} ref={shellRef} collapsable={false}>
         <SceneBackground />
         <View onLayout={({ nativeEvent }) => setHeaderHeight(nativeEvent.layout.height)}>
@@ -487,6 +512,8 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
                 onDeal={handleDeal}
                 onChooseGame={() => setIsPickerOpen(true)}
                 trumpGame={trumpGame}
+                collectTo={collecting}
+                onCollected={finishCollect}
               />
 
               {opponents.map((seat) => (
@@ -639,10 +666,10 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
               ) : null}
 
               {/* A finished trick stays until you tap anywhere on the table. */}
-              {isTrickComplete ? (
+              {isTrickComplete && !collecting ? (
                 <Pressable
                   style={StyleSheet.absoluteFill}
-                  onPress={collectTrick}
+                  onPress={startCollect}
                   accessibilityRole="button"
                   accessibilityLabel={t("table.collectTrick")}
                 />

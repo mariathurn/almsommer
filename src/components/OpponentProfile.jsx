@@ -7,6 +7,7 @@ their turn; the tag lights up when they take a trick. */
 import { StyleSheet, Text, View } from "react-native";
 import { CoinIcon } from "./Coin";
 import Portrait from "./Portrait";
+import { TourTarget } from "./Tour";
 import WinnerGlow from "./WinnerGlow";
 import { formatCoins } from "./PlayerName";
 import { opponentPortraits } from "../data/portraits";
@@ -75,7 +76,10 @@ function OpponentProfile({ seat, name, status, coins, isCurrentTurn, isTrickWinn
                         (isCurrentTurn || isHighlighted) && styles.ringActive,
                     ]}
                 >
-                    <Portrait portrait={portrait} size={size} />
+                    {/* A collected trick flies here (TableCenter). */}
+                    <TourTarget id={`profile-${seat}`}>
+                        <Portrait portrait={portrait} size={size} />
+                    </TourTarget>
                     <CoinBox coins={coins} scale={scale} style={[styles.coinBoxOnRing, beside ? styles.coinBoxLeft : styles.coinBoxRight]} />
                 </View>
             </WinnerGlow>

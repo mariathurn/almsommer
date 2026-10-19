@@ -15,8 +15,11 @@ import { colors } from "../theme";
 
 const TourContext = createContext(null);
 
-export function TourProvider({ children }) {
-    const targets = useRef({});
+// targets: an optional ref of the parent's, so the parent can measure the
+// targets too (see measureTarget).
+export function TourProvider({ targets: given = null, children }) {
+    const own = useRef({});
+    const targets = given ?? own;
     return <TourContext.Provider value={targets}>{children}</TourContext.Provider>;
 }
 
@@ -33,6 +36,14 @@ export function TourTarget({ id, style, children }) {
             {children}
         </View>
     );
+}
+
+// A target's place in the window ({ x, y, width, height }), or null if it
+// isn't on screen.
+export function measureTarget(targets, id) {
+    const node = targets.current[id];
+    if (!node) return Promise.resolve(null);
+    return new Promise((resolve) => node.measureInWindow((x, y, width, height) => resolve({ x, y, width, height })));
 }
 
 const DIM = "rgba(12, 10, 8, 0.72)";

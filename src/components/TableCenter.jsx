@@ -1,9 +1,11 @@
 /* The picnic blanket in the middle of the table (or, on phones in portrait,
 a round paper disc), where the current trick is played. Each card lands on the side of the player who played it, and a full
-trick stays until it is collected. Between rounds the blanket holds the round
+trick stays until it is collected: then its cards fly together to the winner's
+portrait, shrink under it and fade out. Between rounds the blanket holds the round
 Deal button (and the result), and after the deal a round "Choose game" button. */
 
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
 import WinnerGlow from "./WinnerGlow";
@@ -14,6 +16,10 @@ import { cardTexture } from "../data/cardDesign";
 import { tableDisc } from "../data/uiArt";
 import { t } from "../i18n";
 import { cardShadow, colors, fonts, paper, softShadow } from "../theme";
+
+const useNativeDriver = Platform.OS !== "web";
+// Milliseconds a collected trick takes to fly to its winner.
+const COLLECT_DURATION = 650;
 
 // Where a played card sits relative to the blanket centre, as a share of the
 // card size, and its slight tilt.
@@ -135,7 +141,25 @@ function TableCenter({
     onDeal,
     onChooseGame,
     trumpGame = null,
+    // A trick being collected: where its winner is ({ x, y } from the blanket's
+    // centre); onCollected is called once the cards have flown there.
+    collectTo = null,
+    onCollected = null,
 }) {
+    const flight = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        if (!collectTo) return undefined;
+        flight.setValue(0);
+        const animation = Animated.timing(flight, {
+            toValue: 1,
+            duration: COLLECT_DURATION,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver,
+        });
+        animation.start(({ finished }) => finished && onCollected?.());
+        return () => animation.stop();
+    }, [collectTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const fanAbove = blanket.round && portrait;
     const cardHeight = fanAbove ? blanket.width * 0.68 : blanket.round ? blanket.width * 0.66 : Math.min(blanket.height * 0.6, blanket.width * 0.4);
     // Every card lands on its player's side, on phones as in the web view;
@@ -171,19 +195,25 @@ function TableCenter({
 
             {playedCards.map(({ player, card }, index) => {
                 const offset = offsets[player];
+                const from = { x: offset.x * cardHeight, y: offset.y * cardHeight };
+                // Collecting: all four slide together onto the winner's portrait,
+                // shrinking, and fade out at the end.
+                const move = (start, end) => (collectTo ? flight.interpolate({ inputRange: [0, 1], outputRange: [start, end] }) : start);
                 return (
-                    <View
+                    <Animated.View
                         key={player}
                         pointerEvents="none"
                         style={[
                             styles.playedCard,
                             // Cards stack in the order they were played.
                             { zIndex: index + 1 },
+                            collectTo && { opacity: flight.interpolate({ inputRange: [0, 0.65, 1], outputRange: [1, 1, 0] }) },
                             {
                                 transform: [
-                                    { translateX: offset.x * cardHeight },
-                                    { translateY: offset.y * cardHeight },
-                                    { rotate: `${offset.rotate}deg` },
+                                    { translateX: move(from.x, collectTo?.x) },
+                                    { translateY: move(from.y, collectTo?.y) },
+                                    { rotate: move(`${offset.rotate}deg`, "0deg") },
+                                    { scale: move(1, 0.3) },
                                 ],
                             },
                         ]}
@@ -202,7 +232,7 @@ function TableCenter({
                                 gameName={trumpGame}
                             />
                         </WinnerGlow>
-                    </View>
+                    </Animated.View>
                 );
             })}
 
