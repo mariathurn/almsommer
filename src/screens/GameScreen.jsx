@@ -381,7 +381,6 @@ function GameScreen({
       return guided
         ? {
             text: t("tutorial.done"),
-            placement: "top",
             actions: [
               { label: t("tutorial.practice"), onPress: () => onLessonAction?.("practice") },
               { label: t("tutorial.continue"), onPress: () => onLessonAction?.("continue"), primary: true },
@@ -389,7 +388,6 @@ function GameScreen({
           }
         : {
             text: t("practice.done"),
-            placement: "top",
             actions: [
               { label: t("practice.back"), onPress: () => onLessonAction?.("practice") },
               { label: t("practice.again"), onPress: () => onLessonAction?.("again"), primary: true },
@@ -398,10 +396,12 @@ function GameScreen({
     }
     if (guided) {
       if (!hasCards) return { text: t("tutorial.deal") };
-      if (!gameType) return { text: needsGame ? t("tutorial.announce") : t("tutorial.wait") };
+      // While the others announce (and until the first card) there is no tip:
+      // it would only flash up for a moment.
+      if (!gameType) return needsGame ? { text: t("tutorial.announce") } : {};
       if (isTrickComplete) return { text: t("tutorial.collect") };
       if (guidedCard) return { text: t(`tutorial.turn${7 - players.south.length}`) };
-      return { text: t("tutorial.wait") };
+      return playedCards.length || players.south.length < 6 ? { text: t("tutorial.wait") } : {};
     }
     const id = lesson.lesson.id;
     if (!gameType) return { text: `${t(`lesson.${id}.goal`)} ${t(`lesson.${id}.tip1`)}` };
@@ -644,7 +644,7 @@ const pickerTop = (layout?.portrait ? 8 : 40) - headerHeight;
         <AchievementToast ids={newAchievements} onDone={() => setNewAchievements([])} />
 
         {lesson && coach.text && !isPaused && !showLastTrick && tourStep === null ? (
-          <CoachBubble text={coach.text} actions={coach.actions} placement={coach.placement} wideBottom={showPicker} />
+          <CoachBubble text={coach.text} actions={coach.actions} placement={showPicker ? "bottom" : "top"} wideBottom={showPicker} />
         ) : null}
 
         {tourStep !== null && !isPaused ? (

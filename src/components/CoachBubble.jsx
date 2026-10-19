@@ -1,8 +1,8 @@
 /* The tip from the old shepherd during the guided game and practice
-rounds: his portrait and a speech bubble, at the bottom over your hand (on
-phones) or top left under the Menu button (on the web, where the large text
-would cover your cards; bottom left while the game panel is open at the top),
-so the table stays clear.
+rounds: his portrait and a speech bubble, under the banner (on phones and
+narrow windows, over the other players) or top left under the Menu button
+(on the web), so it covers neither your cards nor the table. While the game
+panel is open at the top it moves to the bottom instead.
 `actions` are buttons under the text (e.g. at the end of the round). */
 
 import { StyleSheet, Text, View } from "react-native";
@@ -15,10 +15,9 @@ import { colors, fonts, softShadow } from "../theme";
 
 const coach = portraits.find((p) => p.id === "shepherd-bell");
 
-// placement "top": on phones under the banner instead (at the end of a round,
-// when the result sits where the hand was). wideBottom: on the web at the
-// bottom left instead (the game panel is open).
-function CoachBubble({ text, actions = [], placement = "bottom", wideBottom = false }) {
+// placement "bottom": on phones over your hand instead. wideBottom: on the
+// web at the bottom left instead.
+function CoachBubble({ text, actions = [], placement = "top", wideBottom = false }) {
     const { isPortrait, width } = useStage();
     if (!text) return null;
 
@@ -28,7 +27,7 @@ function CoachBubble({ text, actions = [], placement = "bottom", wideBottom = fa
                 styles.slot,
                 // On the web it ends left of the player at the top (centred).
                 isPortrait ? styles.slotPhone : [styles.slotWide, { width: Math.min(520, width / 2 - 145) }],
-                placement === "top" && isPortrait && styles.slotPhoneTop,
+                placement !== "bottom" && isPortrait && styles.slotPhoneTop,
                 !isPortrait && (wideBottom ? styles.slotWideBottom : styles.slotWideTop),
             ]}
             pointerEvents="box-none"
