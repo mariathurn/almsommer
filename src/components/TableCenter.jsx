@@ -1,7 +1,7 @@
 /* The picnic blanket in the middle of the table (or, on phones in portrait,
 a round paper disc), where the current trick is played. Each card lands on the side of the player who played it, and a full
-trick stays until it is collected: then its cards fly together to the winner's
-portrait, shrink under it and fade out. Between rounds the blanket holds the round
+trick stays until it is collected: then its cards are pushed together into a
+pile, which flies to the winner's portrait, shrinks under it and fades out. Between rounds the blanket holds the round
 Deal button (and the result), and after the deal a round "Choose game" button. */
 
 import { useEffect, useRef } from "react";
@@ -18,8 +18,12 @@ import { t } from "../i18n";
 import { cardShadow, colors, fonts, paper, softShadow } from "../theme";
 
 const useNativeDriver = Platform.OS !== "web";
-// Milliseconds a collected trick takes to fly to its winner.
-const COLLECT_DURATION = 650;
+// Milliseconds a collected trick takes: first the cards are pushed together
+// into a pile (until GATHERED of the way), then the pile flies to its winner
+// and only fades once it is under the portrait (from FADE on).
+const COLLECT_DURATION = 1000;
+const GATHERED = 0.4;
+const FADE = 0.9;
 
 // Where a played card sits relative to the blanket centre, as a share of the
 // card size, and its slight tilt.
@@ -153,7 +157,7 @@ function TableCenter({
         const animation = Animated.timing(flight, {
             toValue: 1,
             duration: COLLECT_DURATION,
-            easing: Easing.inOut(Easing.cubic),
+            easing: Easing.inOut(Easing.sin),
             useNativeDriver,
         });
         animation.start(({ finished }) => finished && onCollected?.());
@@ -196,9 +200,11 @@ function TableCenter({
             {playedCards.map(({ player, card }, index) => {
                 const offset = offsets[player];
                 const from = { x: offset.x * cardHeight, y: offset.y * cardHeight };
-                // Collecting: all four slide together onto the winner's portrait,
-                // shrinking, and fade out at the end.
-                const move = (start, end) => (collectTo ? flight.interpolate({ inputRange: [0, 1], outputRange: [start, end] }) : start);
+                // Collecting: from its place into the pile in the middle (stacked
+                // slightly askew, like a gathered heap), then with the pile to the winner.
+                const pile = { x: index * 1.5, y: -index * 1.5, rotate: `${index % 2 ? 2 : -2}deg` };
+                const move = (start, gathered, end) =>
+                    collectTo ? flight.interpolate({ inputRange: [0, GATHERED, 1], outputRange: [start, gathered, end] }) : start;
                 return (
                     <Animated.View
                         key={player}
@@ -207,13 +213,13 @@ function TableCenter({
                             styles.playedCard,
                             // Cards stack in the order they were played.
                             { zIndex: index + 1 },
-                            collectTo && { opacity: flight.interpolate({ inputRange: [0, 0.65, 1], outputRange: [1, 1, 0] }) },
+                            collectTo && { opacity: flight.interpolate({ inputRange: [0, FADE, 1], outputRange: [1, 1, 0] }) },
                             {
                                 transform: [
-                                    { translateX: move(from.x, collectTo?.x) },
-                                    { translateY: move(from.y, collectTo?.y) },
-                                    { rotate: move(`${offset.rotate}deg`, "0deg") },
-                                    { scale: move(1, 0.3) },
+                                    { translateX: move(from.x, pile.x, (collectTo?.x ?? 0) + pile.x) },
+                                    { translateY: move(from.y, pile.y, (collectTo?.y ?? 0) + pile.y) },
+                                    { rotate: move(`${offset.rotate}deg`, pile.rotate, pile.rotate) },
+                                    { scale: move(1, 1, 0.3) },
                                 ],
                             },
                         ]}
