@@ -1,0 +1,15 @@
+Copyright (c) 2026 Maria Thurn. All rights reserved.
+
+This repository is published so that its source code can be viewed. No licence
+is granted to use, copy, modify, merge, publish, distribute, sublicense or sell
+any part of it – including the source code, the illustrations and card designs,
+the screenshots, and the Almsommer name and logo – without prior written
+permission from the copyright holder.
+
+Third-party material keeps its own licence:
+- Music and sound effects in src/assets/audio are from Pixabay and are used
+  under the Pixabay Content License (https://pixabay.com/service/license-summary/).
+- Fonts are used under the SIL Open Font License.
+- Dependencies installed through npm are covered by their own licences.
+
+Contact: mail@mariathurn.de
