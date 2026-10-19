@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getCardDeck } from "../data/cardDecks";
 import de from "./de";
 import en from "./en";
 
@@ -71,9 +72,13 @@ AsyncStorage.getItem(LANGUAGE_KEY)
     .catch(() => {});
 
 // A text in the current language. Falls back to English, then to the key,
-// so a missing translation shows up instead of breaking the screen.
+// so a missing translation shows up instead of breaking the screen. With the
+// classic deck chosen, a "<key>.classic" version (cards named Ober, Unter,
+// Ass …) is used where there is one.
 export function t(key, params = {}) {
-    const entry = dictionaries[language][key] ?? en[key];
+    const dictionary = dictionaries[language];
+    const classic = getCardDeck() === "classic" ? (dictionary[`${key}.classic`] ?? en[`${key}.classic`]) : undefined;
+    const entry = classic ?? dictionary[key] ?? en[key];
     if (entry === undefined) return key;
     if (typeof entry === "function") return entry(params);
     return entry.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));

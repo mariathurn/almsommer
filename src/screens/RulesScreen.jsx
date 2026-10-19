@@ -1,6 +1,8 @@
 /* The basic rules, a few pages to leaf through: shown on the very first
 start (then on to the guided first game) and from the Practice page.
-Each page has a title, a short text and a row of example cards. */
+Each page has a title, a short text and a row of example cards. Texts that
+name the cards have a version for the classic deck (see t() in i18n). Large
+text and cards, so everyone can read them. */
 
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -9,8 +11,9 @@ import Card from "../components/Card";
 import { PanelButton } from "../components/SettingsPanel";
 import SceneBackground from "../components/SceneBackground";
 import { useStage } from "../components/Stage";
+import { useCardDeck } from "../data/cardDecks";
 import { t } from "../i18n";
-import { colors, fonts, softShadow } from "../theme";
+import { CARD_RATIO, cardShadow, colors, fonts, softShadow } from "../theme";
 
 const card = (id) => {
     const [suit, rank] = id.split("-");
@@ -19,8 +22,8 @@ const card = (id) => {
 
 // Example cards per page; `trump` cards get the gold trump frame.
 const pages = [
-    { cards: ["acorn-O", "leaf-A", "heart-U"] },
-    { cards: ["leaf-9", "leaf-K", "leaf-10", "leaf-A", "leaf-U", "leaf-O"] },
+    { cards: ["acorn-O", "leaf-O", "heart-O", "bell-O"] },
+    { cards: ["acorn-A", "leaf-A", "heart-A", "bell-A"] },
     { cards: ["bell-A", "bell-10", "bell-K", "bell-O", "bell-U", "bell-9"] },
     { cards: ["acorn-O", "bell-O", "leaf-U", "heart-A", "heart-9"], trump: true },
     { cards: ["bell-10", "bell-A", "bell-K", "heart-9"] },
@@ -28,15 +31,32 @@ const pages = [
     { cards: ["acorn-A", "leaf-A", "bell-A"] },
 ];
 
+// Cards as large as possible in the row: side by side when they fit,
+// otherwise overlapping like a hand (at least `SHOWN` of each card visible).
+const SHOWN = 0.5;
+function cardLayout(count, rowWidth, maxHeight) {
+    const maxWidth = maxHeight * CARD_RATIO;
+    const sideBySide = (rowWidth - 8 * (count - 1)) / count;
+    if (sideBySide >= maxWidth * 0.8) {
+        const width = Math.min(maxWidth, sideBySide);
+        return { height: width / CARD_RATIO, overlap: -8 };
+    }
+    const width = Math.min(maxWidth, rowWidth / (1 + SHOWN * (count - 1)));
+    const step = Math.min(width + 8, (rowWidth - width) / (count - 1));
+    return { height: width / CARD_RATIO, overlap: width - step };
+}
+
 // first: shown on the first start (the last button starts the guided game).
 // onDone(skipped): skipped is true when "Skip" was used.
 function RulesScreen({ onDone, first = false }) {
     const { width, isPortrait } = useStage();
+    // Re-render with the classic texts when the deck changes.
+    useCardDeck();
     const [index, setIndex] = useState(0);
     const page = pages[index];
     const last = index === pages.length - 1;
-    const panelWidth = Math.min(width - 32, 640);
-    const cardHeight = Math.min(isPortrait ? 120 : 150, ((panelWidth - 48) / page.cards.length - 8) / (500 / 784));
+    const panelWidth = Math.min(width - 32, 760);
+    const { height: cardHeight, overlap } = cardLayout(page.cards.length, panelWidth - 44, isPortrait ? 170 : 210);
     const n = index + 1;
 
     return (
@@ -64,14 +84,14 @@ function RulesScreen({ onDone, first = false }) {
                     <Text style={styles.title}>{t(`rules.page${n}.title`)}</Text>
 
                     <View style={[styles.cards, { minHeight: cardHeight }]}>
-                        {page.cards.map((id) => (
-                            <View key={id} style={styles.cardShadow}>
+                        {page.cards.map((id, i) => (
+                            <View key={id} style={[styles.cardShadow, i > 0 && { marginLeft: -overlap }]}>
                                 <Card card={card(id)} faceUp isTrump={page.trump} height={cardHeight} />
                             </View>
                         ))}
                     </View>
 
-                    <Text style={styles.text}>{t(`rules.page${n}.text`)}</Text>
+                    <Text style={[styles.text, !isPortrait && styles.textWide]}>{t(`rules.page${n}.text`)}</Text>
 
                     <View style={styles.dots}>
                         {pages.map((_, i) => (
@@ -123,14 +143,14 @@ const styles = StyleSheet.create({
     },
     kicker: {
         fontFamily: fonts.bodyBold,
-        fontSize: 13,
+        fontSize: 16,
         letterSpacing: 1.6,
         textTransform: "uppercase",
         color: colors.inkSoft,
     },
     skip: {
         fontFamily: fonts.bodyBold,
-        fontSize: 15,
+        fontSize: 18,
         color: colors.inkSoft,
         textDecorationLine: "underline",
     },
@@ -144,16 +164,19 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
-        gap: 8,
     },
     cardShadow: {
-        ...softShadow,
+        ...cardShadow,
     },
     text: {
         fontFamily: fonts.body,
-        fontSize: 18,
-        lineHeight: 25,
+        fontSize: 22,
+        lineHeight: 30,
         color: colors.ink,
+    },
+    textWide: {
+        fontSize: 25,
+        lineHeight: 34,
     },
     dots: {
         flexDirection: "row",
