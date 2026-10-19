@@ -28,6 +28,7 @@ import { startAmbience } from "./audio/sounds";
 import { getProfile, recordRound, useProfile } from "./data/profile";
 import { unlockAchievements } from "./data/achievementStore";
 import { useLanguage } from "./i18n";
+import { track } from "./analytics";
 
 // Screens, switched with plain state: "menu", "game", "achievements",
 // "deck" (the card deck, opened from the settings), "rules", "practice" and
@@ -63,7 +64,9 @@ function App() {
     setSessionScores((scores) =>
       Object.fromEntries(Object.entries(scores).map(([player, total]) => [player, total + (deltas[player] ?? 0)]))
     );
-    return unlockAchievements({ round, savings: getProfile().savings });
+    const fresh = unlockAchievements({ round, savings: getProfile().savings });
+    fresh.forEach((id) => track("achievement", { id }));
+    return fresh;
   };
   // Savings achievements also count savings from before they existed.
   useEffect(() => {
@@ -79,6 +82,7 @@ function App() {
   const [lesson, setLesson] = useState(null);
   const [gameKey, setGameKey] = useState(0);
   const startGame = (nextLesson = null) => {
+    track("game-start", { mode: nextLesson?.type ?? "play", lesson: nextLesson?.lesson?.id });
     setLesson(nextLesson);
     setGameKey((key) => key + 1);
     setScreen("game");
@@ -103,6 +107,7 @@ function App() {
     setRulesFirst(false);
     // Skipping on the first start skips the guided game too.
     if (skipped) {
+      track("rules-skipped");
       markTutorialDone();
       openMenu();
     } else {
@@ -111,7 +116,10 @@ function App() {
   };
   // The end of a lesson: play on for real, more practice, or the same again.
   const onLessonAction = (action) => {
-    if (lesson?.type === "guided") markTutorialDone();
+    if (lesson?.type === "guided") {
+      markTutorialDone();
+      track("tutorial-done");
+    }
     if (action === "continue") startGame(null);
     else if (action === "again") startGame(lesson);
     else setScreen("practice");

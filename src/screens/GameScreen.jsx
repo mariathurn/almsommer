@@ -22,6 +22,7 @@ import { getGameRank } from "../ai/players";
 import { colors, fillParent, fonts, getTableLayout, softShadow } from "../theme";
 import { sounds } from "../audio/sounds";
 import useHotkey from "../hooks/useHotkey";
+import { track } from "../analytics";
 
 const seats = ["north", "west", "east", "south"];
 const opponents = ["north", "west", "east"];
@@ -99,6 +100,14 @@ function GameScreen({
   useEffect(() => {
     if (roundResult && scoredRoundRef.current !== roundResult.id) {
       scoredRoundRef.current = roundResult.id;
+      const { gameName, callerTeam, winners } = roundResult;
+      track("round-finished", {
+        // "Solo:leaf" → "Solo", so all solos count together.
+        game: String(gameName).split(":")[0],
+        role: callerTeam.includes("south") ? "player" : callerTeam.length ? "opponent" : "everyone",
+        won: winners.includes("south"),
+        mode: lesson?.type ?? "play",
+      });
       // Lessons don't count for coins or achievements.
       if (lesson) return;
       const fresh = onRoundScored?.(roundResult) ?? [];
