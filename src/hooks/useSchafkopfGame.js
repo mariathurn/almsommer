@@ -484,10 +484,9 @@ function useSchafkopfGame({ paused = false, allowDoubling = true } = {}) {
     }, [playedCards, trickWinner, players, trickPoints, trickCounts, dealtHands, selectedGame, teams, caller, humanPlayer, doubling]);
 
     // --- Kontra and Retour ---------------------------------------------------
-    // Both can be said until the last card of the first trick is played. Only
-    // an opponent of the announcing side says Kontra (not the partner in a
-    // Sheep Game), before laying their own first card; the caller can answer
-    // with Retour. Not in the Cowards Game, which nobody announced.
+    // Both can be said until the last card of the first trick is played. Any
+    // opponent of the announcing side can say Kontra (not the partner in a
+    // Sheep Game), once per game; the caller can answer with Retour. Not in the Cowards Game, which nobody announced.
     const doublingOpen =
         allowDoubling &&
         !bidding &&
@@ -497,11 +496,7 @@ function useSchafkopfGame({ paused = false, allowDoubling = true } = {}) {
         !["Pass", "Ramsch"].includes(parseGame(selectedGame).base) &&
         !lastTrick &&
         playedCards.length < playerOrder.length;
-    const canKontra = (seat) =>
-        doublingOpen &&
-        !doubling.kontra &&
-        !teams.callerTeam.includes(seat) &&
-        !playedCards.some((played) => played.player === seat);
+    const canKontra = (seat) => doublingOpen && !doubling.kontra && !teams.callerTeam.includes(seat);
     const canRetour = (seat) => doublingOpen && Boolean(doubling.kontra) && !doubling.retour && seat === caller;
     const humanCanRetour = canRetour(humanPlayer);
 
