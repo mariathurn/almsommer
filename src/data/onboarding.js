@@ -1,5 +1,6 @@
-// What a new player has already seen, kept across app starts: the rules
-// shown on the very first start, and the guided first game.
+// What a new player has already seen, kept across app starts: the welcome
+// (choosing a name and portrait), the rules shown on the very first start,
+// and the guided first game.
 
 import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const ONBOARDING_KEY = "almsommer.onboarding";
 // loaded: false until the saved state is read, so the first start isn't
 // mistaken for a returning player (or the other way round).
-let state = { loaded: false, rulesSeen: false, tutorialDone: false };
+let state = { loaded: false, welcomeDone: false, rulesSeen: false, tutorialDone: false };
 const listeners = new Set();
 
 function emit() {
@@ -21,6 +22,7 @@ function save(change) {
     emit();
 }
 
+export const markWelcomeDone = () => save({ welcomeDone: true });
 export const markRulesSeen = () => save({ rulesSeen: true });
 export const markTutorialDone = () => save({ tutorialDone: true });
 

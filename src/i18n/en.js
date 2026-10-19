@@ -48,6 +48,7 @@ export default {
     "settings.cardDeck": "Card deck",
     "settings.viewCards": "View all cards ›",
     "settings.viewCardsLabel": "View the {deck} cards",
+    "settings.privacy": "Privacy & contact",
     "deck.almsommer.description": "Hats, staffs, grain, sheep, dogs and shepherds",
 
     // Pause menu in the game
@@ -67,6 +68,10 @@ export default {
     "profile.gamesPlayed": "Games played",
     "profile.saved": "{amount} saved",
     "profile.badgeLabel": "Your profile: {name}, {amount} coins saved",
+    "profile.welcomeHeading": "Welcome to the Alm!",
+    "profile.welcomeText": "What's your name, and how do you look?",
+    "profile.namePlaceholder": "Your name",
+    "profile.welcomeContinue": "Continue",
 
     // Deck screen
     "deck.title": "The Deck",

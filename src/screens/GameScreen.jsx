@@ -32,7 +32,7 @@ const opponents = ["north", "west", "east"];
 // | "again") picks what comes next.
 function GameScreen({
   onOpenMenu,
-  playerName: yourName = "Maria",
+  playerName: yourName = "",
   sessionScores,
   onRoundScored,
   lesson = null,

@@ -13,7 +13,8 @@ const OLD_SAVINGS_KEY = "almsommer.savings";
 export const portraitChoices = ["shepherd-acorn", "shepherd-heart", "shepherd-leaf", "shepherd-bell", "sheep-heart"];
 
 const defaults = {
-    name: "Maria",
+    // Chosen on the welcome screen before the first game.
+    name: "",
     portrait: "shepherd-acorn",
     // Coins won and lost over all rounds.
     savings: 0,

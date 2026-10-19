@@ -5,13 +5,15 @@ sound choices are saved, so they survive closing the app.
 The paper panel, the sound switches and the buttons are shared with the
 pause panel in the game. */
 
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import Card from "./Card";
 import { updateSoundSettings, useSoundSettings } from "../audio/sounds";
 import { DEFAULT_DECK, cardDecks } from "../data/cardDecks";
 import { languages, setLanguage, t, useLanguage } from "../i18n";
 import { colors, fillParent, fonts, softShadow } from "../theme";
+
+const PRIVACY_URL = "https://almsommer.mariathurn.de/privacy.html";
 
 function Switch({ label, hint, value, onChange }) {
     return (
@@ -107,15 +109,22 @@ export function SoundSwitches() {
 }
 
 // The panel's buttons: "primary" is ink with a gold edge, "secondary" is
-// outlined paper.
-export function PanelButton({ label, onPress, variant = "primary", style }) {
+// outlined paper. A disabled button is faded and can't be pressed.
+export function PanelButton({ label, onPress, variant = "primary", disabled = false, style }) {
     const primary = variant === "primary";
     return (
         <Pressable
             onPress={onPress}
+            disabled={disabled}
             accessibilityRole="button"
             accessibilityLabel={label}
-            style={({ pressed }) => [primary ? styles.done : styles.secondary, pressed && styles.donePressed, style]}
+            accessibilityState={{ disabled }}
+            style={({ pressed }) => [
+                primary ? styles.done : styles.secondary,
+                pressed && styles.donePressed,
+                disabled && { opacity: 0.4 },
+                style,
+            ]}
         >
             <Text style={[styles.doneLabel, !primary && styles.secondaryLabel]}>{label}</Text>
         </Pressable>
@@ -123,7 +132,8 @@ export function PanelButton({ label, onPress, variant = "primary", style }) {
 }
 
 // English or German, as two halves of one switch; the gold half is chosen.
-function LanguageChoice() {
+// Also on the welcome screen.
+export function LanguageChoice() {
     const language = useLanguage();
     return (
         <View style={styles.row}>
@@ -162,6 +172,14 @@ function SettingsPanel({ onClose, onViewDeck }) {
             ))}
 
             <PanelButton label={t("common.done")} onPress={onClose} />
+            <Pressable
+                onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
+                accessibilityRole="link"
+                accessibilityLabel={t("settings.privacy")}
+                hitSlop={8}
+            >
+                <Text style={[styles.rowHint, styles.privacyLink]}>{t("settings.privacy")}</Text>
+            </Pressable>
         </PaperPanel>
     );
 }
@@ -210,6 +228,10 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bodyBold,
         fontSize: 20,
         color: colors.ink,
+    },
+    privacyLink: {
+        textAlign: "center",
+        textDecorationLine: "underline",
     },
     rowHint: {
         fontFamily: fonts.body,

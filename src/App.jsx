@@ -19,7 +19,8 @@ import GameScreen from "./screens/GameScreen";
 import MenuScreen from "./screens/MenuScreen";
 import PracticeScreen from "./screens/PracticeScreen";
 import RulesScreen from "./screens/RulesScreen";
-import { markRulesSeen, markTutorialDone, useOnboarding } from "./data/onboarding";
+import WelcomeScreen from "./screens/WelcomeScreen";
+import { markRulesSeen, markTutorialDone, markWelcomeDone, useOnboarding } from "./data/onboarding";
 import usePreloadedCardArt from "./hooks/usePreloadedCardArt";
 import useHotkey from "./hooks/useHotkey";
 import { colors } from "./theme";
@@ -28,8 +29,9 @@ import { getProfile, recordRound, useProfile } from "./data/profile";
 import { unlockAchievements } from "./data/achievementStore";
 import { useLanguage } from "./i18n";
 
-// Screens, switched with plain state: "menu", "game", "achievements" and
-// "deck" (the card deck, opened from the settings).
+// Screens, switched with plain state: "menu", "game", "achievements",
+// "deck" (the card deck, opened from the settings), "rules", "practice" and
+// "welcome" (name and portrait, the first thing a new player sees).
 // Leaving the game unmounts it, so Play always starts a fresh table.
 function App() {
   const [screen, setScreen] = useState("menu");
@@ -80,15 +82,19 @@ function App() {
     setScreen("game");
   };
   // Rules: on the first start they lead into the guided game; from Practice
-  // they go back there.
+  // they go back there. Before them, a new player chooses a name and portrait.
   const [rulesFirst, setRulesFirst] = useState(false);
   const onboarding = useOnboarding();
   useEffect(() => {
     if (onboarding.loaded && !onboarding.rulesSeen && screen === "menu") {
       setRulesFirst(true);
-      setScreen("rules");
+      setScreen(onboarding.welcomeDone ? "rules" : "welcome");
     }
   }, [onboarding.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  const finishWelcome = () => {
+    markWelcomeDone();
+    setScreen("rules");
+  };
   const finishRules = (skipped) => {
     if (!rulesFirst) return setScreen("practice");
     markRulesSeen();
@@ -112,7 +118,7 @@ function App() {
   // Web shortcut: Esc back to the menu (in the game it opens the pause menu
   // instead). P to play is handled by the menu, so it gets its exit too.
   const ready = fontsLoaded && cardArtLoaded;
-  useHotkey("Escape", openMenu, ready && screen !== "menu" && screen !== "game" && !(screen === "rules" && rulesFirst));
+  useHotkey("Escape", openMenu, ready && screen !== "menu" && screen !== "game" && screen !== "welcome" && !(screen === "rules" && rulesFirst));
 
   // Meadow music on loop from the moment the app opens.
   useEffect(() => startAmbience(), []);
@@ -137,6 +143,8 @@ function App() {
               <DeckScreen onBack={openMenu} />
             ) : screen === "achievements" ? (
               <AchievementsScreen onBack={openMenu} />
+            ) : screen === "welcome" ? (
+              <WelcomeScreen onDone={finishWelcome} />
             ) : screen === "rules" ? (
               <RulesScreen first={rulesFirst} onDone={finishRules} />
             ) : screen === "practice" ? (

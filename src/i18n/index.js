@@ -30,6 +30,12 @@ function deviceLanguage() {
 let language = deviceLanguage();
 const listeners = new Set();
 
+// On the web, tell the browser (screen readers, translation) the page's language.
+function markPage() {
+    if (typeof document !== "undefined") document.documentElement.lang = language;
+}
+markPage();
+
 export function getLanguage() {
     return language;
 }
@@ -37,6 +43,7 @@ export function getLanguage() {
 export function setLanguage(next) {
     if (!dictionaries[next] || next === language) return;
     language = next;
+    markPage();
     AsyncStorage.setItem(LANGUAGE_KEY, next).catch(() => {});
     listeners.forEach((listener) => listener());
 }
@@ -57,6 +64,7 @@ AsyncStorage.getItem(LANGUAGE_KEY)
     .then((saved) => {
         if (saved && dictionaries[saved] && saved !== language) {
             language = saved;
+            markPage();
             listeners.forEach((listener) => listener());
         }
     })

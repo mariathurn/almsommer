@@ -60,6 +60,7 @@ export default {
     "settings.cardDeck": "Kartendeck",
     "settings.viewCards": "Alle Karten ansehen ›",
     "settings.viewCardsLabel": "Die {deck}-Karten ansehen",
+    "settings.privacy": "Datenschutz & Kontakt",
     "deck.almsommer.description": "Hüte, Stäbe, Korn, Schafe, Hunde und Schäfer",
 
     // Pausenmenü im Spiel
@@ -79,6 +80,10 @@ export default {
     "profile.gamesPlayed": "Gespielte Spiele",
     "profile.saved": "{amount} gespart",
     "profile.badgeLabel": "Dein Profil: {name}, {amount} Münzen gespart",
+    "profile.welcomeHeading": "Willkommen auf der Alm!",
+    "profile.welcomeText": "Wie heißt du, und wie siehst du aus?",
+    "profile.namePlaceholder": "Dein Name",
+    "profile.welcomeContinue": "Weiter",
 
     // Kartenansicht
     "deck.title": "Die Karten",
