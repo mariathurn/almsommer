@@ -241,14 +241,14 @@ export default {
     "picker.tileLabel": "{game}, {coins} coins",
 
     // Table
-    "table.deal": "deal",
-    "table.dealLabel": "Deal",
+    "table.deal": "deal\ncards",
+    "table.dealLabel": "Deal cards",
     "table.chooseGame": "choose\ngame",
     "table.chooseGameLabel": "Choose game",
     "table.collectTrick": "Collect the trick",
     "lastTrick.show": "Show the last trick",
     "lastTrick.heading": "Last trick",
-    "lastTrick.summary": "{name} took it · {points} points",
+    "lastTrick.summary": "{name} won it · {points} points",
     // Rules, guided first game and practice
     "menu.practice": "Practice",
     "menu.practiceLabel": "Practice",
@@ -275,7 +275,7 @@ export default {
     "rules.start": "Let's go",
     "rules.done": "Done",
     "tutorial.coach": "Tip",
-    "tutorial.deal": "Welcome to the table! We'll play a **practice round**; it doesn't count for your coins. Tap **“Deal”**.",
+    "tutorial.deal": "Welcome to the table! We'll play a **practice round**; it doesn't count for your coins. Tap **“Deal cards”**.",
     "tutorial.announce": "You hold **four trumps**: the blue shepherd, the red dog, the red sheep and the red grain. That's enough for a **Sheep Game**. Choose “Sheep Game” and call the **green sheep** – whoever holds it secretly plays with you.",
     "tutorial.wait": "It's the others' turn. Watch which cards they play.",
     "tutorial.collect": "The trick is full: the **strongest card** takes all four. **Tap the table.** Now it's {name}'s turn.",

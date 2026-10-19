@@ -3,12 +3,15 @@ a round paper disc), where the current trick is played. Each card lands on the s
 trick stays until it is collected: then its cards fly to the winner's
 portrait, turning their long side towards it and closing up into a pile on
 the way, and shrink under it and fade out. Between rounds the blanket holds the round
-Deal button (and the result), and after the deal a round "Choose game" button. */
+Deal button (and the result), and after the deal a round "Choose game" button.
+Between rounds the table shows the result (right under the other players)
+with a plain "Deal cards" button below it, in place of the blanket. */
 
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Image, Pattern, Rect, Defs } from "react-native-svg";
 import Card from "./Card";
+import { PanelButton } from "./SettingsPanel";
 import WinnerGlow from "./WinnerGlow";
 import { formatCoins } from "./PlayerName";
 import { isTrumpForGame } from "../ai/schafkopfAI";
@@ -19,6 +22,8 @@ import { t } from "../i18n";
 import { cardShadow, colors, fonts, paper, softShadow } from "../theme";
 
 const useNativeDriver = Platform.OS !== "web";
+// Width of the result and deal button between rounds.
+const DEAL_COLUMN = 340;
 // Milliseconds a collected trick takes to fly to its winner. The cards have
 // turned towards the winner after TURNED of the way, have closed up into a
 // pile after CLOSED, and only fade once under the portrait (from FADE on).
@@ -121,26 +126,6 @@ function ChooseGameButton({ size, onPress }) {
     );
 }
 
-// The "deal" button: the painted circle, lettered in the chosen language.
-function DealButton({ size, onPress }) {
-    return (
-        <Pressable
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityLabel={t("table.dealLabel")}
-            style={({ pressed, hovered }) => [
-                styles.paintedButton,
-                { width: size, height: size },
-                hovered && styles.roundButtonHovered,
-                pressed && styles.roundButtonPressed,
-            ]}
-        >
-            <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} />
-            <Text style={[styles.paintedLabel, { fontSize: size * 0.3, lineHeight: size * 0.34 }]}>{t("table.deal")}</Text>
-        </Pressable>
-    );
-}
-
 function TableCenter({
     blanket,
     portrait = false,
@@ -182,8 +167,6 @@ function TableCenter({
     // The round deal / choose game button replaces the table circle: on phones
     // it is exactly the circle's size, on the web a little smaller.
     const roundButtonSize = portrait ? blanket.width : blanket.width * 0.6;
-    // On a small (phone) blanket the result sits beside the Deal button.
-    const isSmall = blanket.height < 200 && !blanket.round;
 
     return (
         <View
@@ -200,7 +183,7 @@ function TableCenter({
             ]}
         >
             {/* Portrait: the painted deal / choose game button takes the disc's place. */}
-            {blanket.round && (canDeal || (needsGame && playedCards.length === 0)) ? null : blanket.round ? (
+            {canDeal || (blanket.round && needsGame && playedCards.length === 0) ? null : blanket.round ? (
                 <PaintedImage source={tableDisc} contentFit="contain" style={StyleSheet.absoluteFill} pointerEvents="none" />
             ) : (
                 <Gingham width={blanket.width} height={blanket.height} />
@@ -263,27 +246,29 @@ function TableCenter({
                 );
             })}
 
-            {playedCards.length === 0 && (canDeal || needsGame) ? (
-                <View style={[styles.center, isSmall && styles.centerRow]}>
+            {/* Between rounds: the result under the other players and a plain
+            button to deal, in the space of the (hidden) blanket. */}
+            {canDeal && playedCards.length === 0 ? (
+                <View
+                    style={[
+                        styles.dealColumn,
+                        { width: DEAL_COLUMN, left: (blanket.width - DEAL_COLUMN) / 2 },
+                        // Before the first round there is no result: the button in the middle.
+                        !gameResult && { top: blanket.height / 2 - 30 },
+                    ]}
+                >
                     {gameResult ? (
-                        <View
-                            style={[
-                                styles.note,
-                                isSmall && { maxWidth: blanket.width - buttonSize - 40 },
-                                // Phones: below the deal button, where the (now empty) hand was.
-                                blanket.round && canDeal && styles.noteBelowDisc,
-                            ]}
-                            pointerEvents="none"
-                        >
+                        <View style={[styles.note, styles.noteFull]} pointerEvents="none">
                             <Text style={styles.noteTitle}>{gameResult.message}</Text>
                             {gameResult.points ? <Text style={styles.noteText}>{gameResult.points}</Text> : null}
                             {gameResult.rows ? <ResultRows rows={gameResult.rows} /> : null}
                         </View>
                     ) : null}
-                    {canDeal ? <DealButton size={blanket.round ? roundButtonSize : buttonSize} onPress={onDeal} /> : null}
-                    {needsGame ? (
-                        <ChooseGameButton size={blanket.round ? roundButtonSize : buttonSize} onPress={onChooseGame} />
-                    ) : null}
+                    <PanelButton label={t("table.dealLabel")} onPress={onDeal} style={styles.dealButton} />
+                </View>
+            ) : playedCards.length === 0 && needsGame ? (
+                <View style={styles.center}>
+                    <ChooseGameButton size={blanket.round ? roundButtonSize : buttonSize} onPress={onChooseGame} />
                 </View>
             ) : null}
         </View>
@@ -368,22 +353,23 @@ const styles = StyleSheet.create({
         textAlign: "center",
         color: colors.ink,
     },
-    noteBelowDisc: {
+    // Phones between rounds: the result and the deal button, from the top of
+    // the disc's space down.
+    dealColumn: {
         position: "absolute",
-        top: "100%",
-        marginTop: 16,
-        zIndex: 2,
-        // Wider than the deal button it hangs from.
-        width: 300,
-        maxWidth: 300,
+        top: -24,
+        gap: 14,
+        alignItems: "stretch",
+    },
+    noteFull: {
+        maxWidth: "100%",
+    },
+    dealButton: {
+        marginTop: 0,
     },
     center: {
         alignItems: "center",
         gap: 10,
-    },
-    centerRow: {
-        flexDirection: "row",
-        paddingHorizontal: 10,
     },
     roundButtonHovered: {
         transform: [{ scale: 1.04 }],

@@ -257,14 +257,14 @@ export default {
     "picker.tileLabel": "{game}, {coins} Münzen",
 
     // Tisch
-    "table.deal": "Geben",
-    "table.dealLabel": "Geben",
+    "table.deal": "Karten\ngeben",
+    "table.dealLabel": "Karten geben",
     "table.chooseGame": "Spiel\nwählen",
     "table.chooseGameLabel": "Spiel wählen",
     "table.collectTrick": "Stich einsammeln",
     "lastTrick.show": "Letzten Stich ansehen",
     "lastTrick.heading": "Letzter Stich",
-    "lastTrick.summary": "{name} hat ihn gemacht · {points} Augen",
+    "lastTrick.summary": "{name} hat ihn gewonnen · {points} Augen",
     // Rules, guided first game and practice
     "menu.practice": "Üben",
     "menu.practiceLabel": "Üben",
@@ -291,7 +291,7 @@ export default {
     "rules.start": "Los geht's",
     "rules.done": "Fertig",
     "tutorial.coach": "Tipp",
-    "tutorial.deal": "Willkommen am Tisch! Wir spielen eine **Übungsrunde**, sie zählt nicht für deine Münzen. Tippe auf **„Geben“**.",
+    "tutorial.deal": "Willkommen am Tisch! Wir spielen eine **Übungsrunde**, sie zählt nicht für deine Münzen. Tippe auf **„Karten geben“**.",
     "tutorial.announce": "Du hast **vier Trümpfe**: den blauen Schäfer, den roten Hund, das rote Schaf und das rote Korn. Das reicht für ein **Schafspiel**. Wähle „Schafspiel“ und ruf das **grüne Schaf** – wer es hat, spielt heimlich mit dir.",
     "tutorial.wait": "Die anderen sind dran. Schau zu, welche Karten sie legen.",
     "tutorial.collect": "Der Stich ist voll: Die **stärkste Karte** gewinnt alle vier. **Tippe auf den Tisch.** Nun ist {name} dran.",
