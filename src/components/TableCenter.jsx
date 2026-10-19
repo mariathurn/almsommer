@@ -1,7 +1,8 @@
 /* The picnic blanket in the middle of the table (or, on phones in portrait,
 a round paper disc), where the current trick is played. Each card lands on the side of the player who played it, and a full
-trick stays until it is collected: then its cards are pushed together into a
-pile, which flies to the winner's portrait, shrinks under it and fades out. Between rounds the blanket holds the round
+trick stays until it is collected: then its cards fly to the winner's
+portrait, turning their long side towards it and closing up into a pile on
+the way, and shrink under it and fade out. Between rounds the blanket holds the round
 Deal button (and the result), and after the deal a round "Choose game" button. */
 
 import { useEffect, useRef } from "react";
@@ -18,12 +19,20 @@ import { t } from "../i18n";
 import { cardShadow, colors, fonts, paper, softShadow } from "../theme";
 
 const useNativeDriver = Platform.OS !== "web";
-// Milliseconds a collected trick takes: first the cards are pushed together
-// into a pile (until GATHERED of the way), then the pile flies to its winner
-// and only fades once it is under the portrait (from FADE on).
-const COLLECT_DURATION = 1000;
-const GATHERED = 0.4;
+// Milliseconds a collected trick takes to fly to its winner. The cards have
+// turned towards the winner after TURNED of the way, have closed up into a
+// pile after CLOSED, and only fade once under the portrait (from FADE on).
+const COLLECT_DURATION = 900;
+const TURNED = 0.35;
+const CLOSED = 0.5;
 const FADE = 0.9;
+
+// The rotation that points a card's long side along (x, y), in degrees,
+// without turning it upside down.
+function towards({ x, y }) {
+    const angle = (Math.atan2(x, -y) * 180) / Math.PI;
+    return angle > 90 ? angle - 180 : angle < -90 ? angle + 180 : angle;
+}
 
 // Where a played card sits relative to the blanket centre, as a share of the
 // card size, and its slight tilt.
@@ -200,11 +209,23 @@ function TableCenter({
             {playedCards.map(({ player, card }, index) => {
                 const offset = offsets[player];
                 const from = { x: offset.x * cardHeight, y: offset.y * cardHeight };
-                // Collecting: from its place into the pile in the middle (stacked
-                // slightly askew, like a gathered heap), then with the pile to the winner.
-                const pile = { x: index * 1.5, y: -index * 1.5, rotate: `${index % 2 ? 2 : -2}deg` };
-                const move = (start, gathered, end) =>
-                    collectTo ? flight.interpolate({ inputRange: [0, GATHERED, 1], outputRange: [start, gathered, end] }) : start;
+                // Collecting: each card flies from its place to the winner, closing up
+                // with the others into a slightly askew pile on the way, and turns
+                // its long side towards the winner early in the flight.
+                const pile = { x: index * 1.5, y: -index * 1.5, turn: index % 2 ? 3 : -3 };
+                const heading = collectTo ? towards({ x: collectTo.x - from.x, y: collectTo.y - from.y }) : 0;
+                const move = (start, end) => (collectTo ? flight.interpolate({ inputRange: [0, 1], outputRange: [start, end] }) : start);
+                // Along the way to the winner, closed up after CLOSED of the flight.
+                const fly = (start, end, inPile) =>
+                    collectTo
+                        ? flight.interpolate({ inputRange: [0, CLOSED, 1], outputRange: [start, end * CLOSED + inPile, end + inPile] })
+                        : start;
+                const turn = collectTo
+                    ? flight.interpolate({
+                          inputRange: [0, TURNED, 1],
+                          outputRange: [`${offset.rotate}deg`, `${heading}deg`, `${heading + pile.turn}deg`],
+                      })
+                    : `${offset.rotate}deg`;
                 return (
                     <Animated.View
                         key={player}
@@ -216,10 +237,10 @@ function TableCenter({
                             collectTo && { opacity: flight.interpolate({ inputRange: [0, FADE, 1], outputRange: [1, 1, 0] }) },
                             {
                                 transform: [
-                                    { translateX: move(from.x, pile.x, (collectTo?.x ?? 0) + pile.x) },
-                                    { translateY: move(from.y, pile.y, (collectTo?.y ?? 0) + pile.y) },
-                                    { rotate: move(`${offset.rotate}deg`, pile.rotate, pile.rotate) },
-                                    { scale: move(1, 1, 0.3) },
+                                    { translateX: fly(from.x, collectTo?.x ?? 0, pile.x) },
+                                    { translateY: fly(from.y, collectTo?.y ?? 0, pile.y) },
+                                    { rotate: turn },
+                                    { scale: move(1, 0.3) },
                                 ],
                             },
                         ]}
