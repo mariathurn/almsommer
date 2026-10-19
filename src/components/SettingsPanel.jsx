@@ -8,12 +8,16 @@ pause panel in the game. */
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import Card from "./Card";
+import appConfig from "../../app.json";
 import { updateSoundSettings, useSoundSettings } from "../audio/sounds";
 import { cardDecks, setCardDeck, useCardDeck } from "../data/cardDecks";
 import { languages, setLanguage, t, useLanguage } from "../i18n";
 import { cardShadow, colors, fillParent, fonts, softShadow } from "../theme";
 
 const PRIVACY_URL = "https://almsommer.mariathurn.de/privacy.html";
+// Feedback opens a new email to this address, with the version in the subject.
+const FEEDBACK_EMAIL = "almsommer@fastmail.com";
+const VERSION = appConfig.expo.version;
 
 function Switch({ label, hint, value, onChange }) {
     return (
@@ -202,7 +206,16 @@ function SettingsPanel({ onClose, onViewDeck }) {
             <Text style={styles.sectionLabel}>{t("settings.cardDeck")}</Text>
             <DeckChoice onView={onViewDeck} />
 
-            <PanelButton label={t("common.done")} onPress={onClose} />
+            <PanelButton
+                label={t("settings.feedback")}
+                variant="secondary"
+                onPress={() =>
+                    Linking.openURL(
+                        `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(t("settings.feedbackSubject", { version: VERSION }))}`
+                    ).catch(() => {})
+                }
+            />
+            <PanelButton label={t("common.done")} onPress={onClose} style={styles.doneAfterFeedback} />
             <Pressable
                 onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}
                 accessibilityRole="link"
@@ -211,6 +224,7 @@ function SettingsPanel({ onClose, onViewDeck }) {
             >
                 <Text style={[styles.rowHint, styles.privacyLink]}>{t("settings.privacy")}</Text>
             </Pressable>
+            <Text style={[styles.rowHint, styles.version]}>{t("settings.version", { version: VERSION })}</Text>
         </PaperPanel>
     );
 }
@@ -259,6 +273,13 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bodyBold,
         fontSize: 20,
         color: colors.ink,
+    },
+    doneAfterFeedback: {
+        marginTop: 0,
+    },
+    version: {
+        textAlign: "center",
+        marginTop: -6,
     },
     privacyLink: {
         textAlign: "center",
