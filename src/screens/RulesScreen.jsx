@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
 import Card from "../components/Card";
+import { richText } from "../components/CoachBubble";
 import { PanelButton } from "../components/SettingsPanel";
 import SceneBackground from "../components/SceneBackground";
 import { useStage } from "../components/Stage";
@@ -20,11 +21,15 @@ const card = (id) => {
     return { id, suit, rank };
 };
 
-// Example cards per page; `trump` cards get the gold trump frame.
+// Example cards per page; `trump` cards get the gold trump frame. `stack`
+// lists them from bottom to top when they overlap (otherwise left to right).
 const pages = [
     { cards: ["acorn-O", "leaf-O", "heart-O", "bell-O"] },
     { cards: ["acorn-A", "leaf-A", "heart-A", "bell-A"] },
-    { cards: ["bell-A", "bell-10", "bell-K", "bell-O", "bell-U", "bell-9"] },
+    {
+        cards: ["acorn-O", "acorn-U", "acorn-A", "acorn-10", "acorn-K", "acorn-9"],
+        stack: ["acorn-9", "acorn-K", "acorn-10", "acorn-A", "acorn-U", "acorn-O"],
+    },
     { cards: ["acorn-O", "bell-O", "leaf-U", "heart-A", "heart-9"], trump: true },
     { cards: ["bell-10", "bell-A", "bell-K", "heart-9"] },
     { cards: ["leaf-K", "leaf-10", "leaf-9"] },
@@ -87,13 +92,16 @@ function RulesScreen({ onDone, first = false }) {
 
                     <View style={[styles.cards, { minHeight: cardHeight }]}>
                         {page.cards.map((id, i) => (
-                            <View key={id} style={[styles.cardShadow, i > 0 && { marginLeft: -overlap }]}>
+                            <View
+                                key={id}
+                                style={[styles.cardShadow, i > 0 && { marginLeft: -overlap }, page.stack && { zIndex: page.stack.indexOf(id) }]}
+                            >
                                 <Card card={card(id)} faceUp isTrump={page.trump} height={cardHeight} />
                             </View>
                         ))}
                     </View>
 
-                    <Text style={[styles.text, !isPortrait && styles.textWide]}>{t(`rules.page${n}.text`)}</Text>
+                    <Text style={[styles.text, !isPortrait && styles.textWide]}>{richText(t(`rules.page${n}.text`))}</Text>
 
                     <View style={styles.dots}>
                         {pages.map((_, i) => (

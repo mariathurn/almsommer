@@ -45,12 +45,12 @@ function ProfilePanel({ onClose, welcome = false }) {
     return (
         <PaperPanel
             heading={t(welcome ? "profile.welcomeHeading" : "profile.heading")}
+            headingStyle={welcome ? styles.welcomeHeading : null}
             // The welcome can't be dismissed, only finished.
             onClose={welcome ? () => {} : onClose}
             closeLabel={t("profile.close")}
             maxWidth={isPortrait ? 380 : 720}
         >
-            {welcome ? <Text style={[panelStyles.rowHint, styles.welcomeText]}>{t("profile.welcomeText")}</Text> : null}
             <View style={[styles.columns, isPortrait && styles.columnsStacked]}>
                 {/* Portrait and the choices */}
                 <View style={[styles.portraitColumn, !isPortrait && styles.portraitColumnWide]}>
@@ -145,9 +145,8 @@ function ProfilePanel({ onClose, welcome = false }) {
 }
 
 const styles = StyleSheet.create({
-    welcomeText: {
+    welcomeHeading: {
         textAlign: "center",
-        marginBottom: 10,
     },
     columns: {
         flexDirection: "row",

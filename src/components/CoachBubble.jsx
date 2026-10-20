@@ -16,8 +16,8 @@ import { colors, fonts, softShadow } from "../theme";
 
 const coach = portraits.find((p) => p.id === "shepherd-bell");
 
-// "Leg den **grünen Hut**" → plain and bold pieces.
-function richText(text) {
+// "Leg den **grünen Hut**" → plain and bold pieces. Also for the rules pages.
+export function richText(text) {
     return text.split(/\*\*(.+?)\*\*/g).map((piece, index) =>
         index % 2 ? (
             <Text key={index} style={styles.bold}>

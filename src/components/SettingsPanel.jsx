@@ -101,8 +101,9 @@ export function DeckChoice({ onView, compact = false }) {
 }
 
 // Dotted paper panel over a darkened screen, with a hand-lettered heading.
-// Tapping beside it calls onClose. maxWidth widens it for two columns.
-export function PaperPanel({ heading, onClose, closeLabel, maxWidth, children }) {
+// Tapping beside it calls onClose. maxWidth widens it for two columns,
+// headingStyle adjusts the heading.
+export function PaperPanel({ heading, headingStyle, onClose, closeLabel, maxWidth, children }) {
     return (
         <View style={styles.overlay}>
             <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel={closeLabel} />
@@ -116,7 +117,7 @@ export function PaperPanel({ heading, onClose, closeLabel, maxWidth, children })
                     <Rect width="100%" height="100%" fill="url(#settings-dots)" />
                 </Svg>
 
-                <Text style={styles.heading}>{heading}</Text>
+                <Text style={[styles.heading, headingStyle]}>{heading}</Text>
                 {children}
             </View>
         </View>
